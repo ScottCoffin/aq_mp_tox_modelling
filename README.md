@@ -1,3 +1,6 @@
+<div style="text-align:center"><img src="https://pbs.twimg.com/profile_images/1356333310344003584/_ykLE211_400x400.jpg" /></div
+![logo](https://pbs.twimg.com/profile_images/1356333310344003584/_ykLE211_400x400.jpg)
+
 # aq_mp_tox_Modelling
 
 **Repository for Modelling Code for Aquatic Microplastics Toxicology Review project**
@@ -34,4 +37,4 @@ Sensitivity Analysis
 
 
 
-![logo](https://pbs.twimg.com/profile_images/1356333310344003584/_ykLE211_400x400.jpg)
+
