@@ -1,0 +1,223 @@
+---
+title: "PCA and UMAP"
+author: "Scott Coffin"
+date: "2/18/2021"
+output: 
+  html_document:
+    code_folding: hide
+    theme: sandstone
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+    number_sections: true
+  word_document:
+    toc: yes
+---
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE, echo = FALSE)
+```
+---
+
+This script builds UMAPs and PCA's for tox data. It needs refinement as the available ouput do not provide useful insights.
+
+# Setup
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+# Load packages
+library(tidyverse) #General everything
+library(RColorBrewer)
+library(ggplot2) #General plotting
+library(ggrepel) #For adding text labels that repel away from data points
+library(calecopal) #Color palette
+library(shiny) #Runs shiny
+library(shinythemes) #Shiny theme for the page
+library(shinyWidgets) #Widgets
+library(scales) #SSD - Use the percent format
+library(reshape2) #Overview tab - melts bars together
+library(ssdtools) #SSD package
+library(DT) #Build HTML data tables
+#library(plotly) #Make plots interactive
+library(viridis) #Colors
+library(scales) #To use "percent" function
+library(tigerstats) #turns things into percents
+library(ggbeeswarm) #plot all points
+library(fitdistrplus, exclude = 'select') #alt SSD 
+library(RColorBrewer) #colors
+library(pheatmap) #pretty heat maps
+library(rpart)  #for trees
+#library(rattle)    # Fancy tree plot This is a difficult library to install (https://gist.github.com/zhiyzuo/a489ffdcc5da87f28f8589a55aa206dd) 
+library(rpart.plot)             # Enhanced tree plots
+library(RColorBrewer)       # Color selection for fancy tree plot
+library(party)                  # Alternative decision tree algorithm
+# library(partykit)               # Convert rpart object to BinaryTree
+library(pROC)   #for ROC curves
+library(uwot) #umap
+library(ISLR)  #for the Carseat Data
+library(lme4) #general linearized mixed model GLMM
+library(quantregForest)
+library(caret)
+library(tidyverse)
+library(tidymodels)
+library(skimr)
+library(sf)
+library(ggspatial)
+library(nhdplusTools)
+library(patchwork)
+library(Metrics)
+library(gt)
+library(randomForest)
+```
+## Data import
+```{r data import}
+# load tox data
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+# Master dataset for SSDs
+aoc_z <- aoc_z %>% # start with Heili's altered dataset (no filtration for terrestrial data)
+  # environment category data tidying.
+  mutate(environment.noNA = replace_na(environment, "Not Reported")) %>% # replaces NA to better relabel.
+  mutate(env_f = factor(environment.noNA, levels = c("Marine", "Freshwater", "Terrestrial", "Not Reported"))) 
+ 
+# final cleanup and factoring  
+aoc_z$Species <- as.factor(paste(aoc_z$genus,aoc_z$species)) #must make value 'Species" (uppercase)
+aoc_z$Group <- as.factor(aoc_z$organism.group) #must make value "Group"
+aoc_z$Group <- fct_explicit_na(aoc_z$Group) #makes sure that species get counted even if they're missing a group
+```
+
+```{r}
+# subset data to selected variables
+
+multiVar <- aoc_z %>% dplyr::select(#doi, size.category, 
+                                    size_f,
+                                    size.length.um.used.for.conversions, 
+                                    shape, 
+                                    polymer, 
+                                    particle.volume.um3, 
+                                    density.mg.um.3, 
+                                    organism.group,
+                                    environment, 
+                                    bio.org, #biological level of organization
+                                    #af.time, #assessment factor based on exposure time
+                                    treatments, #number of doses (no including control)
+                                    effect, #yes no
+                                    effect_f,
+                                    effect_10,
+                                    size_f,
+                                    exposure.duration.d, 
+                                    exposure.route, #Factor
+                                    organism.group, #factor
+                                    media.temp, #numeric
+                                    lvl1_f, #endpoints
+                                    lvl2_f, #endpoints
+                                   # lvl3, 
+                                     dose.mg.L.master, 
+                                    sex, #factor
+                                    media.ph, #numeric
+                                    media.sal.ppt, #numeric
+                                    dose.particles.mL.master,
+                                   effect.metric, #NOEC LOEC
+                                    functional.group, #factor
+                                    charge, #positive or negatibe
+                                    zetapotential.mV, # numeric   
+                                   max.size.ingest.mm,#max ingestible size
+                                   acute.chronic_f,
+                                   dose.mg.L.master.AF.noec,
+                                   dose.particles.mL.master.AF.noec,
+                                   max.size.ingest.mm, #maximum ingestible size range
+                                   effect.score) %>%  #1 = minor, 2 = photosynthesis, feeding, 3 = growth, chlorophyll content, 4 = reproduction, 5  = population growth, 6 = survival
+  filter(!size_f == "Not Reported") %>%   #take out not reported 
+                                 #  max.size.ingest.mm) %>%  #max ingestible size
+  filter(!size_f == "Not Reported")  #take out not reported 
+
+#recode variables
+# multiVar <- multiVar %>% mutate(effect_10 = case_when(
+#     effect == "Y" ~ 1,
+#     effect == "N" ~ 0
+#   ))# %>% 
+#   #mutate_all(is.character, ~as.factor())
+                                    
+
+```
+
+
+# PCA
+
+# UMAP
+
+```{r}
+require(uwot)
+require(Rtsne)
+require(vizier) #devtools::install_github("jlmelville/vizier")
+
+
+
+# For some functions we need to strip out non-numeric columns and convert data to matrix
+x2m <- function(X) {
+  if (!methods::is(X, "matrix")) {
+    m <- as.matrix(X[, which(vapply(X, is.numeric, logical(1)))])
+  }
+  else {m <- X} 
+  m}
+
+
+#choose values with most completeness
+multiVar2 <- multiVar %>% 
+  filter(!environment == "Terrestrial") %>% 
+  dplyr::select(size_f, size.length.um.used.for.conversions, shape, polymer, particle.volume.um3, density.mg.um.3, organism.group, bio.org, treatments, effect, exposure.duration.d, exposure.route, lvl1_f, dose.mg.L.master) %>% 
+  mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+  drop_na() #drop missing
+
+#convert discrete variables to numeric
+multiVar2[] <- data.matrix(multiVar2)
+
+# build umap for small dataset (<10,000 points)
+multiVar_map  <- umap(multiVar2, pca = 10)
+
+# Remove duplicates for t-SNE
+#multiVar2_noNa_dup <- multiVar2_noNa[-which(duplicated(x2m(multiVar2_noNa))), ]
+ 
+#build t-SNE
+#multiVar_tsne <- Rtsne::Rtsne(multiVar2_noNa_dup, perplexity = 15, initial_dims = 100, partical_pca = TRUE, exaggeration_factor = 4)
+
+# Non-numeric columns are ignored, so in a lot of cases you can pass a data
+# frame directly to umap
+#iris_umap <- umap(iris, n_neighbors = 50, learning_rate = 0.5, init = "random")
+
+#visualize umap
+embed_img <- function(X, Y, k = 15, ...) {
+  args <- list(...)
+  args$coords <- Y
+  args$x <- X
+
+  do.call(vizier::embed_plot, args)
+}
+
+#plot
+embed_img(multiVar2, multiVar_map, pc_axes = TRUE, equal_axes = TRUE, alpha_scale = 0.5, title = "Tox UMAP", cex = 1)
+```
+
+```{r}
+#PCA
+pca <- stats::prcomp(multiVar2[,-5], retx = TRUE, rank. = 2)
+#build color pallete
+my_colors = colorRampPalette(c("red", "yellow", "green"))(nrow(multiVar2))
+#plot
+embed_plot(pca$x, multiVar2$polymer, color_scheme = palette.colors(palette = "Okabe-Ito"), #turbo, #rainbow, #my_colors, 
+           title = "Polymer PCA", alpha_scale = 0.5, equal_axes = TRUE)
+```
+
+```{r}
+require(plotly)
+#PCA for discrete variables
+multiVar_discrete <- multiVar %>% 
+  select(size.length.um.used.for.conversions, polymer, dose.mg.L.master, exposure.duration.d) %>% 
+  drop_na %>% 
+  mutate_if(~is.numeric(.) && (.) > 0, log10)
+
+#buildPCA
+pca_discrete <- stats::prcomp(multiVar_discrete[,-2], retx = TRUE, rank. = 2)
+
+embed_plotly(pca_discrete$x, multiVar_discrete$polymer, color_scheme = palette.colors(palette = "Okabe-Ito"), 
+           title = "Polymer PCA", alpha_scale = 0.5, equal_axes = TRUE,
+           tooltip = paste("Polymer:", multiVar_discrete$polymer))
+```

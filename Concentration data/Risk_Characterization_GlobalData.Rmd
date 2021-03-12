@@ -65,7 +65,7 @@ kable(data.frame(
 ```{r}
 #data import
 # Adam et al (2019) data needs correcting
-adam <- read.csv("Concentration data/adam2019.csv", na.strings = "N.A.") %>% 
+adam <- read.csv("Concentration data/Datasets/adam2019.csv", na.strings = "N.A.") %>% 
   mutate(x1M = Min.particle.size.um,
          x2M = Max.particle.size.um) %>% 
   mutate(Sample.Type = "sample")
