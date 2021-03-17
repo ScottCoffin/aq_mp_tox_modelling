@@ -1,7 +1,6 @@
 library(uwot)
 
-# See function man page for help
-?umap
+
 
 # Non-numeric columns are ignored, so in a lot of cases you can pass a data
 # frame directly to umap
