@@ -31,13 +31,15 @@ https://www.listendata.com/2014/11/random-forest-with-r.html#Shortcomings-of-Ran
 
 ## To-do List
 
-Use Martin’s Daphnia multigenerational study to build distribution and compare polydisperse prediction to actual experiment
-
 Write For-Loop for toxicity prediction to generate EC50's for endpoints/species
 
 Run tox predictions using various models (GLM, Bayesian models, Random Forest)
 
-Principal Component Analysis
+Use Martin’s Daphnia multigenerational study to build distribution and compare polydisperse prediction to actual experiment
+
+Build SPecies Sensitivity Distribution from predicted toxicites of polydisperse dataset
+
+OPTIONAL: Principal Component Analysis/UMAP
 
 Sensitivity Analysis
 

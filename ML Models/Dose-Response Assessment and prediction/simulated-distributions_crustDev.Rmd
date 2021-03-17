@@ -36,6 +36,7 @@ library(drc) #dose-response curves
 This script generates environmentally realistic distributions of microplastics based on probability density functions in Kooi and Koelmans (2019), and predicts their toxicity using models built in MLModelBuilder_Tech_risk_quality_filters. This particular RMD file is only for crustacea taxa and organismal development endpoints. 
 
 ```{r data import}
+require(readr)
 # load tox data
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
