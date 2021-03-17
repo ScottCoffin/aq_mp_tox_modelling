@@ -39,16 +39,26 @@ library(scales)
 ```
 #
 ```{r}
-x2D_set = 10#100 #upper size range (microns)
-x1D_set = 1#1 #lower size range (microns)
+x2D_set = 5000#100 #upper size range (microns)
+x1D_set = 100#1 #lower size range (microns)
 ```
 
 
 # Data import
 Tables imported from
 ```{r}
-threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL.csv")
-threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL.csv")
+## 1 - 10 um
+#threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL.csv")
+#threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL.csv")
+
+## 10 - 100 um
+#threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL_10-100.csv")
+
+#threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL_10-100.csv")
+
+### 100 - 5000 um
+ threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL_100-5000.csv")
+ threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL_100-5000.csv")
 ```
 
 ```{r}
@@ -76,8 +86,11 @@ threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mg
 
 ```{r}
 #rename 
-threshold1_all_mgL <- threshold1_all_mgL %>% rename(Conc = `Most Sensitive Concentration mg/L`)
-threshold1_tech_mgL <- threshold1_tech_mgL %>% rename(Conc = `Most Sensitive Concentration mg/L`)
+threshold1_all_mgL <- threshold1_all_mgL %>% 
+  dplyr::rename(Conc = `Most Sensitive Concentration mg/L`)
+
+threshold1_tech_mgL <- threshold1_tech_mgL %>% 
+  dplyr::rename(Conc = `Most Sensitive Concentration mg/L`)
 ```
 
 # Threshold 1_all_mgL
