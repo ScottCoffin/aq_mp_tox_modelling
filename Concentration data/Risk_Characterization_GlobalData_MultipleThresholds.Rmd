@@ -38,11 +38,12 @@ library(knitr)
 # Hazard Concentration and Alignment Parameters
 ```{r}
 # Choose hazard concentration and confidence intervals
+
 #particles/L
-Threshold1 = 0.18 #90000 
-Threshold2 = 0.38 #383000
-Threshold3 = 0.37 #391000
-Threshold4 = 2.08 #1e6
+Threshold1 = 1700000 #1,700
+Threshold2 = 2310000 #383000
+Threshold3 = 2280000 #391000
+Threshold4 = 4990000 #1e6
 
 kable(data.frame(
   Category = c("Hazard Concentrations (particles/L)"),
@@ -55,8 +56,8 @@ kable(data.frame(
 ```{r}
 # Choose concentration alignment parameters
 alpha = 2.5 #(use 1.6 or 2.5)
-x2D_set = 5000#100 #upper size range (microns)
-x1D_set = 100#1 #lower size range (microns)
+x2D_set = 10#100 #upper size range (microns)
+x1D_set = 1#1 #lower size range (microns)
 
 kable(data.frame(
   Category = c("Concentration Alignment Parameters"),
@@ -68,7 +69,7 @@ kable(data.frame(
 ```{r}
 #data import
 # Adam et al (2019) data needs correcting
-adam <- read.csv("Concentration data/adam2019.csv", na.strings = "N.A.") %>% 
+adam <- read.csv("Concentration data/Datasets/adam2019.csv", na.strings = "N.A.") %>% 
   mutate(x1M = Min.particle.size.um,
          x2M = Max.particle.size.um) %>% 
   mutate(Sample.Type = "sample")
@@ -122,16 +123,19 @@ dfADAM <- rbind(sampleSimpleADAM)#,food.dilution.simple)
 ```{r}
 #calculate exceedance
 dfADAM_exceedance <- dfADAM %>% 
-  mutate(aboveThreshold1 = factor(case_when(
-    Conc >= Threshold1 ~ "above Threshold 1",
+  mutate(aboveThreshold = factor(case_when(
     Conc < Threshold1 ~ "below Threshold 1",
+    Conc >= Threshold1 & Conc < Threshold2 ~ "above Threshold 1",
+    Conc >= Threshold2 & Conc < Threshold3 ~ "above Threshold 2",
+    Conc >= Threshold3 & Conc < Threshold4 ~ "above Threshold 3",
+    Conc >= Threshold4 ~ "above Threshold 4"
   )))
 
 #give summary stat for exceedance
 exceedance <- dfADAM_exceedance  %>%
   filter(Sample.Type == "sample") %>% 
-  dplyr::select(c(Conc, aboveThreshold1)) %>%
-  group_by(aboveThreshold1) %>%
+  dplyr::select(c(Conc, aboveThreshold)) %>%
+  group_by(aboveThreshold) %>%
   dplyr::summarize(n = n()) %>% 
   mutate(rel.freq = paste0(round(100 * n/sum(n), 0), "%"))
 
@@ -142,31 +146,42 @@ kable(exceedance)
 #generate plot
 dfADAM_exceedance %>% 
   filter(Sample.Type == "sample") %>% 
-  ggplot(aes(x = Conc, fill = aboveThreshold1))+
+  ggplot(aes(x = Conc, fill = aboveThreshold))+
   geom_histogram(aes(y = ..count../sum(..count..)),bins = 50, alpha = 0.9, position = "identity") +
   #geom_smooth(stat = 'density') +
-  geom_vline(xintercept = Threshold1, linetype = "dashed", color = "red") +
-  geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.055), label = paste(Threshold1,"particles/L"),  color = "red") +
+  geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.055), label = paste(Threshold1,"particles/L"),  color = "goldenrod2") +
   geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.06), label = ("Threshold1"),  color = "red") +
-  geom_text(aes(x = Threshold1+ Threshold1, y = 0.050), label = paste(exceedance$rel.freq[1], "Above Threshold1"), color = "red") +
+  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'goldenrod2', size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = 'tomato1', size = 1.3) +
+  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'mediumvioletred', size = 1.3) +
+  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	'wheat', size = 1.3) +
+  geom_text(label = "Threshold 1", color = 'goldenrod2', x = Threshold1, y = 0.15, size = 6)+
+  geom_text(label = "Threshold 2", color = 'tomato1', x = Threshold2, y = 0.22, size = 6)+
+  geom_text(label = "Threshold 3", color = 'mediumvioletred', x = Threshold3, y = 0.35, size = 6)+
+  geom_text(label = "Threshold 4", color = 'wheat', x = Threshold4, y = 0.45, size = 6)+
   scale_x_log10() +
   #coord_cartesian(xlim = c(0,100000000)) +
   # scale_x_continuous(labels = scales::scientific) +
   xlab("Concentration (particles/L)")+
   scale_y_continuous(name = "Relative Density", labels = scales::percent)+
+  scale_fill_manual(values = c("below Threshold 1"= "cyan3", 
+                               "above Threshold 1" = "goldenrod2", 
+                               "above Threshold 2" = "tomato1",
+                               "above Threshold 3" = "mediumvioletred", 
+                               "above Threshold 4" = "wheat")) +
   #scale_fill_discrete(labels = c("Environmental Concentration", "LOEC")) +
   #scale_color_discrete(labels = c("Environmental Concentration", "LOEC")) +
-  labs(title = "Histograms of Concentrations in Adam et al 2019 Dataset",
-       caption = "Adam et al. 2019 data; all data corrected to 1-5,000 um; nominal particle/L",
-       fill = "Env. Conc. or Tox. Conc.",
-       color = "Env. Conc. or Tox. Conc.") +
+  labs(title = "Global Surface Water Marine Microplastics Concentrations",
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+       caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
   theme_minimal() +
   theme(legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
         axis.text =  element_text(size = 16),
         legend.text = element_text(size =14),
-        legend.title = element_blank())
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
 ## ECDF
 

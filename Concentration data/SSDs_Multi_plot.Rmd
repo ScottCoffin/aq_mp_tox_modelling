@@ -1,0 +1,251 @@
+---
+title: "SSD Multi Plot"
+author: "Scott Coffin"
+date: "3/10/2021"
+output:   
+  html_document:
+    code_folding: hide
+    theme: journal
+    toc: yes
+    toc_float: yes
+    toc_depth: 6
+    number_sections: true
+    includes:
+     # after_body: footer.html
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE,time_it = TRUE) #report
+```
+
+```{r}
+library(tidyverse)
+library(calecopal)
+library(ssdtools)
+library(DT)
+library(plotly)
+library(gridExtra)
+library(grid)
+library(wesanderson)
+library(ggdark)
+library(broom)
+library(knitr)
+library(viridis)
+library(ggrepel)
+library(scales)
+```
+#
+```{r}
+x2D_set = 10#100 #upper size range (microns)
+x1D_set = 1#1 #lower size range (microns)
+```
+
+
+# Data import
+Tables imported from
+```{r}
+threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL.csv")
+threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL.csv")
+```
+
+```{r}
+#Theme type
+     theme.type<- theme_gray(base_size = 20)#,
+                       #"dark" = dark_theme_bw(base_size = 20)) 
+     #color selection
+     fill.type <-    scale_fill_viridis(discrete = TRUE)#,
+                         # "brewer" =  scale_fill_brewer(palette = "Paired"),
+                         # "tron" = scale_fill_tron(),
+                         # "locusZoom" = scale_fill_locuszoom(),
+                         # "d3" = scale_fill_d3(),
+                         # "Nature" = scale_fill_npg(),
+                         # "JAMA" = scale_fill_jama())
+     #color selection
+     color.type <- scale_color_viridis(discrete = TRUE)#,
+                         # "brewer" =  scale_color_brewer(palette = "Paired"),
+                         # "tron" = scale_color_tron(),
+                         # "locusZoom" = scale_color_locuszoom(),
+                         # "d3" = scale_color_d3(),
+                         # "Nature" = scale_color_npg(),
+                         # "JAMA" = scale_color_jama())
+
+```
+
+```{r}
+#rename 
+threshold1_all_mgL <- threshold1_all_mgL %>% rename(Conc = `Most Sensitive Concentration mg/L`)
+threshold1_tech_mgL <- threshold1_tech_mgL %>% rename(Conc = `Most Sensitive Concentration mg/L`)
+```
+
+# Threshold 1_all_mgL
+## Goodness of fit
+
+```{r}
+###### --modelling ####
+dists_threshold1_all_mgL <- ssd_fit_dists(threshold1_all_mgL, #data frame
+                           left = "Conc", #string of the column in data with the concentrations
+                           # right = left, #string of the column with the right concentration values. If different from left, then the data are considerd to be censored
+                           dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), #char vector of distribution anmes
+                           computable = FALSE, #flag specifying whether to only return fits with numerically computable standard errors
+                           silent = FALSE) #flag indicating whether fits should fail silently
+
+autoplot(dists_threshold1_all_mgL) #plots the distribution in ggplot2
+```
+```{r}
+gof_threshold1_all_mgL <- as.data.frame(ssd_gof(dists_threshold1_all_mgL)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+datatable(gof_threshold1_all_mgL,
+          extensions = 'Buttons',
+          options = list(
+            dom = 'Brt', #buttons, processing display element, table
+            buttons = c('copy', 'csv', 'excel')),
+          class = "compact",
+          colnames = c("Distribution", "Anderson-Darling","Kolmogorv Smirnov", "Cramer-Von Mises", "Akaike's Information Criteria", "Akaike's Information Criteria (Corrected for sample size)", "Bayesian Information Criteria", "delta", "weight"),
+          caption = "Distributions and their according fit paramaters are displayed",
+          selection = list(c(6), target = 'column'))
+
+```
+## Prediction
+```{r}
+#there are multiple fitting distributions, so check which fits best
+set.seed(99)
+pred_threshold1_all_mgL <- predict(dists_threshold1_all_mgL,
+                                average = TRUE,
+                                ic = "aicc",
+                                nboot = 10,
+                                ci= TRUE) #estimates model-averaged estimates based on aicc
+
+#order data
+SSD_threshold1_all_mgL <- threshold1_all_mgL[order(threshold1_all_mgL$Conc), ]
+SSD_threshold1_all_mgL$frac <- ppoints(threshold1_all_mgL$Conc, 0.5)
+
+threshold1_all_mgL_hc5 <- c(pred_threshold1_all_mgL$est[5])
+pred_threshold1_all_mgL$est_format <-format(pred_threshold1_all_mgL$est, digits = 3, scientific = TRUE)
+```
+
+
+## SSD Ggplot
+```{r}
+particle_mass_check_ssd <- 'mg/L' #assign whether or not to use particles/mL or mass/mL
+     
+    #build ggplot
+threshold1_all_mgL_ggplot <- ggplot(pred_threshold1_all_mgL,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_threshold1_all_mgL,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_threshold1_all_mgL, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+    
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+threshold1_all_mgL_ggplot
+```
+
+# Threshold 1_tech_mgL
+## Goodness of fit
+```{r}
+###### --modelling ####
+dists_threshold1_tech_mgL <- ssd_fit_dists(threshold1_tech_mgL, #data frame
+                           left = "Conc", #string of the column in data with the concentrations
+                           # right = left, #string of the column with the right concentration values. If different from left, then the data are considerd to be censored
+                           dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), #char vector of distribution anmes
+                           computable = FALSE, #flag specifying whether to only return fits with numerically computable standard errors
+                           silent = FALSE) #flag indicating whether fits should fail silently
+
+autoplot(dists_threshold1_tech_mgL) #plots the distribution in ggplot2
+```
+
+```{r}
+gof_threshold1_tech_mgL <- as.data.frame(ssd_gof(dists_threshold1_tech_mgL)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+datatable(gof_threshold1_tech_mgL,
+          extensions = 'Buttons',
+          options = list(
+            dom = 'Brt', #buttons, processing display element, table
+            buttons = c('copy', 'csv', 'excel')),
+          class = "compact",
+          colnames = c("Distribution", "Anderson-Darling","Kolmogorv Smirnov", "Cramer-Von Mises", "Akaike's Information Criteria", "Akaike's Information Criteria (Corrected for sample size)", "Bayesian Information Criteria", "delta", "weight"),
+          caption = "Distributions and their according fit paramaters are displayed",
+          selection = list(c(6), target = 'column'))
+
+```
+## Prediction
+```{r}
+#there are multiple fitting distributions, so check which fits best
+set.seed(99)
+pred_threshold1_tech_mgL <- predict(dists_threshold1_tech_mgL,
+                                average = TRUE,
+                                ic = "aicc",
+                                nboot = 10,
+                                ci= TRUE) #estimates model-averaged estimates based on aicc
+
+#order data
+SSD_threshold1_tech_mgL <- threshold1_tech_mgL[order(threshold1_tech_mgL$Conc), ]
+SSD_threshold1_tech_mgL$frac <- ppoints(threshold1_tech_mgL$Conc, 0.5)
+
+threshold1_tech_mgL_hc5 <- c(pred_threshold1_tech_mgL$est[5])
+pred_threshold1_tech_mgL$est_format <-format(pred_threshold1_tech_mgL$est, digits = 3, scientific = TRUE)
+```
+
+
+## SSD Ggplot
+```{r}
+particle_mass_check_ssd <- 'mg/L' #assign whether or not to use particles/mL or mass/mL
+     
+    #build ggplot
+threshold1_tech_mgL_ggplot <- ggplot(pred_threshold1_tech_mgL,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_threshold1_tech_mgL,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_threshold1_tech_mgL, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+    
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+threshold1_tech_mgL_ggplot
+```
+
+
+# Combine plots
+```{r}
+ggplot(pred_threshold1_tech_mgL, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), color = "red") +
+      geom_point(data = SSD_threshold1_tech_mgL,aes(x = Conc, y =frac), color = "red") + 
+      #geom_text_repel(data = SSD_threshold1_tech_mgL, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  ## second figure
+  geom_xribbon(data = pred_threshold1_all_mgL, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "blue") +
+      geom_line(data = pred_threshold1_all_mgL, aes_string(y = "percent/100"), color = "blue") +
+      geom_point(data = SSD_threshold1_all_mgL, aes(x = Conc, y =frac), color = "blue") + #+ 
+     # geom_text_repel(data = SSD_threshold1_all_mgL,  aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5)
+  labs(title = "Species Sensitivity Distributions by 'Red Criteria'",
+       subtitle = paste("Size Range:",x1D_set, "to", x2D_set, "um", "Red = tech tier, blue = tech and risk tiers"),
+       caption = paste("blue = risk and tech, red = tech only")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
