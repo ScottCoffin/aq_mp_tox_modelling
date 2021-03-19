@@ -633,6 +633,15 @@ list(new_cust_nnet,new_cust_xgbTree) %>%
   facet_wrap(~ label, scales = "free_y", ncol = 1) +
   ylab(NULL)
 ```
+#Save Models
+
+Final models are saved in the folder: ML Models/FinalModels
+```{r}
+saveRDS(classif_glm, "ML Models/FinalModels/final_glm_model/rds")
+
+saveRDS(classifnnet, "ML Models/FinalModels/final_nnet_model/rds")
+```
+
 
 # Final Model
 All in all random forest is my final model of choice: it appears the more balanced and is the most accurate overall. This model will now be tuned and refined for maximum performance.

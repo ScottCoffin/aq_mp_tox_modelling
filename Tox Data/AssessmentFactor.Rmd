@@ -1,0 +1,27 @@
+---
+title: "Assessment Factors"
+author: "Scott Coffin"
+date: "3/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+require(readr)
+#load aoc_z into dataframe. This file is generated from RDA_Maker.R
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
+
+```{r}
+aoc_z %>% 
+  filter(effect_f == "Yes") %>% 
+  filter(effect.metric == "LOEC") %>% 
+  filter(acute.chronic_f == c("Acute", "Chronic")) %>% 
+  drop_na(dose.mg.L.master) %>% 
+  group_by(organism.group, acute.chronic_f) %>%  
+  summarise(averageNOEC = mean(dose.mg.L.master))
+```
+
