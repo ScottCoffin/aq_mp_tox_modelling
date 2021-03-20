@@ -102,7 +102,20 @@ D.func <- function (D){
   return(D)
 }
 
-synthetic_data_builder <- function(n){
+possible_variables <- aoc_z %>%
+        dplyr::select(treatments,
+               organism.group,
+               exposure.duration.d,
+               lvl1_f,
+               life.stage,
+               bio.org,
+               effect.metric,
+               environment,
+               exposure.route,
+               lvl2_f) %>%
+        distinct()
+
+synthetic_data_builder <- function(n, volume_l, addedfactors){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
       set.seed(123)
@@ -128,8 +141,6 @@ synthetic_data_builder <- function(n){
         X <- X.func()
         Data <- rbind(Data, X)
       }
-      
-     
       
       ##++++++++++++++++++++++++++++++++++++++++
       ## SIZE DISTRIBUTION
@@ -191,34 +202,15 @@ synthetic_data_builder <- function(n){
           Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
         mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
         mutate(um3 = (Size^3)) %>%
-        mutate(treatments = 4) %>% 
-        mutate(organism.group = "Crustacea") %>% 
-        mutate(exposure.duration.d = 14) %>% 
-        mutate(lvl1_f = "Fitness") %>% 
-        mutate(life.stage= "Early") %>% 
-        mutate(bio.org = "organism") %>% 
-        mutate(effect.metric = "NOEC") %>% 
-        mutate(environment = "Marine") %>% 
-        mutate(exposure.route = "water") %>% 
-        mutate(lvl2_f = "Mortality") %>% 
-        mutate(vol.mL = 1) %>% 
-        mutate(vol.L = vol.mL / 1000) %>% 
+        bind_cols(addedfactors[rep(1, times = nrow(.)),]) %>% 
+        mutate(vol.L = volume_l) %>% 
+        mutate(vol.mL = vol.L * 1000) %>% 
         mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
         mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
         mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
         mutate(particles.total = factor(as.character(n)))
 }
 
-Data <- synthetic_data_builder(n = 10000)
-
-```
-
-
-
-```{r}
-##++++++++++++++++++++++++++++++++++++++++
-## Calculate Volume/Volume and estimate mass/volume
-##++++++++++++++++++++++++++++++++++++++++
 add_volume <- function(data, volume_l){
   data %>% 
     mutate(vol.L = volume_l) %>% 
@@ -229,23 +221,49 @@ add_volume <- function(data, volume_l){
 }
 
 summarise_add_volume <- function(data, volume_l){
-  data %>% 
-    mutate(vol.L = volume_l) %>% 
-    mutate(vol.mL = vol.L * 1000) %>% 
-    mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-    mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-    mutate(dose.mg.L.master = mass.mg / vol.L) %>%
+  add_volume(data, volume_l) %>% 
     group_by(size.category) %>% 
     summarize(particles.L = sum(dose.particles.mL.master) * 1000) %>% 
     mutate(volume.L = factor(as.character(volume_l)))
 }
 
-summary_df <- bind_rows(
-                        summarise_add_volume(data = Data, volume_l = 1),
-                        summarise_add_volume(data = Data, volume_l = 10),
-                        summarise_add_volume(data = Data, volume_l = 100),
-                        summarise_add_volume(data = Data, volume_l = 1000)
-                        )
+bind_loop <- function(loopfeature, fun, ...) {
+  list <- list()
+  n = 0
+  for(loop in loopfeature){
+    n = n + 1
+    list[[n]] <- fun(..., loop)
+  }
+  bind_rows(list)
+}
+
+add_volume_predict <- function(data, volume_l){
+  add_volume(data, volume_l) %>%
+      mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
+      bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
+                  rename("ToxicityProbability" = `1`))
+}
+
+synthetic_data_builder_with_prediction <- function(n){
+  synthetic_data_builder(n) %>%
+        mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
+        bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
+        rename("ToxicityProbability" = `1`))                  
+}
+
+```
+
+
+
+```{r}
+##++++++++++++++++++++++++++++++++++++++++
+## Calculate Volume/Volume and estimate mass/volume
+##++++++++++++++++++++++++++++++++++++++++
+Data <- synthetic_data_builder(n = 10000, addedfactors = possible_variables[488,])
+
+volumes <- c(1, 10, 100, 1000)
+summary_df_test <- bind_loop(loopfeature = volumes, summarise_add_volume, Data)
+
 ggplot() +
   geom_col(data = summary_df, aes(x = volume.L, y = particles.L, fill = volume.L)) +
   labs(title = "Particles/L in Simulated Datasets",
@@ -344,42 +362,27 @@ crust2 <- crust %>% drop_na(effect_f) %>%  mutate_if(~is.numeric(.) && (.) > 0, 
 #pull in model from DALEX
 final_model <- readRDS("final_rf_model.rds")
 
-#### prep data frames ####
-df_1L_f <- df_1L %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
 
-df_10L_f <- df_10L %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
 
-df_100L_f <- df_100L %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
 
-df_1000L_f <- df_1000L %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
+#Change this to select the volumes you want to test.
+volumes <- c(1, 10, 100, 1000)
 
-#### Predict Toxicity ####
-df_1L_p <- predict(final_model, newdata = df_1L_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_1L_p_f <- cbind(df_1L, df_1L_p)
+df_pred <- bind_loop(loopfeature = volumes, add_volume_predict, Data)
 
-df_10L_p <- predict(final_model, newdata = df_10L_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_10L_p_f <- cbind(df_10L, df_10L_p)
+prob_summ <- df_pred %>% 
+  mutate(volume.L = as.factor(vol.L)) %>%  
+  group_by(volume.L) %>% 
+  summarize(tox = sum(ToxicityProbability))
 
-df_100L_p <- predict(final_model, newdata = df_100L_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_100L_p_f <- cbind(df_100L, df_100L_p)
+prob_summ %>% 
+  ggplot(aes(x = volume.L, y = tox, fill = volume.L)) +
+  geom_col()
 
-df_1000L_p <- predict(final_model, newdata = df_1000L_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_1000L_p_f <- cbind(df_1000L, df_1000L_p)
-
-df_pred <- rbind(df_1L_p_f, df_10L_p_f, df_100L_p_f, df_1000L_p_f)
-
-prob_summ <- df_pred %>% mutate(volume.L = as.factor(vol.L)) %>%  group_by(volume.L) %>% summarize(tox = sum(ToxicityProbability))
-
-prob_summ %>% ggplot(aes(x = volume.L, y = tox, fill = volume.L)) +geom_col()
-
-df_pred %>% ggplot(aes(x = factor(vol.L), y = ToxicityProbability)) + 
+df_pred %>% 
+  ggplot(aes(x = factor(vol.L), y = ToxicityProbability)) + 
   stat_ecdf(geom = "point", size = 2, color = "blue")+
   stat_ecdf(geom = "step", linetype = 'solid', alpha = 0.6, size = 1.5) +
-  #scale_x_log10() +
   scale_y_continuous(labels = scales::percent)+
   labs(title = "Cumulative Toxicity Probability",
        subtitle = "n = 1000 particles/L; Crustacea acute Mortality",
@@ -392,30 +395,12 @@ df_pred %>% ggplot(aes(x = factor(vol.L), y = ToxicityProbability)) +
 ### Datasets with different numbers of particles in 1 L
 ```{r, include=FALSE}
 
-
-synthetic_data_builder_with_prediction <- function(n){
-  synthetic_data_builder(n) %>%
-        mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
-        bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
-        rename("ToxicityProbability" = `1`))                  
-}
-
 #pull in model from DALEX
 final_model <- readRDS("final_rf_model.rds")
 
-prob_summ <- bind_rows(
-  synthetic_data_builder_with_prediction(n = 5), 
-  synthetic_data_builder_with_prediction(n = 10),
-  synthetic_data_builder_with_prediction(n = 20),
-  synthetic_data_builder_with_prediction(n = 40),
-  synthetic_data_builder_with_prediction(n = 80),
-  synthetic_data_builder_with_prediction(n = 160),
-  synthetic_data_builder_with_prediction(n = 320),
-  synthetic_data_builder_with_prediction(n = 480),
-  synthetic_data_builder_with_prediction(n = 640),
-  synthetic_data_builder_with_prediction(n = 1000),
-  synthetic_data_builder_with_prediction(n = 1280)
-  ) %>%
+n = c(5,10,20,40,80,160,320,480,640,1000,1280)
+
+prob_summ <- bind_loop(loopfeature = n, synthetic_data_builder_with_prediction) %>%
   group_by(particles.total) %>% 
   summarize(tox = sum(ToxicityProbability)) %>%
   ####convert >1 prob to 1 ###
@@ -450,19 +435,6 @@ prob_summ %>%
         plot.subtitle = element_text(hjust = 0.5))
 
 
-# df_pred %>% 
-#   group_by(particles.total) %>% 
-#   summarize(tox_n = count(ToxicityProbability)) %>% 
-#   mutate(cum_tox = cumsum(tox_n)) %>% 
-#   ggplot(aes(x = Size, y = cum_tox)) + 
-#   geom_step() +
-#   facet_wrap(~particles.total)
-
-  #scale_x_log10() +
-  # scale_y_continuous(labels = scales::percent)+
-  # labs(title = "Cumulative Toxicity Probability",
-  #      subtitle = "n = 1000 particles/mL; Crustacea acute Mortality",
-  #      caption = "Predicted Toxicity from Random Forest")
 ```
 
 ```{r}
@@ -531,7 +503,7 @@ particleCharacteristics <- aoc_z %>%
 skim(particleCharacteristics)
 ```
 
-#### Generate particles
+#### Generate uniform particles
 ```{r}
 
 
