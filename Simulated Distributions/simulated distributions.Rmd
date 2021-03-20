@@ -42,6 +42,21 @@ library(readxl)
 ```{r}
 # load tox data
 aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
+#Get possible combinations of variables. \
+possible_variables <- aoc_z %>%
+        dplyr::select(treatments,
+               organism.group,
+               exposure.duration.d,
+               lvl1_f,
+               life.stage,
+               bio.org,
+               effect.metric,
+               environment,
+               exposure.route,
+               lvl2_f) %>%
+        distinct()
+#pull in model from DALEX
+final_model <- readRDS("final_rf_model.rds")
 ```
 
 
@@ -102,20 +117,9 @@ D.func <- function (D){
   return(D)
 }
 
-possible_variables <- aoc_z %>%
-        dplyr::select(treatments,
-               organism.group,
-               exposure.duration.d,
-               lvl1_f,
-               life.stage,
-               bio.org,
-               effect.metric,
-               environment,
-               exposure.route,
-               lvl2_f) %>%
-        distinct()
 
-synthetic_data_builder <- function(n, volume_l, addedfactors){
+
+synthetic_data_builder <- function(count, volume_l, addedfactors){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
       set.seed(123)
@@ -137,7 +141,7 @@ synthetic_data_builder <- function(n, volume_l, addedfactors){
         
       Data <- data.frame(Size = numeric(0))
       
-      for(i in 1:n){
+      for(i in 1:count){
         X <- X.func()
         Data <- rbind(Data, X)
       }
@@ -156,10 +160,10 @@ synthetic_data_builder <- function(n, volume_l, addedfactors){
       ##++++++++++++++++++++++++++++++++++++++++
       
       #Sample N random uniforms U
-      U =runif(n)
+      U =runif(count)
       
       #Sampling from the mixture
-      for(i in 1:n){
+      for(i in 1:count){
         if(U[i]<lambda1){
           Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
         }else{
@@ -176,7 +180,7 @@ synthetic_data_builder <- function(n, volume_l, addedfactors){
       
       Dens <- data.frame(Density = numeric(0));
       
-      for(i in 1:n){
+      for(i in 1:count){
         X <- D.func()
         Dens <- rbind(Dens, X)
       }
@@ -191,7 +195,7 @@ synthetic_data_builder <- function(n, volume_l, addedfactors){
       
       pols <- c("PE", "PP", "PS")
       rel.ab <- c(0.5, 0.3, 0.2)
-      polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
+      polymer <- sample(pols, size = count, prob = rel.ab, replace = TRUE)
       Data <- cbind(Data, polymer)
       
       Data %>%  
@@ -208,19 +212,11 @@ synthetic_data_builder <- function(n, volume_l, addedfactors){
         mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
         mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
         mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-        mutate(particles.total = factor(as.character(n)))
+        mutate(particles.total = factor(as.character(count)))
 }
 
-
-add_volume_predict <- function(data, volume_l){
-  add_volume(data, volume_l) %>%
-      mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
-      bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
-                  rename("ToxicityProbability" = `1`))
-}
-
-synthetic_data_builder_with_prediction <- function(n){
-  synthetic_data_builder(n) %>%
+add_prediction <- function(fun, ...){
+        fun(...) %>%
         mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
         bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
         rename("ToxicityProbability" = `1`))                  
@@ -234,7 +230,10 @@ synthetic_data_builder_with_prediction <- function(n){
 ##++++++++++++++++++++++++++++++++++++++++
 ## Calculate Volume/Volume and estimate mass/volume
 ##++++++++++++++++++++++++++++++++++++++++
-Data <- synthetic_data_builder(n = 10000, volume_l = 1, addedfactors = possible_variables[488,])
+Data <- synthetic_data_builder(count = 10000, 
+                               volume_l = 1, 
+                               addedfactors = possible_variables[488,]
+                               )
 
 volumes <- c(1, 10, 100, 1000)
 list <- list()
@@ -242,7 +241,7 @@ n = 0
   
 for(loop in volumes){
     n = n + 1
-    list[[n]] <- synthetic_data_builder(n = 10000, 
+    list[[n]] <- synthetic_data_builder(count = 10000, 
                                         volume_l = loop, 
                                         addedfactors = possible_variables[488,]) %>%
                   group_by(size.category) %>% 
@@ -269,7 +268,7 @@ For mechanistic point of view- polymer does not matter.
 ##++++++++++++++++++++++++++++++++++++++++
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
-p1 <- ggplot(synthetic_data_builder(n = 10000, 
+p1 <- ggplot(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ), 
@@ -277,21 +276,21 @@ p1 <- ggplot(synthetic_data_builder(n = 10000,
       geom_histogram(bins = 50, alpha = 0.7) + 
       scale_x_log10()
 
-p2 <- ggplot(synthetic_data_builder(n = 10000, 
+p2 <- ggplot(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ), 
              aes(x = Shape, fill = polymer)) + 
       geom_histogram(bins = 50, alpha = 0.7)
 
-p3 <- ggplot(synthetic_data_builder(n = 10000, 
+p3 <- ggplot(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ), 
              aes(x = Density, fill = polymer)) + 
       geom_histogram(bins = 50, alpha = 0.7)
 
-p4 <- ggplot(synthetic_data_builder(n = 10000, 
+p4 <- ggplot(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ),
@@ -299,7 +298,7 @@ p4 <- ggplot(synthetic_data_builder(n = 10000,
       geom_histogram(stat = "count")
 #p5 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = mass.mg, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7 )+ scale_x_log10()
 #p6 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = um3, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
-p7 <- ggplot(synthetic_data_builder(n = 10000, 
+p7 <- ggplot(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ),
@@ -307,16 +306,16 @@ p7 <- ggplot(synthetic_data_builder(n = 10000,
       geom_histogram(bins = 50, alpha = 0.7) + 
       scale_x_log10()
 
-p8 <- synthetic_data_builder(n = 10000, 
+p8 <- synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ) %>% 
-        group_by(size.category) %>% 
-        summarize(particles.mL = sum(dose.particles.mL.master)) %>% 
-        ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + 
-        geom_col()
+                            group_by(size.category) %>% 
+                            summarize(particles.mL = sum(dose.particles.mL.master)) %>% 
+                            ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + 
+                            geom_col()
 
-p9 <- ggplot(synthetic_data_builder(n = 10000, 
+p9 <- ggplot(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ), 
@@ -368,16 +367,22 @@ crust2 <- crust %>% drop_na(effect_f) %>%  mutate_if(~is.numeric(.) && (.) > 0, 
 
 ## Predict Toxicities
 ```{r}
-#pull in model from DALEX
-final_model <- readRDS("final_rf_model.rds")
-
-
-
 
 #Change this to select the volumes you want to test.
 volumes <- c(1, 10, 100, 1000)
 
-df_pred <- bind_loop(loopfeature = volumes, add_volume_predict, Data)
+list <- list()
+n = 0
+  
+for(loop in volumes){
+    n = n + 1
+    list[[n]] <- add_prediction(synthetic_data_builder, count = 10000, 
+                                        volume_l = loop, 
+                                        addedfactors = possible_variables[488,]
+                                )
+}
+
+df_pred <- bind_rows(list)
 
 prob_summ <- df_pred %>% 
   mutate(volume.L = as.factor(vol.L)) %>%  
@@ -401,15 +406,25 @@ df_pred %>%
 
 # Volume Constant, Particles different
 ## Generate Particles
-### Datasets with different numbers of particles in 1 L
+### Datasets with different numbers of particles in 1 ml
 ```{r, include=FALSE}
 
-#pull in model from DALEX
-final_model <- readRDS("final_rf_model.rds")
+count = c(5,10,20,40,80,160,320,480,640,1000,1280)
 
-n = c(5,10,20,40,80,160,320,480,640,1000,1280)
+list <- list()
+n = 0
+  
+for(loop in count){
+    n = n + 1
+    list[[n]] <- add_prediction(synthetic_data_builder, count = loop, 
+                                        volume_l = 0.001, 
+                                        addedfactors = possible_variables[488,]
+                                )
+}
 
-prob_summ <- bind_loop(loopfeature = n, synthetic_data_builder_with_prediction) %>%
+df_pred <- bind_rows(list)
+
+prob_summ <- df_pred %>%
   group_by(particles.total) %>% 
   summarize(tox = sum(ToxicityProbability)) %>%
   ####convert >1 prob to 1 ###
@@ -453,10 +468,16 @@ summary(dose_response)
 
 
 ```{r}
-summary(glm(ToxicityProbability ~ Size * Shape * polymer * um3, data = df_640p_p_f))
-p1 <- df_640p_p_f %>% ggplot(aes(x = 10^Size, y = ToxicityProbability, color = polymer)) + geom_point()
 
-p2 <- df_640p_p_f %>% ggplot(aes(x = ToxicityProbability, fill = size.category)) + geom_histogram()
+df <- add_prediction(synthetic_data_builder, count = 640, 
+                                        volume_l = 0.001, 
+                                        addedfactors = possible_variables[488,]
+                                )
+
+summary(glm(ToxicityProbability ~ Size * Shape * polymer * um3, data = df))
+p1 <- df %>% ggplot(aes(x = 10^Size, y = ToxicityProbability, color = polymer)) + geom_point()
+
+p2 <- df %>% ggplot(aes(x = ToxicityProbability, fill = size.category)) + geom_histogram()
 grid.arrange(p1,p2)
 ```
 
