@@ -84,17 +84,6 @@ $m = pV*\frac{1}{1e12}*1000$
 
 Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the length (um) of each particle, and additional conversion factors for mg to g (x1000) and cm^3 to um^3 (1e-12).
 ```{r, include=FALSE}
-#rm(list=ls())
-n = 10000
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
 
 X.func <- function (X){
   success <- FALSE
@@ -105,54 +94,6 @@ X.func <- function (X){
   return(X)
 }
 
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
 D.func <- function (D){
   success <- FALSE
   while (!success){
@@ -161,111 +102,155 @@ D.func <- function (D){
   return(D)
 }
 
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
+synthetic_data_builder <- function(n){
+  #Preset parameters for pdfs
+  
+      xmin = 1 #UM
+      alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
+      
+      mu1 <- 0.08
+      mu2 <- 0.44
+      sd1 <- 0.03
+      sd2 <- 0.19
+      lambda1 <- 0.06
+      lambda2 <- 0.94
+        
+      d.alpha = 73.8 #tail heaviness
+      d.beta = 69.9  #asymmetry
+      d.mu = 0.840   #location
+      d.delta = 0.0972 #scale
+        
+      Data <- data.frame(Size = numeric(0))
+      
+      for(i in 1:n){
+        X <- X.func()
+        Data <- rbind(Data, X)
+      }
+      
+      ## Generate values for the three distributions
+      set.seed(123)
+      
+      ##++++++++++++++++++++++++++++++++++++++++
+      ## SIZE DISTRIBUTION
+      ##++++++++++++++++++++++++++++++++++++++++
+      
+      colnames(Data) <- c("Size")
+      
+      #min(Data$Size) ##20 um
+      #max(Data$Size) ##5000 um
+      
+      ##++++++++++++++++++++++++++++++++++++++++
+      ## SHAPE DISTRIBUTION
+      ##++++++++++++++++++++++++++++++++++++++++
+      
+      #Sample N random uniforms U
+      U =runif(n)
+      
+      #Sampling from the mixture
+      for(i in 1:n){
+        if(U[i]<lambda1){
+          Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
+        }else{
+          Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
+        }
+      }
+      
+      min(Data$Shape) ##0
+      max(Data$Shape) ##1
+      
+      ##++++++++++++++++++++++++++++++++++++++++
+      ## DENSITY DISTRIBUTION
+      ##++++++++++++++++++++++++++++++++++++++++
+      
+      Dens <- data.frame(Density = numeric(0));
+      
+      for(i in 1:n){
+        X <- D.func()
+        Dens <- rbind(Dens, X)
+      }
+      
+      colnames(Dens) <- c("Density")
+      
+      Data <- cbind(Data, Dens)
+      
+      ##++++++++++++++++++++++++++++++++++++++++
+      ## Polymer DISTRIBUTION
+      ##++++++++++++++++++++++++++++++++++++++++
+      
+      pols <- c("PE", "PP", "PS")
+      rel.ab <- c(0.5, 0.3, 0.2)
+      polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
+      Data <- cbind(Data, polymer)
+      
+      Data %>%  
+        mutate(size.category = factor(case_when(
+          Size < 10 & Size >= 1 ~ "1µm < 10µm",
+          Size < 100 & Size >= 10 ~ "10µm < 100µm",
+          Size < 1000 & Size >= 100 ~ "100µm < 1mm",
+          Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
+        mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
+        mutate(um3 = (Size^3)) %>%
+        mutate(treatments = 4) %>% 
+        mutate(organism.group = "Crustacea") %>% 
+        mutate(exposure.duration.d = 14) %>% 
+        mutate(lvl1_f = "Fitness") %>% 
+        mutate(life.stage= "Early") %>% 
+        mutate(bio.org = "organism") %>% 
+        mutate(effect.metric = "NOEC") %>% 
+        mutate(environment = "Marine") %>% 
+        mutate(exposure.route = "water") %>% 
+        mutate(lvl2_f = "Mortality") %>% 
+        mutate(vol.mL = 1) %>% 
+        mutate(vol.L = vol.mL / 1000) %>% 
+        mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
+        mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
+        mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
+        mutate(particles.total = factor(n))
 }
 
-colnames(Dens) <- c("Density")
+Data <- synthetic_data_builder(n = 10000)
 
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3))
 ```
 
-
-```{r}
-#organism, exosystem, and endpoint prediction paramaters
-Data <- Data %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality")
-```
 
 
 ```{r}
 ##++++++++++++++++++++++++++++++++++++++++
 ## Calculate Volume/Volume and estimate mass/volume
 ##++++++++++++++++++++++++++++++++++++++++
+add_volume <- function(data, volume_l){
+  data %>% 
+    mutate(vol.L = volume_l) %>% 
+    mutate(vol.mL = vol.L * 1000) %>% 
+    mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
+    mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
+    mutate(dose.mg.L.master = mass.mg / vol.L)
+}
 
-### 10,000 particles/L
-df_1L <- Data %>% 
-  mutate(vol.L = 1) %>% 
-  mutate(vol.mL = vol.L * 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L)
-  
-skim(df_1L)
+summarise_add_volume <- function(data, volume_l){
+  data %>% 
+    mutate(vol.L = volume_l) %>% 
+    mutate(vol.mL = vol.L * 1000) %>% 
+    mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
+    mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
+    mutate(dose.mg.L.master = mass.mg / vol.L) %>%
+    group_by(size.category) %>% 
+    summarize(particles.L = sum(dose.particles.mL.master) * 1000) %>% 
+    mutate(volume.L = factor(volume_l))
+}
 
-### 1,000 particles/L
-df_10L <- Data %>% 
-  mutate(vol.L = 10) %>% 
-  mutate(vol.mL = vol.L * 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L)
- 
-### 100 particles/L
-df_100L <- Data %>% 
-  mutate(vol.L = 100) %>% 
-  mutate(vol.mL = vol.L * 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L)
-
-### 10 particles/L
-df_1000L <- Data %>% 
-  mutate(vol.L = 1000) %>% 
-  mutate(vol.mL = vol.L * 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L)
-```
-
-```{r}
-sum_1L <- df_1L %>% group_by(size.category) %>% summarize(particles.L =
-                                                       sum(dose.particles.mL.master) * 1000) %>% mutate(volume.L = factor("1L"))
-sum_10L <- df_10L %>% group_by(size.category) %>% summarize(particles.L =
-                                                       sum(dose.particles.mL.master)* 1000) %>% mutate(volume.L = factor("10L"))
-sum_100L <- df_100L %>% group_by(size.category) %>% summarize(particles.L =
-                                                       sum(dose.particles.mL.master)* 1000) %>% mutate(volume.L = factor("100L"))
-sum_1000L <- df_1000L %>% group_by(size.category) %>% summarize(particles.L =
-                                                       sum(dose.particles.mL.master)* 1000) %>% mutate(volume.L = factor("1000L"))
-
-summary_df <- rbind(sum_1L, sum_10L, sum_100L, sum_1000L)
+summary_df <- bind_rows(
+                        summarise_add_volume(data = Data, volume_l = 1),
+                        summarise_add_volume(data = Data, volume_l = 10),
+                        summarise_add_volume(data = Data, volume_l = 100),
+                        summarise_add_volume(data = Data, volume_l = 1000)
+                        )
 ggplot() +
   geom_col(data = summary_df, aes(x = volume.L, y = particles.L, fill = volume.L)) +
   labs(title = "Particles/L in Simulated Datasets",
        subtitle = "n = 10,000 particles diluted in various liters") +
   theme_minimal(base_size = 20)
 ```
-
 
 Parameters:
 Shape, density, size, 
@@ -277,19 +262,39 @@ For mechanistic point of view- polymer does not matter.
 ##++++++++++++++++++++++++++++++++++++++++
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
-p1 <- ggplot(df_1000L, aes(x = Size, fill = size.category)) + geom_histogram(bins = 50, alpha = 0.7) + scale_x_log10()
-p2 <- ggplot(df_1000L, aes(x = Shape, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)
-p3 <- ggplot(df_1000L, aes(x = Density, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)
-p4 <- ggplot(df_1000L, aes(x = polymer, fill = polymer)) + geom_histogram(stat = "count")
-#p5 <- ggplot(df_1000L, aes(x = mass.mg, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7 )+ scale_x_log10()
-#p6 <- ggplot(df_1000L, aes(x = um3, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
-p7 <- ggplot(df_1000L, aes(x = dose.um3.mL.master, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
+p1 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+             aes(x = Size, fill = size.category)) + 
+      geom_histogram(bins = 50, alpha = 0.7) + 
+      scale_x_log10()
 
-p8 <- df_1000L %>% group_by(size.category) %>% summarize(particles.mL =
-                                                       sum(dose.particles.mL.master)) %>% 
-  ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + geom_col()
+p2 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+             aes(x = Shape, fill = polymer)) + 
+      geom_histogram(bins = 50, alpha = 0.7)
 
-p9 <- ggplot(df_1000L, aes(x = dose.mg.L.master, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
+p3 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+             aes(x = Density, fill = polymer)) + 
+      geom_histogram(bins = 50, alpha = 0.7)
+
+p4 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+             aes(x = polymer, fill = polymer)) + 
+      geom_histogram(stat = "count")
+#p5 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = mass.mg, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7 )+ scale_x_log10()
+#p6 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = um3, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
+p7 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+             aes(x = dose.um3.mL.master, fill = polymer)) + 
+      geom_histogram(bins = 50, alpha = 0.7) + 
+      scale_x_log10()
+
+p8 <- add_volume(data = Data, volume_l = 1000) %>% 
+        group_by(size.category) %>% 
+        summarize(particles.mL = sum(dose.particles.mL.master)) %>% 
+        ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + 
+        geom_col()
+
+p9 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+             aes(x = dose.mg.L.master, fill = polymer)) + 
+      geom_histogram(bins = 50, alpha = 0.7) + 
+      scale_x_log10()
 grid.arrange(p1,
              p2,
              p3,
@@ -308,7 +313,10 @@ grid.arrange(p1,
 ```{r}
 #determine which lvl2_f are most abundant for crustacea data
 crust <- aoc_z %>% 
-  dplyr::select(c(life.stage, bio.org, effect.metric, environment, exposure.route, lvl2_f, exposure.duration.d, treatments, lvl1_f, organism.group, dose.particles.mL.master, dose.mg.L.master, effect_f, effect_10, size.length.um.used.for.conversions, density.mg.um.3, csf)) %>% 
+  dplyr::select(c(life.stage, bio.org, effect.metric, environment, exposure.route,
+                  lvl2_f, exposure.duration.d, treatments, lvl1_f, organism.group,
+                  dose.particles.mL.master, dose.mg.L.master, effect_f, #effect_10,
+                  size.length.um.used.for.conversions, density.mg.um.3, csf)) %>% 
  #filter(treatments == 4) %>% 
   filter(organism.group == "Crustacea") %>% 
   filter(exposure.duration.d == 14) %>% 
@@ -326,7 +334,7 @@ skim(crust)
 crust2 <- crust %>% drop_na(effect_f) %>%  mutate_if(~is.numeric(.) && (.) > 0, log10)
 
 #skim(crust2)
-summary(glm(data = crust2, effect_10 ~ dose.particles.mL.master + dose.mg.L.master + size.length.um.used.for.conversions, na.action = "na.exclude", family = "binomial"))
+#summary(glm(data = crust2, effect_10 ~ dose.particles.mL.master + dose.mg.L.master + size.length.um.used.for.conversions, na.action = "na.exclude", family = "binomial"))
 ```
 
 
@@ -380,1379 +388,20 @@ df_pred %>% ggplot(aes(x = factor(vol.L), y = ToxicityProbability)) +
 
 # Volume Constant, Particles different
 ## Generate Particles
-### 5 particles in 1 L
+### Datasets with different numbers of particles in 1 L
 ```{r, include=FALSE}
-#rm(list=ls())
-n = 5
-## Generate values for the three distributions
-set.seed(123)
+Data_5p <- synthetic_data_builder(n = 5)
+Data_10p <- synthetic_data_builder(n = 10)
+Data_20p <- synthetic_data_builder(n = 20)
+Data_40p <- synthetic_data_builder(n = 40)
+Data_80p <- synthetic_data_builder(n = 80)
+Data_160p <- synthetic_data_builder(n = 160)
+Data_320p <- synthetic_data_builder(n = 320)
+Data_480p <- synthetic_data_builder(n = 480)
+Data_640p <- synthetic_data_builder(n = 640)
+Data_1000p <- synthetic_data_builder(n = 1000)
+Data_1280p <- synthetic_data_builder(n = 1280)
 
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_5p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("5p"))
-```
-
-### 10 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 10
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_10p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("10p"))
-```
-### 20 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 20
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_20p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("20p"))
-```
-
-### 40 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 40
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_40p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>%  
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("40p"))
-```
-
-### 80 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 80
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_80p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("80p"))
-```
-
-### 160 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 160
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_160p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("160p"))
-```
-
-### 320 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 320
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_320p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
- mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("320p"))
-```
-
-
-### 480 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 480
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_480p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
- mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("480p"))
-```
-
-### 640 particles in 1 L
-```{r, include=FALSE}
-#rm(list=ls())
-n = 640
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_640p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
- mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>%  
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("640p"))
-```
-
-### 1000 particles
-```{r, include=FALSE}
-#rm(list=ls())
-n = 1000
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_1000p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
- mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("1000p"))
-```
-
-### 1280 particles
-```{r, include=FALSE}
-#rm(list=ls())
-n = 1280
-## Generate values for the three distributions
-set.seed(123)
-
-##++++++++++++++++++++++++++++++++++++++++
-## SIZE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-
-X.func <- function (X){
-  success <- FALSE
-  while (!success){
-    U = runif(1, 0, 1)
-    X = xmin*(1-U)^(1/(1-alpha))
-    success <- X < 5000} ##should be smaller than 5000 um 
-  return(X)
-}
-
-Data <- data.frame(Size = numeric(0));
-
-for(i in 1:n){
-  X <- X.func()
-  Data <- rbind(Data, X)
-}
-
-colnames(Data) <- c("Size")
-
-min(Data$Size) ##20 um
-max(Data$Size) ##5000 um
-
-##++++++++++++++++++++++++++++++++++++++++
-## SHAPE DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-mu1 <- 0.08
-mu2 <- 0.44
-sd1 <- 0.03
-sd2 <- 0.19
-lambda1 <- 0.06
-lambda2 <- 0.94
-
-
-#Sample N random uniforms U
-U =runif(n)
-
-#Sampling from the mixture
-for(i in 1:n){
-  if(U[i]<lambda1){
-    Data$Shape[i] = rtnorm(1,mu1,sd1, lower = 0, upper = 1)
-  }else{
-    Data$Shape[i] = rtnorm(1,mu2,sd2, lower = 0, upper = 1)
-  }
-}
-
-min(Data$Shape) ##0
-max(Data$Shape) ##1
-
-##++++++++++++++++++++++++++++++++++++++++
-## DENSITY DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-d.alpha = 73.8 #tail heaviness
-d.beta = 69.9  #asymmetry
-d.mu = 0.840   #location
-d.delta = 0.0972 #scale
-
-D.func <- function (D){
-  success <- FALSE
-  while (!success){
-    D = rnig(1, mu = d.mu, alpha = d.alpha, beta = d.beta, delta = d.delta)
-    success <- D < 2.63} ## include upper limit of 2.63, the max. 
-  return(D)
-}
-
-Dens <- data.frame(Density = numeric(0));
-
-for(i in 1:n){
-  X <- D.func()
-  Dens <- rbind(Dens, X)
-}
-
-colnames(Dens) <- c("Density")
-
-Data <- cbind(Data, Dens)
-
-##++++++++++++++++++++++++++++++++++++++++
-## Polymer DISTRIBUTION
-##++++++++++++++++++++++++++++++++++++++++
-
-pols <- c("PE", "PP", "PS")
-rel.ab <- c(0.5, 0.3, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
-Data <- cbind(Data, polymer)
-
-Data_1280p <- Data %>%  
-  mutate(size.category = factor(case_when(
-    Size < 10 & Size >= 1 ~ "1µm < 10µm",
-    Size < 100 & Size >= 10 ~ "10µm < 100µm",
-    Size < 1000 & Size >= 100 ~ "100µm < 1mm",
-    Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
-  mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
-  mutate(um3 = (Size^3)) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
- mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("1280p"))
 ```
 
 Parameters:
@@ -1946,7 +595,6 @@ skim(particleCharacteristics)
 #### Generate particles
 ```{r}
 
-n = 10000
 
 #Create uniform characteristics for base particle characteristics (size, shape, density)
 csf <- runif(n, min = 0.01, 0.99)
