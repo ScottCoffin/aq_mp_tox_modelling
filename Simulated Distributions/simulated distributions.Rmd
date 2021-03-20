@@ -104,6 +104,8 @@ D.func <- function (D){
 
 synthetic_data_builder <- function(n){
   #Preset parameters for pdfs
+   ## Generate values for the three distributions
+      set.seed(123)
   
       xmin = 1 #UM
       alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
@@ -127,8 +129,7 @@ synthetic_data_builder <- function(n){
         Data <- rbind(Data, X)
       }
       
-      ## Generate values for the three distributions
-      set.seed(123)
+     
       
       ##++++++++++++++++++++++++++++++++++++++++
       ## SIZE DISTRIBUTION
@@ -419,7 +420,7 @@ prob_summ <- bind_rows(
   summarize(tox = sum(ToxicityProbability)) %>%
   ####convert >1 prob to 1 ###
   mutate(probability = case_when(tox < 1 ~ tox, tox >=1 ~ 1)) %>% 
-  mutate(particles = as.numeric(str_sub(particles.total, end = -2))) %>% 
+  mutate(particles = as.numeric(as.character(particles.total))) %>% 
   mutate(log.particles = log(particles))
 
 ```
