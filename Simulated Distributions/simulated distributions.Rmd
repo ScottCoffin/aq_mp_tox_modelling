@@ -15,6 +15,9 @@ output:
   word_document:
     toc: yes
 ---
+
+aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
+
 #Setup
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
@@ -31,12 +34,14 @@ library(msm) ## rtnorm - get upper and lower limit of shape distribution
 library(GeneralizedHyperbolic) ## normal-inverse Gaussian
 library(skimr)
 library(drc) #dose-response curves
+library(readr)
+library(readxl)
 ```
 
 
 ```{r}
 # load tox data
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
 ```
 
 
@@ -188,7 +193,7 @@ Data <- Data %>%
 
 
 ```{r}
-#prediction paramaters
+#organism, exosystem, and endpoint prediction paramaters
 Data <- Data %>% 
   mutate(treatments = 4) %>% 
   mutate(organism.group = "Crustacea") %>% 
