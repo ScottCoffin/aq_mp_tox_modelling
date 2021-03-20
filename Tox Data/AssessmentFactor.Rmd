@@ -7,21 +7,189 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
 ```
 
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+aoc_z <- readRDS(file.choose("aoc_z.Rda"))
 ```
 
-```{r}
-aoc_z %>% 
-  filter(effect_f == "Yes") %>% 
-  filter(effect.metric == "LOEC") %>% 
-  filter(acute.chronic_f == c("Acute", "Chronic")) %>% 
-  drop_na(dose.mg.L.master) %>% 
-  group_by(organism.group, acute.chronic_f) %>%  
-  summarise(averageNOEC = mean(dose.mg.L.master))
+# NOEC & NOEC Distribution
+
+There doesn't seem to be much separation between acute and chronic NOEC/LOEC distributions. If this is the case, is an assessment factor even necessary?
+
+Attempts to be more selective/curate the data further don't really seem to change anything (e.g., filtering for certain size fractions, using quality filters, etc.)
+
+```{r NOEC & LOEC Distributions}
+
+dist <- aoc_z 
+  # filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
+  # filter(tier_zero_risk_f == "Red Criteria Passed")
+
+#Dose in mass per volume 
+Dist_NOEC_Mass <- dist %>% 
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Select NOECs
+     filter(effect.metric == "NOEC") %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.mg.L.master) %>%  
+     select(org_f, effect.metric, acute.chronic_f, dose.mg.L.master) %>%  
+     ggplot(aes(x = dose.mg.L.master, fill = acute.chronic_f)) +
+     geom_histogram(bins = 50)+
+     facet_wrap(~org_f)+
+     scale_x_log10() +
+     labs(title = "Distribution of Derived NOEC Values", x = "Dose (mg/L)", y = "Count", fill = "Acute vs. Chronic")
+
+plot(Dist_NOEC_Mass)
+
+Dist_LOEC_Mass <- dist %>% 
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Select NOECs
+     filter(effect.metric == "LOEC") %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.mg.L.master) %>% 
+     select(org_f, effect.metric, acute.chronic_f, dose.mg.L.master) %>%  
+     ggplot(aes(x = dose.mg.L.master, fill = acute.chronic_f)) +
+     geom_histogram(bins = 50)+
+     facet_wrap(~org_f)+
+     scale_x_log10()+
+     labs(title = "Distribution of Derived LOEC Values", x = "Dose (mg/L)", y = "Count", fill = "Acute vs. Chronic")
+
+plot(Dist_LOEC_Mass)
+
+#Dose in count per volume
+Dist_NOEC_Count <- dist %>% 
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Select NOECs
+     filter(effect.metric == "NOEC") %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.particles.mL.master) %>% 
+     select(org_f, effect.metric, acute.chronic_f, dose.particles.mL.master) %>%  
+     ggplot(aes(x = dose.particles.mL.master, fill = acute.chronic_f)) +
+     geom_histogram(bins = 50)+
+     facet_wrap(~org_f)+
+     scale_x_log10() +
+     labs(title = "Distribution of Derived NOEC Values", x = "Dose (particles/mL)", y = "Count", fill = "Acute vs. Chronic")
+
+plot(Dist_NOEC_Count)
+
+Dist_LOEC_Count <- dist %>% 
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Select NOECs
+     filter(effect.metric == "LOEC") %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.particles.mL.master) %>% 
+     select(org_f, effect.metric, acute.chronic_f, dose.particles.mL.master) %>%  
+     ggplot(aes(x = dose.particles.mL.master, fill = acute.chronic_f)) +
+     geom_histogram(bins = 50)+
+     facet_wrap(~org_f)+
+     scale_x_log10()+
+     labs(title = "Distribution of Derived LOEC Values", x = "Dose (particles/mL)", y = "Count", fill = "Acute vs. Chronic")
+
+plot(Dist_LOEC_Count)
+
 ```
 
+```{r How many species within each taxa have both acute and chronic values? }
+
+Species_Taxa_Mass <- aoc_z %>% 
+     #Select NOECs
+     filter(effect.metric == c("NOEC", "LOEC")) %>%
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.mg.L.master) %>%
+     #Group the data by organism group and acute vs chronic data 
+     group_by(org_f, species_f, acute.chronic_f, effect.metric) %>%
+     #Create a new column for the average NOEC
+     summarise() %>% 
+     ungroup() %>% 
+     group_by(org_f, acute.chronic_f, effect.metric) %>% 
+     mutate(species_count = n_distinct(species_f)) %>% 
+     ungroup() %>% 
+     distinct(org_f, acute.chronic_f, effect.metric, species_count)
+     
+```
+
+```{r NOECs}
+
+#Compare differences between acute and chronic values for NOECs in each organism group
+
+Mean_NOEC <- aoc_z %>% 
+     #Select NOECs
+     filter(effect.metric == "NOEC") %>%
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.mg.L.master) %>%
+     #Group the data by organism group and acute vs chronic data 
+     group_by(org_f, acute.chronic_f) %>%
+     #Create a new column for the average NOEC
+     summarise(averageNOEC = mean(dose.mg.L.master)) 
+     
+acute <- Mean_NOEC %>% 
+     #Select only acute data
+     filter(acute.chronic_f == "Acute") %>% 
+     rename(averageNOEC_acute = averageNOEC)
+     
+chronic <- Mean_NOEC %>% 
+     #Select only chronic data
+     filter(acute.chronic_f == "Chronic") %>% 
+     rename(averageNOEC_chronic = averageNOEC)
+
+acute_chronic <- left_join(acute, chronic, by = c("org_f" = "org_f")) %>% 
+  mutate(change_NOEC = averageNOEC_acute/averageNOEC_chronic)
+
+#Regression between acute and chronic NOECs
+
+plot <- acute_chronic %>% 
+  ggplot(aes(x = log10(averageNOEC_chronic), y = log10(averageNOEC_acute))) +
+  geom_point() 
+
+plot(plot)
+```
+
+```{r LOECs}
+
+#Compare differences between acute and chronic values for NOECs in each organism group
+
+Mean_LOEC <- aoc_z %>% 
+     #Select NOECs
+     filter(effect.metric == "LOEC") %>%
+     #Select data where acute and chronic exposure is defined
+     filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+     #Drop rows where there is no dosing data in mass per volume
+     drop_na(dose.mg.L.master) %>%
+     #Group the data by organism group and acute vs chronic data 
+     group_by(org_f, acute.chronic_f) %>%
+     #Create a new column for the average LOEC
+     summarise(averageLOEC = mean(dose.mg.L.master)) 
+     
+acute <- Mean_LOEC %>% 
+     #Select only acute data
+     filter(acute.chronic_f == "Acute") %>% 
+     rename(averageLOEC_acute = averageLOEC)
+     
+chronic <- Mean_LOEC %>% 
+     #Select only chronic data
+     filter(acute.chronic_f == "Chronic") %>% 
+     rename(averageLOEC_chronic = averageLOEC)
+
+acute_chronic <- left_join(acute, chronic, by = c("org_f" = "org_f")) %>% 
+  mutate(change_LOEC = averageLOEC_acute/averageLOEC_chronic)
+
+#Regression between acute and chronic LOECs
+
+plot <- acute_chronic %>% 
+  ggplot(aes(x = log10(averageLOEC_chronic), y = log10(averageLOEC_acute))) +
+  geom_point() 
+
+plot(plot)
+```
