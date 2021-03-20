@@ -211,31 +211,6 @@ synthetic_data_builder <- function(n, volume_l, addedfactors){
         mutate(particles.total = factor(as.character(n)))
 }
 
-add_volume <- function(data, volume_l){
-  data %>% 
-    mutate(vol.L = volume_l) %>% 
-    mutate(vol.mL = vol.L * 1000) %>% 
-    mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-    mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-    mutate(dose.mg.L.master = mass.mg / vol.L)
-}
-
-summarise_add_volume <- function(data, volume_l){
-  add_volume(data, volume_l) %>% 
-    group_by(size.category) %>% 
-    summarize(particles.L = sum(dose.particles.mL.master) * 1000) %>% 
-    mutate(volume.L = factor(as.character(volume_l)))
-}
-
-bind_loop <- function(loopfeature, fun, ...) {
-  list <- list()
-  n = 0
-  for(loop in loopfeature){
-    n = n + 1
-    list[[n]] <- fun(..., loop)
-  }
-  bind_rows(list)
-}
 
 add_volume_predict <- function(data, volume_l){
   add_volume(data, volume_l) %>%
@@ -259,10 +234,23 @@ synthetic_data_builder_with_prediction <- function(n){
 ##++++++++++++++++++++++++++++++++++++++++
 ## Calculate Volume/Volume and estimate mass/volume
 ##++++++++++++++++++++++++++++++++++++++++
-Data <- synthetic_data_builder(n = 10000, addedfactors = possible_variables[488,])
+Data <- synthetic_data_builder(n = 10000, volume_l = 1, addedfactors = possible_variables[488,])
 
 volumes <- c(1, 10, 100, 1000)
-summary_df_test <- bind_loop(loopfeature = volumes, summarise_add_volume, Data)
+list <- list()
+n = 0
+  
+for(loop in volumes){
+    n = n + 1
+    list[[n]] <- synthetic_data_builder(n = 10000, 
+                                        volume_l = loop, 
+                                        addedfactors = possible_variables[488,]) %>%
+                  group_by(size.category) %>% 
+                  summarize(particles.L = sum(dose.particles.mL.master) * 1000) %>% 
+                  mutate(volume.L = factor(as.character(loop)))
+}
+
+summary_df <- bind_rows(list)
 
 ggplot() +
   geom_col(data = summary_df, aes(x = volume.L, y = particles.L, fill = volume.L)) +
@@ -281,36 +269,57 @@ For mechanistic point of view- polymer does not matter.
 ##++++++++++++++++++++++++++++++++++++++++
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
-p1 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+p1 <- ggplot(synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ), 
              aes(x = Size, fill = size.category)) + 
       geom_histogram(bins = 50, alpha = 0.7) + 
       scale_x_log10()
 
-p2 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+p2 <- ggplot(synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ), 
              aes(x = Shape, fill = polymer)) + 
       geom_histogram(bins = 50, alpha = 0.7)
 
-p3 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+p3 <- ggplot(synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ), 
              aes(x = Density, fill = polymer)) + 
       geom_histogram(bins = 50, alpha = 0.7)
 
-p4 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+p4 <- ggplot(synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ),
              aes(x = polymer, fill = polymer)) + 
       geom_histogram(stat = "count")
 #p5 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = mass.mg, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7 )+ scale_x_log10()
 #p6 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = um3, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
-p7 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+p7 <- ggplot(synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ),
              aes(x = dose.um3.mL.master, fill = polymer)) + 
       geom_histogram(bins = 50, alpha = 0.7) + 
       scale_x_log10()
 
-p8 <- add_volume(data = Data, volume_l = 1000) %>% 
+p8 <- synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ) %>% 
         group_by(size.category) %>% 
         summarize(particles.mL = sum(dose.particles.mL.master)) %>% 
         ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + 
         geom_col()
 
-p9 <- ggplot(add_volume(data = Data, volume_l = 1000), 
+p9 <- ggplot(synthetic_data_builder(n = 10000, 
+                                    volume_l = 1000, 
+                                    addedfactors = possible_variables[488,]
+                                    ), 
              aes(x = dose.mg.L.master, fill = polymer)) + 
       geom_histogram(bins = 50, alpha = 0.7) + 
       scale_x_log10()
