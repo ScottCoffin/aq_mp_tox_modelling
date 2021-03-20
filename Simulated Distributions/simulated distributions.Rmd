@@ -205,7 +205,7 @@ synthetic_data_builder <- function(n){
         mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
         mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
         mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-        mutate(particles.total = factor(n))
+        mutate(particles.total = factor(as.character(n)))
 }
 
 Data <- synthetic_data_builder(n = 10000)
@@ -236,7 +236,7 @@ summarise_add_volume <- function(data, volume_l){
     mutate(dose.mg.L.master = mass.mg / vol.L) %>%
     group_by(size.category) %>% 
     summarize(particles.L = sum(dose.particles.mL.master) * 1000) %>% 
-    mutate(volume.L = factor(volume_l))
+    mutate(volume.L = factor(as.character(volume_l)))
 }
 
 summary_df <- bind_rows(
@@ -390,17 +390,37 @@ df_pred %>% ggplot(aes(x = factor(vol.L), y = ToxicityProbability)) +
 ## Generate Particles
 ### Datasets with different numbers of particles in 1 L
 ```{r, include=FALSE}
-Data_5p <- synthetic_data_builder(n = 5)
-Data_10p <- synthetic_data_builder(n = 10)
-Data_20p <- synthetic_data_builder(n = 20)
-Data_40p <- synthetic_data_builder(n = 40)
-Data_80p <- synthetic_data_builder(n = 80)
-Data_160p <- synthetic_data_builder(n = 160)
-Data_320p <- synthetic_data_builder(n = 320)
-Data_480p <- synthetic_data_builder(n = 480)
-Data_640p <- synthetic_data_builder(n = 640)
-Data_1000p <- synthetic_data_builder(n = 1000)
-Data_1280p <- synthetic_data_builder(n = 1280)
+
+
+synthetic_data_builder_with_prediction <- function(n){
+  synthetic_data_builder(n) %>%
+        mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
+        bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
+        rename("ToxicityProbability" = `1`))                  
+}
+
+#pull in model from DALEX
+final_model <- readRDS("final_rf_model.rds")
+
+prob_summ <- bind_rows(
+  synthetic_data_builder_with_prediction(n = 5), 
+  synthetic_data_builder_with_prediction(n = 10),
+  synthetic_data_builder_with_prediction(n = 20),
+  synthetic_data_builder_with_prediction(n = 40),
+  synthetic_data_builder_with_prediction(n = 80),
+  synthetic_data_builder_with_prediction(n = 160),
+  synthetic_data_builder_with_prediction(n = 320),
+  synthetic_data_builder_with_prediction(n = 480),
+  synthetic_data_builder_with_prediction(n = 640),
+  synthetic_data_builder_with_prediction(n = 1000),
+  synthetic_data_builder_with_prediction(n = 1280)
+  ) %>%
+  group_by(particles.total) %>% 
+  summarize(tox = sum(ToxicityProbability)) %>%
+  ####convert >1 prob to 1 ###
+  mutate(probability = case_when(tox < 1 ~ tox, tox >=1 ~ 1)) %>% 
+  mutate(particles = as.numeric(str_sub(particles.total, end = -2))) %>% 
+  mutate(log.particles = log(particles))
 
 ```
 
@@ -412,88 +432,6 @@ For mechanistic point of view- polymer does not matter.
 
 ## Predict Toxicities
 ```{r}
-#pull in model from DALEX
-final_model <- readRDS("final_rf_model.rds")
-
-#### prep data frames ####
-df_5p_f <- Data_5p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_10p_f <- Data_10p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_20p_f <- Data_20p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_40p_f <- Data_40p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_80p_f <- Data_80p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_160p_f <- Data_160p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_320p_f <- Data_320p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_480p_f <- Data_480p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_640p_f <- Data_640p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_1000p_f <- Data_1000p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-df_1280p_f <- Data_1280p %>% 
-  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-#### Predict Toxicity ####
-df_5p_p <- predict(final_model, newdata = df_5p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_5p_p_f <- cbind(df_5p_f, df_5p_p)
-
-df_10p_p <- predict(final_model, newdata = df_10p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_10p_p_f <- cbind(df_10p_f, df_10p_p)
-
-df_20p_p <- predict(final_model, newdata = df_20p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_20p_p_f <- cbind(df_20p_f, df_20p_p)
-
-df_40p_p <- predict(final_model, newdata = df_40p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_40p_p_f <- cbind(df_40p_f, df_40p_p)
-
-df_10p_p <- predict(final_model, newdata = df_10p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_10p_p_f <- cbind(df_10p_f, df_10p_p)
-
-df_80p_p <- predict(final_model, newdata = df_80p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_80p_p_f <- cbind(df_80p_f, df_80p_p)
-
-df_160p_p <- predict(final_model, newdata = df_160p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_160p_p_f <- cbind(df_160p_f, df_160p_p)
-
-df_320p_p <- predict(final_model, newdata = df_320p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_320p_p_f <- cbind(df_320p_f, df_320p_p)
-
-df_480p_p <- predict(final_model, newdata = df_480p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_480p_p_f <- cbind(df_480p_f, df_480p_p)
-
-df_640p_p <- predict(final_model, newdata = df_640p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_640p_p_f <- cbind(df_640p_f, df_640p_p)
-
-df_1000p_p <- predict(final_model, newdata = df_1000p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_1000p_p_f <- cbind(df_1000p_f, df_1000p_p)
-
-df_1280p_p <- predict(final_model, newdata = df_1280p_f, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-df_1280p_p_f <- cbind(df_1280p_f, df_1280p_p)
-
-df_pred <- rbind(df_5p_p_f, df_10p_p_f, df_20p_p_f, df_40p_p_f, df_80p_p_f, df_160p_p_f, df_320p_p_f, df_480p_p_f, df_640p_p_f, df_1000p_p_f, df_1280p_p_f)
-
-prob_summ <- df_pred %>% group_by(particles.total) %>% summarize(tox = sum(ToxicityProbability))
-
-####convert >1 prob to 1 ###
-prob_summ <- prob_summ %>%  mutate(probability = case_when(tox < 1 ~ tox, tox >=1 ~ 1)) %>% 
-  mutate(particles = as.numeric(str_sub(particles.total, end = -2))) %>% 
-  mutate(log.particles = log(particles))
 
 #plot dose response relationship
 prob_summ %>% 
