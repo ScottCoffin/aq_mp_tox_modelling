@@ -25,8 +25,15 @@ Attempts to be more selective/curate the data further don't really seem to chang
 
 ```{r NOEC & LOEC Distributions}
 
-dist <- aoc_z 
-  # filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
+dist <- aoc_z %>% 
+  #Remove leachate and additive/chemical transfer experiments
+  replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>% 
+  dplyr::filter(leachate.only != "Y") %>%
+  mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
+                                                   chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
+                                                   chem.exp.typ.nominal == "sorbed" ~ "Chemical Transfer"))) %>% 
+  dplyr::filter(chem.exp.typ.nominal_f == "Particle Only") 
+  # filter(tier_zero_tech_f == "Red Criteria Passed")  
   # filter(tier_zero_risk_f == "Red Criteria Passed")
 
 #Dose in mass per volume 
