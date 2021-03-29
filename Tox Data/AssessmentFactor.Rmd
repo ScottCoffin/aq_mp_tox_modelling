@@ -14,7 +14,7 @@ library(tidyverse)
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-aoc_z <- readRDS(file.choose("aoc_z.Rda"))
+aoc_z <- readRDS("Tox Data/aoc_z.Rda")
 ```
 
 # NOEC & NOEC Distribution
@@ -115,7 +115,8 @@ Species_Taxa_Mass <- aoc_z %>%
      mutate(species_count = n_distinct(species_f)) %>% 
      ungroup() %>% 
      distinct(org_f, acute.chronic_f, effect.metric, species_count)
-     
+
+Species_Taxa_Mass
 ```
 
 ```{r NOECs}
@@ -193,3 +194,115 @@ plot <- acute_chronic %>%
 
 plot(plot)
 ```
+
+
+# Acute/Chronic Assessment Factor
+
+```{r}
+# collapse data (average) for all combinations of selected variables
+grouped <- aoc_z %>% 
+  #Select NOECs/LOECs
+  filter(effect.metric == c("NOEC", "LOEC")) %>%
+  #Select data where acute and chronic exposure is defined
+  filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+  filter(size_f != "Not Reported") %>% 
+  #Drop rows where there is no dosing data in mass per volume
+  drop_na(dose.mg.L.master) %>%
+  #Group the data by organism group and acute vs chronic data 
+  group_by(org_f, acute.chronic_f, effect.metric, lvl1_f) %>% 
+           #size_f) 
+  droplevels() %>% 
+  #Create a new column for the average effect for each combination of the matrix
+  summarise(meanEffect = mean(dose.mg.L.master))
+
+grouped
+```
+
+```{r}
+#create unique ID for each combo of interest for NOECs and LOECs
+NOEC <- grouped %>% 
+  mutate(combo = paste(org_f, acute.chronic_f, lvl1_f)) %>% 
+  filter(effect.metric == "NOEC") %>% 
+  mutate(effectNOEC = meanEffect)
+
+LOEC <- grouped %>% 
+  mutate(combo = paste(org_f, acute.chronic_f, lvl1_f)) %>% 
+  filter(effect.metric == "LOEC") %>% 
+  mutate(effectLOEC = meanEffect)
+
+# join NOEC and LOEC dataframes and compute LOEC/NOEC ratio for each combo
+NOEC.LOEC <- full_join(NOEC, LOEC, by = "combo") %>%
+  select(c(combo,effectNOEC, effectLOEC)) %>% 
+  mutate(LOEC.NOEC.ratio = effectLOEC / effectNOEC) %>% 
+  drop_na()
+
+NOEC.LOEC
+```
+```{r}
+summary(lm(effectNOEC ~ effectLOEC, data = NOEC.LOEC))
+
+NOEC.LOEC %>% 
+  ggplot(aes(x = effectNOEC, y = effectLOEC)) +
+  geom_point() +
+  geom_smooth(method = "lm")
+```
+
+
+# ```{r}
+# #create grid of all possible combinations of levels for available factors
+# lvl1 <- levels(grouped$lvl1_f)
+# effect.metric <- levels(grouped$effect.metric)
+# org <- levels(grouped$org_f)
+# #species <- levels(grouped$species_f)
+# size <- levels(grouped$size_f)
+# acute.chronic <- levels(grouped$acute.chronic_f)
+# 
+# grid <- tidyr::expand_grid(lvl1, effect.metric, 
+#                    #species, 
+#                    org,
+#                    size, acute.chronic)
+# 
+# # Create unique identifier for each combination of variables in grid and in summarized dataframe
+# grid2 <- grid %>% 
+#   mutate(ID = paste(lvl1, effect.metric, org, size, acute.chronic))
+# 
+# grouped2 <- grouped %>% 
+#   mutate(ID = paste(lvl1_f, effect.metric, org_f, size_f, acute.chronic_f))
+# 
+# # join dataset to complete grid
+# left_join(grid2, grouped2, by = "ID") %>%  drop_na(meanEffect)
+# 
+# ```
+
+
+```{r}
+grouped %>% 
+  filter(meanEffect < 5E3) %>% 
+  ggplot(aes(x = meanEffect, y = effect.metric, color = acute.chronic_f)) +
+  scale_x_log10() +
+  geom_point()
+```
+
+
+```{r}
+#alt approach 
+filtered <- aoc_z %>% 
+  #Select NOECs/LOECs
+  filter(effect.metric == c("NOEC", "LOEC")) %>%
+  #Select data where acute and chronic exposure is defined
+  filter(acute.chronic_f == c("Acute", "Chronic")) %>%
+  filter(size_f != "Not Reported") %>% 
+  #Drop rows where there is no dosing data in mass per volume
+  drop_na(dose.mg.L.master) %>%
+  droplevels()
+
+summary(lm(dose.mg.L.master ~ (effect.metric + lvl2_f + size_f + species_f + life.stage)^2, 
+   data = filtered))
+```
+```{r}
+filtered %>% 
+  ggplot(aes(y = dose.mg.L.master, x = effect.metric)) +
+  geom_boxplot() +
+  scale_y_log10()
+```
+
