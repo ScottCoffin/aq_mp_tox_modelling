@@ -201,6 +201,8 @@ plot(plot)
 ```{r}
 # collapse data (average) for all combinations of selected variables
 grouped <- aoc_z %>% 
+   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
+   filter(tier_zero_risk_f == "Red Criteria Passed") %>% 
   #Select NOECs/LOECs
   filter(effect.metric == c("NOEC", "LOEC")) %>%
   #Select data where acute and chronic exposure is defined
@@ -242,6 +244,8 @@ NOEC.LOEC
 summary(lm(effectNOEC ~ effectLOEC, data = NOEC.LOEC))
 
 NOEC.LOEC %>% 
+  filter(LOEC.NOEC.ratio <10) %>% 
+  filter(LOEC.NOEC.ratio >10) %>% 
   ggplot(aes(x = effectNOEC, y = effectLOEC)) +
   geom_point() +
   geom_smooth(method = "lm")
@@ -296,7 +300,7 @@ filtered <- aoc_z %>%
   drop_na(dose.mg.L.master) %>%
   droplevels()
 
-summary(lm(dose.mg.L.master ~ (effect.metric + lvl2_f + size_f + species_f + life.stage)^2, 
+summary(lm(dose.mg.L.master ~ effect.metric + lvl2_f + size_f + species_f + life.stage, 
    data = filtered))
 ```
 ```{r}
