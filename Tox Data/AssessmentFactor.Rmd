@@ -14,7 +14,8 @@ library(tidyverse)
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-aoc_z <- readRDS("Tox Data/aoc_z.Rda")
+aoc_z <- readRDS("Tox Data/aoc_z.Rda") 
+#must have "EValuate Chunks in directory: Project" in Global Options _> R Markdown in order for above line to work
 ```
 
 # NOEC & NOEC Distribution
@@ -258,7 +259,7 @@ NOEC.LOEC
 summary(lm(effectNOEC ~ effectLOEC, data = NOEC.LOEC))
 
 NOEC.LOEC %>% 
-  #filter(LOEC.NOEC.ratio <10) %>% 
+  filter(LOEC.NOEC.ratio >1) %>% 
   #filter(LOEC.NOEC.ratio >10) %>% 
   ggplot(aes(x = effectNOEC, y = effectLOEC)) +
   geom_point() +

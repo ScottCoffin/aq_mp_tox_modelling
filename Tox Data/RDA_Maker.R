@@ -826,11 +826,18 @@ aoc_setup <- aoc_v1 %>% # start with original dataset
 aoc_z <- aoc_setup %>% # start with Heili's altered dataset (no filtration for terrestrial data)
   # environment category data tidying.
   mutate(environment.noNA = replace_na(environment, "Not Reported")) %>% # replaces NA to better relabel.
-  mutate(env_f = factor(environment.noNA, levels = c("Marine", "Freshwater", "Terrestrial", "Not Reported"))) 
+  mutate(env_f = factor(environment.noNA, levels = c("Marine", "Freshwater", "Terrestrial", "Not Reported"))) %>% 
+  #Remove leachate and additive/chemical transfer experiments
+  replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>% 
+  dplyr::filter(leachate.only != "Y") %>%
+  mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
+                                                   chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
+                                                   chem.exp.typ.nominal == "sorbed" ~ "Chemical Transfer"))) %>% 
+  dplyr::filter(chem.exp.typ.nominal_f == "Particle Only")  
 
 # final cleanup and factoring  
 
-aoc_z$Species <- as.factor(paste(aoc_setup$genus,aoc_setup$species)) #must make value 'Species" (uppercase)
+aoc_z$Species <- as.factor(paste(aoc_z$genus,aoc_z$species)) #must make value 'Species" (uppercase)
 aoc_z$Group <- as.factor(aoc_z$organism.group) #must make value "Group"
 aoc_z$Group <- fct_explicit_na(aoc_z$Group) #makes sure that species get counted even if they're missing a group
 
