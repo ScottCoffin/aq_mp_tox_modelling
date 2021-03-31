@@ -1,0 +1,1287 @@
+---
+title: "SSD Sensitivity Analysis"
+author: "Scott Coffin"
+date: "3/10/2021"
+output:   
+  html_document:
+    code_folding: hide
+    theme: journal
+    toc: yes
+    toc_float: yes
+    toc_depth: 6
+    number_sections: true
+    includes:
+     # after_body: footer.html
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE,time_it = TRUE) #report
+```
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(calecopal)
+library(ssdtools)
+library(DT)
+library(plotly)
+library(gridExtra)
+library(grid)
+library(wesanderson)
+library(ggdark)
+library(broom)
+library(knitr)
+library(viridis)
+library(ggrepel)
+library(scales)
+library(gt)
+```
+
+```{r parameters, include=FALSE}
+# Paramaters
+x2D_set = 5000#100 #upper size range (microns)
+x1D_set = 100#1 #lower size range (microns)
+particle_mass_check_ssd <- 'mg/L' #assign whether or not to use particles/mL or mass/mL
+```
+
+```{r Theme, include=FALSE}
+#Theme type
+     theme.type<- theme_gray(base_size = 20)#,
+                       #"dark" = dark_theme_bw(base_size = 20)) 
+     #color selection
+     fill.type <-    scale_fill_viridis(discrete = TRUE)#,
+                         # "brewer" =  scale_fill_brewer(palette = "Paired"),
+                         # "tron" = scale_fill_tron(),
+                         # "locusZoom" = scale_fill_locuszoom(),
+                         # "d3" = scale_fill_d3(),
+                         # "Nature" = scale_fill_npg(),
+                         # "JAMA" = scale_fill_jama())
+     #color selection
+     color.type <- scale_color_viridis(discrete = TRUE)#,
+                         # "brewer" =  scale_color_brewer(palette = "Paired"),
+                         # "tron" = scale_color_tron(),
+                         # "locusZoom" = scale_color_locuszoom(),
+                         # "d3" = scale_color_d3(),
+                         # "Nature" = scale_color_npg(),
+                         # "JAMA" = scale_color_jama())
+
+```
+
+```{r import, include=FALSE}
+# Data Import
+require(readr)
+#load aoc_z into dataframe. This file is generated from RDA_Maker.R
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
+
+
+# Data Collapse
+
+```{r data collapse, include=FALSE}
+#### filter by tier first ###
+#Tier 1 is HC5 for all endpoints
+tier1 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         acute.chronic_f != "Unavailable",
+         tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         shape_f != "Not Reported",
+         lvl1_f == "Fitness") %>% 
+  replace_na(list(af.time = 1)) %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#Tier 2 is HC5 for all tissue and above endpoints
+tier2 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         acute.chronic_f != "Unavailable",
+         tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         shape_f != "Not Reported",
+         lvl1_f == "Fitness",
+         bio_f %in% c("Tissue","Organism","Population")) %>% 
+  replace_na(list(af.time = 1)) %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#Tiers 3 and 4 are for organism level endpoints only
+tier3.4 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         acute.chronic_f != "Unavailable",
+         tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         shape_f != "Not Reported",
+         lvl1_f == "Fitness",
+         bio_f == "Organism") %>% 
+  replace_na(list(af.time = 1)) %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#### Size filters ####
+### 100 - 5000 um
+tier1_large <- tier1 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+tier2_large <- tier2 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+tier3.4_large <- tier3.4 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+### 10 - 100 um
+tier1_small <- tier1 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+tier2_small <- tier2 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+tier3.4_small <- tier3.4 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+#### Data Collapsing ####
+
+## Tier 1 ##
+# tier 1 large
+tier1_large_median <- tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tier1_large_mean <- tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tier1_large_1q <- tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+# tier 1 small
+tier1_small_median <- tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tier1_small_mean <- tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tier1_small_1q <- tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+## Tier 2 ##
+# tier 1 large
+tier2_large_median <- tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tier2_large_mean <- tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tier2_large_1q <- tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+# tier 1 small
+tier2_small_median <- tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tier2_small_mean <- tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tier2_small_1q <- tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+## Tier 3 and 4 ##
+# tier 3 large
+tier3.4_large_median <- tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tier3.4_large_mean <- tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tier3.4_large_1q <- tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+# tier 3 small
+tier3.4_small_median <- tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tier3.4_small_mean <- tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tier3.4_small_1q <- tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25), na.rm = TRUE)
+```
+
+# SSD Build
+## Tier 1
+### Large 
+#### Tier1_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier1_large_median <- ssd_fit_dists(tier1_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_large_median) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_large_median <- as.data.frame(ssd_gof(dists_tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_large_median <- predict(dists_tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_large_median <- tier1_large_median[order(tier1_large_median$Conc), ]
+SSD_tier1_large_median$frac <- ppoints(tier1_large_median$Conc, 0.5)
+
+tier1_large_median_hc5 <- c(pred_tier1_large_median$est[5])
+pred_tier1_large_median$est_format <-format(pred_tier1_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+tier1_large_median_ggplot <- ggplot(pred_tier1_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier1_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier1_large_median_ggplot
+```
+
+#### tier1_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier1_large_mean <- ssd_fit_dists(tier1_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_large_mean) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_large_mean <- as.data.frame(ssd_gof(dists_tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_large_mean <- predict(dists_tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_large_mean <- tier1_large_mean[order(tier1_large_mean$Conc), ]
+SSD_tier1_large_mean$frac <- ppoints(tier1_large_mean$Conc, 0.5)
+
+tier1_large_mean_hc5 <- c(pred_tier1_large_mean$est[5])
+pred_tier1_large_mean$est_format <-format(pred_tier1_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+tier1_large_mean_ggplot <- ggplot(pred_tier1_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier1_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier1_large_mean_ggplot
+```
+
+#### tier1_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tier1_large_1q <- ssd_fit_dists(tier1_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_large_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_large_1q <- as.data.frame(ssd_gof(dists_tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_large_1q <- predict(dists_tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_large_1q <- tier1_large_1q[order(tier1_large_1q$Conc), ]
+SSD_tier1_large_1q$frac <- ppoints(tier1_large_1q$Conc, 0.5)
+
+tier1_large_1q_hc5 <- c(pred_tier1_large_1q$est[5])
+pred_tier1_large_1q$est_format <-format(pred_tier1_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier1_large_1q_ggplot <- ggplot(pred_tier1_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier1_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier1_large_1q_ggplot
+```
+### small 
+#### Tier1_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier1_small_median <- ssd_fit_dists(tier1_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_small_median) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_small_median <- as.data.frame(ssd_gof(dists_tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_small_median <- predict(dists_tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_small_median <- tier1_small_median[order(tier1_small_median$Conc), ]
+SSD_tier1_small_median$frac <- ppoints(tier1_small_median$Conc, 0.5)
+
+tier1_small_median_hc5 <- c(pred_tier1_small_median$est[5])
+pred_tier1_small_median$est_format <-format(pred_tier1_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier1_small_median_ggplot <- ggplot(pred_tier1_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier1_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier1_small_median_ggplot
+```
+
+#### tier1_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier1_small_mean <- ssd_fit_dists(tier1_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_small_mean) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_small_mean <- as.data.frame(ssd_gof(dists_tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_small_mean <- predict(dists_tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_small_mean <- tier1_small_mean[order(tier1_small_mean$Conc), ]
+SSD_tier1_small_mean$frac <- ppoints(tier1_small_mean$Conc, 0.5)
+
+tier1_small_mean_hc5 <- c(pred_tier1_small_mean$est[5])
+pred_tier1_small_mean$est_format <-format(pred_tier1_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+tier1_small_mean_ggplot <- ggplot(pred_tier1_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier1_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier1_small_mean_ggplot
+```
+
+#### tier1_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tier1_small_1q <- ssd_fit_dists(tier1_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_small_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_small_1q <- as.data.frame(ssd_gof(dists_tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_small_1q <- predict(dists_tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_small_1q <- tier1_small_1q[order(tier1_small_1q$Conc), ]
+SSD_tier1_small_1q$frac <- ppoints(tier1_small_1q$Conc, 0.5)
+
+tier1_small_1q_hc5 <- c(pred_tier1_small_1q$est[5])
+pred_tier1_small_1q$est_format <-format(pred_tier1_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier1_small_1q_ggplot <- ggplot(pred_tier1_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier1_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tier1_small_1q_ggplot
+```
+## tier 2
+### Large 
+#### tier2_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier2_large_median <- ssd_fit_dists(tier2_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier2_large_median) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier2_large_median <- as.data.frame(ssd_gof(dists_tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier2_large_median <- predict(dists_tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier2_large_median <- tier2_large_median[order(tier2_large_median$Conc), ]
+SSD_tier2_large_median$frac <- ppoints(tier2_large_median$Conc, 0.5)
+
+tier2_large_median_hc5 <- c(pred_tier2_large_median$est[5])
+pred_tier2_large_median$est_format <-format(pred_tier2_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+tier2_large_median_ggplot <- ggplot(pred_tier2_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier2_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier2_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier2_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier2_large_median_ggplot
+```
+
+#### tier2_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier2_large_mean <- ssd_fit_dists(tier2_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier2_large_mean) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier2_large_mean <- as.data.frame(ssd_gof(dists_tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier2_large_mean <- predict(dists_tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier2_large_mean <- tier2_large_mean[order(tier2_large_mean$Conc), ]
+SSD_tier2_large_mean$frac <- ppoints(tier2_large_mean$Conc, 0.5)
+
+tier2_large_mean_hc5 <- c(pred_tier2_large_mean$est[5])
+pred_tier2_large_mean$est_format <-format(pred_tier2_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+tier2_large_mean_ggplot <- ggplot(pred_tier2_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier2_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier2_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier2_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier2_large_mean_ggplot
+```
+
+#### tier2_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tier2_large_1q <- ssd_fit_dists(tier2_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier2_large_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier2_large_1q <- as.data.frame(ssd_gof(dists_tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier2_large_1q <- predict(dists_tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier2_large_1q <- tier2_large_1q[order(tier2_large_1q$Conc), ]
+SSD_tier2_large_1q$frac <- ppoints(tier2_large_1q$Conc, 0.5)
+
+tier2_large_1q_hc5 <- c(pred_tier2_large_1q$est[5])
+pred_tier2_large_1q$est_format <-format(pred_tier2_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier2_large_1q_ggplot <- ggplot(pred_tier2_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier2_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier2_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier2_large_1q_ggplot
+```
+### small 
+#### tier2_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier2_small_median <- ssd_fit_dists(tier2_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier2_small_median) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier2_small_median <- as.data.frame(ssd_gof(dists_tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier2_small_median <- predict(dists_tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier2_small_median <- tier2_small_median[order(tier2_small_median$Conc), ]
+SSD_tier2_small_median$frac <- ppoints(tier2_small_median$Conc, 0.5)
+
+tier2_small_median_hc5 <- c(pred_tier2_small_median$est[5])
+pred_tier2_small_median$est_format <-format(pred_tier2_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier2_small_median_ggplot <- ggplot(pred_tier2_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier2_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier2_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier2_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier2_small_median_ggplot
+```
+
+#### tier2_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier2_small_mean <- ssd_fit_dists(tier2_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier2_small_mean) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier2_small_mean <- as.data.frame(ssd_gof(dists_tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier2_small_mean <- predict(dists_tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier2_small_mean <- tier2_small_mean[order(tier2_small_mean$Conc), ]
+SSD_tier2_small_mean$frac <- ppoints(tier2_small_mean$Conc, 0.5)
+
+tier2_small_mean_hc5 <- c(pred_tier2_small_mean$est[5])
+pred_tier2_small_mean$est_format <-format(pred_tier2_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+tier2_small_mean_ggplot <- ggplot(pred_tier2_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier2_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier2_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier2_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier2_small_mean_ggplot
+```
+
+#### tier2_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tier2_small_1q <- ssd_fit_dists(tier2_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier2_small_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier2_small_1q <- as.data.frame(ssd_gof(dists_tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier2_small_1q <- predict(dists_tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier2_small_1q <- tier2_small_1q[order(tier2_small_1q$Conc), ]
+SSD_tier2_small_1q$frac <- ppoints(tier2_small_1q$Conc, 0.5)
+
+tier2_small_1q_hc5 <- c(pred_tier2_small_1q$est[5])
+pred_tier2_small_1q$est_format <-format(pred_tier2_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier2_small_1q_ggplot <- ggplot(pred_tier2_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier2_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier2_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier2_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tier2_small_1q_ggplot
+```
+
+
+## Tier 3
+### Large 
+#### tier3.4_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier3.4_large_median <- ssd_fit_dists(tier3.4_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier3.4_large_median) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier3.4_large_median <- as.data.frame(ssd_gof(dists_tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier3.4_large_median <- predict(dists_tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier3.4_large_median <- tier3.4_large_median[order(tier3.4_large_median$Conc), ]
+SSD_tier3.4_large_median$frac <- ppoints(tier3.4_large_median$Conc, 0.5)
+
+tier3.4_large_median_hc5 <- c(pred_tier3.4_large_median$est[5])
+pred_tier3.4_large_median$est_format <-format(pred_tier3.4_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+tier3.4_large_median_ggplot <- ggplot(pred_tier3.4_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier3.4_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier3.4_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier3.4_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier3.4_large_median_ggplot
+```
+
+#### tier3.4_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier3.4_large_mean <- ssd_fit_dists(tier3.4_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier3.4_large_mean) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier3.4_large_mean <- as.data.frame(ssd_gof(dists_tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier3.4_large_mean <- predict(dists_tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier3.4_large_mean <- tier3.4_large_mean[order(tier3.4_large_mean$Conc), ]
+SSD_tier3.4_large_mean$frac <- ppoints(tier3.4_large_mean$Conc, 0.5)
+
+tier3.4_large_mean_hc5 <- c(pred_tier3.4_large_mean$est[5])
+pred_tier3.4_large_mean$est_format <-format(pred_tier3.4_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+tier3.4_large_mean_ggplot <- ggplot(pred_tier3.4_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier3.4_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier3.4_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier3.4_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier3.4_large_mean_ggplot
+```
+
+#### tier3.4_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tier3.4_large_1q <- ssd_fit_dists(tier3.4_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier3.4_large_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier3.4_large_1q <- as.data.frame(ssd_gof(dists_tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier3.4_large_1q <- predict(dists_tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier3.4_large_1q <- tier3.4_large_1q[order(tier3.4_large_1q$Conc), ]
+SSD_tier3.4_large_1q$frac <- ppoints(tier3.4_large_1q$Conc, 0.5)
+
+tier3.4_large_1q_hc5 <- c(pred_tier3.4_large_1q$est[5])
+pred_tier3.4_large_1q$est_format <-format(pred_tier3.4_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier3.4_large_1q_ggplot <- ggplot(pred_tier3.4_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier3.4_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier3.4_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier3.4_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier3.4_large_1q_ggplot
+```
+### small 
+#### tier3.4_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier3.4_small_median <- ssd_fit_dists(tier3.4_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier3.4_small_median) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier3.4_small_median <- as.data.frame(ssd_gof(dists_tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier3.4_small_median <- predict(dists_tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier3.4_small_median <- tier3.4_small_median[order(tier3.4_small_median$Conc), ]
+SSD_tier3.4_small_median$frac <- ppoints(tier3.4_small_median$Conc, 0.5)
+
+tier3.4_small_median_hc5 <- c(pred_tier3.4_small_median$est[5])
+pred_tier3.4_small_median$est_format <-format(pred_tier3.4_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier3.4_small_median_ggplot <- ggplot(pred_tier3.4_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier3.4_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier3.4_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier3.4_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier3.4_small_median_ggplot
+```
+
+#### tier3.4_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tier3.4_small_mean <- ssd_fit_dists(tier3.4_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier3.4_small_mean) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier3.4_small_mean <- as.data.frame(ssd_gof(dists_tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier3.4_small_mean <- predict(dists_tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier3.4_small_mean <- tier3.4_small_mean[order(tier3.4_small_mean$Conc), ]
+SSD_tier3.4_small_mean$frac <- ppoints(tier3.4_small_mean$Conc, 0.5)
+
+tier3.4_small_mean_hc5 <- c(pred_tier3.4_small_mean$est[5])
+pred_tier3.4_small_mean$est_format <-format(pred_tier3.4_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+tier3.4_small_mean_ggplot <- ggplot(pred_tier3.4_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier3.4_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier3.4_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier3.4_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tier3.4_small_mean_ggplot
+```
+
+#### tier3.4_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tier3.4_small_1q <- ssd_fit_dists(tier3.4_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier3.4_small_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier3.4_small_1q <- as.data.frame(ssd_gof(dists_tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier3.4_small_1q <- predict(dists_tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier3.4_small_1q <- tier3.4_small_1q[order(tier3.4_small_1q$Conc), ]
+SSD_tier3.4_small_1q$frac <- ppoints(tier3.4_small_1q$Conc, 0.5)
+
+tier3.4_small_1q_hc5 <- c(pred_tier3.4_small_1q$est[5])
+pred_tier3.4_small_1q$est_format <-format(pred_tier3.4_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier3.4_small_1q_ggplot <- ggplot(pred_tier3.4_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier3.4_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier3.4_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tier3.4_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tier3.4_small_1q_ggplot
+```
+
+
+# Combine plots
+## Tier 1
+### Smalls
+```{r}
+### tier1_small_median
+ggplot(pred_tier1_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tier1_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tier1_small_mean ###
+  geom_xribbon(data = pred_tier1_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tier1_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tier1_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tier1_small_1q ###
+    geom_xribbon(data = pred_tier1_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tier1_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tier1_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (Tier 1)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile"),
+       caption = ("All endpoints")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### tier1_large_median
+ggplot(pred_tier1_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tier1_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tier1_large_mean ###
+  geom_xribbon(data = pred_tier1_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tier1_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tier1_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tier1_large_1q ###
+    geom_xribbon(data = pred_tier1_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tier1_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tier1_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (Tier 1)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile"),
+       caption = ("All endpoints")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## Tier 2
+### Smalls
+```{r}
+### tier2_small_median
+ggplot(pred_tier2_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tier2_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tier2_small_mean ###
+  geom_xribbon(data = pred_tier2_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tier2_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tier2_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tier2_small_1q ###
+    geom_xribbon(data = pred_tier2_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tier2_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tier2_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (Tier 2)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile"),
+       caption = ("All endpoints")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### tier2_large_median
+ggplot(pred_tier2_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tier2_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tier2_large_mean ###
+  geom_xribbon(data = pred_tier2_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tier2_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tier2_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tier2_large_1q ###
+    geom_xribbon(data = pred_tier2_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tier2_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tier2_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (Tier 2)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile"),
+       caption = ("All endpoints")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## Tier 3/4
+### Smalls
+```{r}
+### tier3.4_small_median
+ggplot(pred_tier3.4_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tier3.4_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tier3.4_small_mean ###
+  geom_xribbon(data = pred_tier3.4_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tier3.4_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tier3.4_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tier3.4_small_1q ###
+    geom_xribbon(data = pred_tier3.4_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tier3.4_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tier3.4_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (Tier 3/4)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile"),
+       caption = ("All endpoints")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### tier3.4_large_median
+ggplot(pred_tier3.4_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tier3.4_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tier3.4_large_mean ###
+  geom_xribbon(data = pred_tier3.4_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tier3.4_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tier3.4_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tier3.4_large_1q ###
+    geom_xribbon(data = pred_tier3.4_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tier3.4_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tier3.4_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (Tier 3/4)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile"),
+       caption = ("All endpoints")) +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+# Summary
+```{r}
+# Small/Large x tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
+larges <- list(tier1_large_median_hc5, tier1_large_mean_hc5, tier1_large_1q_hc5,
+          #tier 2
+          tier2_large_median_hc5, tier2_large_mean_hc5, tier2_large_1q_hc5,
+          #tier 3.4
+          tier3.4_large_median_hc5, tier3.4_large_mean_hc5, tier3.4_large_1q_hc5)
+
+smalls <- list(tier1_small_median_hc5, tier1_small_mean_hc5, tier1_small_1q_hc5,
+          #tier 2
+          tier2_small_median_hc5, tier2_small_mean_hc5, tier2_small_1q_hc5,
+          #tier 3.4
+          tier3.4_small_median_hc5, tier3.4_small_mean_hc5, tier3.4_small_1q_hc5)
+
+## Conver to data frames
+largesdf <- data.frame(matrix(unlist(larges), ncol = 3))
+smallsdf <- data.frame(matrix(unlist(smalls), ncol = 3))
+
+# rename columns and rows
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1")
+
+rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3")
+rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3")
+
+# provide tier column
+largestibble <- tibble(largesdf,
+                       Tier = rownames(largesdf))
+
+#re-arrange columns
+largestibble <- largestibble[c("Tier", "Median", "Mean", "Quartile_1")]
+
+# provide tier column
+smallstibble <- tibble(smallsdf,
+                       Tier = rownames(smallsdf))
+
+#re-arrange columns
+smallstibble <- smallstibble[c("Tier", "Median", "Mean", "Quartile_1")]
+
+#function to create tables
+hp_table <- function(x){
+  gt(x) %>% 
+    fmt_number(columns = vars(Median, Mean, Quartile_1),
+             n_sigfig = 2,
+             use_seps = TRUE) %>% 
+    data_color(
+    columns = vars(Median, Mean, Quartile_1),
+    colors = scales::col_numeric(
+    palette = paletteer::paletteer_d(
+      palette = "ggsci::teal_material") %>% 
+      as.character(),
+    domain = NULL),
+    alpha = 0.75) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+    as_raw_html() # return as html
+}
+
+#larges gt
+larges_gt <- largestibble %>% 
+  hp_table()
+
+#smalls gt
+smalls_gt <- smallstibble %>% 
+  hp_table()
+  
+## Combine
+data.tables <- data.frame(smalls_table = smalls_gt,
+                          larges_table = larges_gt)
+#Combine
+data.tables %>% 
+  gt() %>% 
+  fmt_markdown(columns = TRUE) %>% 
+  cols_label(smalls_table = "1-10 um",
+             larges_table = "10-5,000 um") %>% 
+  tab_source_note(md("Calculated from SSDs")) %>% 
+  tab_header(title = "Microplastics HC5 (mg/L) by Data Collapse and Tier",
+             subtitle = "Smalls and Larges")
+```
+
