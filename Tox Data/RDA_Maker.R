@@ -818,7 +818,9 @@ aoc_setup <- aoc_v1 %>% # start with original dataset
   mutate(tier_zero_tech_f = factor(case_when(tech.tier.zero == "Fail" ~ "Red Criteria Failed",
                                              tech.tier.zero == "Pass" ~ "Red Criteria Passed"))) %>% 
   mutate(tier_zero_risk_f = factor(case_when(risk.tier.zero == "Fail" ~ "Red Criteria Failed",
-                                             risk.tier.zero == "Pass" ~ "Red Criteria Passed")))
+                                             risk.tier.zero == "Pass" ~ "Red Criteria Passed"))) %>% 
+  mutate(dose.surface.area.um2.mL.master = particle.surface.area.um2 * dose.particles.mL.master) %>% 
+  mutate(particle.surface.area.um2.mg = particle.surface.area.um2 / mass.per.particle.mg)
 
 #### Aoc_z ####
 

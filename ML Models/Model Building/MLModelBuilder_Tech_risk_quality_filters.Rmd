@@ -54,7 +54,8 @@ library(gridExtra)
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+source("Tox Data/RDA_Maker.R")
+#aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
 # Data Selection
 

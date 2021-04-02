@@ -24,7 +24,8 @@ library(ggpubr)
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-aoc_z <- readRDS("Tox Data/aoc_z.Rda") 
+source("Tox Data/RDA_Maker.R")
+#aoc_z <- readRDS("Tox Data/aoc_z.Rda") 
 #must have "EValuate Chunks in directory: Project" in Global Options _> R Markdown in order for above line to work
 ```
 

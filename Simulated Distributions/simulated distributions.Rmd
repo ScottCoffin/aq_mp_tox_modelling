@@ -41,7 +41,8 @@ library(readxl)
 
 ```{r}
 # load tox data
-aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
+#aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
+source("Tox Data/RDA_Maker.R")
 #Get possible combinations of variables. \
 possible_variables <- aoc_z %>%
         dplyr::select(treatments,

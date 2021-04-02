@@ -36,7 +36,8 @@ library(drc) #dose-response curves
 
 ```{r}
 # load tox data
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+source("Tox Data/RDA_Maker.R")
+#aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
 
 

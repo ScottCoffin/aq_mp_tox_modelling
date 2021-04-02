@@ -144,7 +144,7 @@ multiVar <- aoc_z %>% dplyr::select(#doi, size.category,
 
 # Analysis
 ## Data Exploration
-### Completeness vby Size
+### Completeness by Size
 ```{r completeness heatmap 1}
 CompletenessSummary_size <- multiVar %>%
   group_by(size_f) %>% 
