@@ -79,44 +79,36 @@ source("Tox Data/RDA_Maker.R")
 
 
 # Data Collapse
+## Tech and Risk Tier Pass
 
 ```{r data collapse, include=FALSE}
 #### filter by tier first ###
 #Tier 1 is HC5 for all endpoints
 tier1 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
-         acute.chronic_f != "Unavailable",
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         shape_f != "Not Reported",
          lvl1_f == "Fitness") %>% 
-  replace_na(list(af.time = 1)) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #Tier 2 is HC5 for all tissue and above endpoints
 tier2 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
-         acute.chronic_f != "Unavailable",
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         shape_f != "Not Reported",
          lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
-  replace_na(list(af.time = 1)) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #Tiers 3 and 4 are for organism level endpoints only
 tier3.4 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
-         acute.chronic_f != "Unavailable",
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         shape_f != "Not Reported",
          lvl1_f == "Fitness",
          bio_f == "Organism") %>% 
-  replace_na(list(af.time = 1)) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
@@ -249,7 +241,492 @@ tier3.4_small_min <- tier3.4_small %>%
   summarize(Conc = min(dose_new))
 ```
 
-# SSD Build
+## Risk Tier Pass, Tech Tier Fail
+```{r data collapse, include=FALSE}
+#### filter by risk.pass.tier first ###
+#risk.pass.tier 1 is HC5 for all endpoints
+risk.pass.tier1 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+        # tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness") %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#risk.pass.tier 2 is HC5 for all tissue and above endpoints
+risk.pass.tier2 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+        # tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness",
+         bio_f %in% c("Tissue","Organism","Population")) %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#risk.pass.tiers 3 and 4 are for organism level endpoints only
+risk.pass.tier3.4 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+        # tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness",
+         bio_f == "Organism") %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#### Size filters ####
+### 100 - 5000 um
+risk.pass.tier1_large <- risk.pass.tier1 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+risk.pass.tier2_large <- risk.pass.tier2 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+risk.pass.tier3.4_large <- risk.pass.tier3.4 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+### 10 - 100 um
+risk.pass.tier1_small <- risk.pass.tier1 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+risk.pass.tier2_small <- risk.pass.tier2 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+risk.pass.tier3.4_small <- risk.pass.tier3.4 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+#### Data Collapsing ####
+
+## risk.pass.tier 1 ##
+# risk.pass.tier 1 large
+risk.pass.tier1_large_median <- risk.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+risk.pass.tier1_large_mean <- risk.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+risk.pass.tier1_large_1q <- risk.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+risk.pass.tier1_large_min <- risk.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# risk.pass.tier 1 small
+risk.pass.tier1_small_median <- risk.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+risk.pass.tier1_small_mean <- risk.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+risk.pass.tier1_small_1q <- risk.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+risk.pass.tier1_small_min <- risk.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+## risk.pass.tier 2 ##
+# risk.pass.tier 1 large
+risk.pass.tier2_large_median <- risk.pass.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+risk.pass.tier2_large_mean <- risk.pass.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+risk.pass.tier2_large_1q <- risk.pass.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+risk.pass.tier2_large_min <- risk.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# risk.pass.tier 1 small
+risk.pass.tier2_small_median <- risk.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+risk.pass.tier2_small_mean <- risk.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+risk.pass.tier2_small_1q <- risk.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+risk.pass.tier2_small_min <- risk.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+## risk.pass.tier 3 and 4 ##
+# risk.pass.tier 3 large
+risk.pass.tier3.4_large_median <- risk.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+risk.pass.tier3.4_large_mean <- risk.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+risk.pass.tier3.4_large_1q <- risk.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+risk.pass.tier3.4_large_min <- risk.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# risk.pass.tier 3 small
+risk.pass.tier3.4_small_median <- risk.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+risk.pass.tier3.4_small_mean <- risk.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+risk.pass.tier3.4_small_1q <- risk.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25), na.rm = TRUE)
+
+risk.pass.tier3.4_small_min <- risk.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+```
+
+## Tech Tier Pass, Risk Tier Fail
+
+```{r data collapse, include=FALSE}
+#### filter by tech.pass.tier first ###
+#tech.pass.tier 1 is HC5 for all endpoints
+tech.pass.tier1 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         tier_zero_tech_f == "Red Criteria Passed",
+        # tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness") %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#tech.pass.tier 2 is HC5 for all tissue and above endpoints
+tech.pass.tier2 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         tier_zero_tech_f == "Red Criteria Passed",
+        # tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness",
+         bio_f %in% c("Tissue","Organism","Population")) %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#tech.pass.tiers 3 and 4 are for organism level endpoints only
+tech.pass.tier3.4 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         tier_zero_tech_f == "Red Criteria Passed",
+        # tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness",
+         bio_f == "Organism") %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#### Size filters ####
+### 100 - 5000 um
+tech.pass.tier1_large <- tech.pass.tier1 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+tech.pass.tier2_large <- tech.pass.tier2 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+tech.pass.tier3.4_large <- tech.pass.tier3.4 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+### 10 - 100 um
+tech.pass.tier1_small <- tech.pass.tier1 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+tech.pass.tier2_small <- tech.pass.tier2 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+tech.pass.tier3.4_small <- tech.pass.tier3.4 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+#### Data Collapsing ####
+
+## tech.pass.tier 1 ##
+# tech.pass.tier 1 large
+tech.pass.tier1_large_median <- tech.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tech.pass.tier1_large_mean <- tech.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tech.pass.tier1_large_1q <- tech.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+tech.pass.tier1_large_min <- tech.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# tech.pass.tier 1 small
+tech.pass.tier1_small_median <- tech.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tech.pass.tier1_small_mean <- tech.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tech.pass.tier1_small_1q <- tech.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+tech.pass.tier1_small_min <- tech.pass.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+## tech.pass.tier 2 ##
+# tech.pass.tier 1 large
+tech.pass.tier2_large_median <- tech.pass.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tech.pass.tier2_large_mean <- tech.pass.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tech.pass.tier2_large_1q <- tech.pass.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+tech.pass.tier2_large_min <- tech.pass.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# tech.pass.tier 1 small
+tech.pass.tier2_small_median <- tech.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tech.pass.tier2_small_mean <- tech.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tech.pass.tier2_small_1q <- tech.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+tech.pass.tier2_small_min <- tech.pass.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+## tech.pass.tier 3 and 4 ##
+# tech.pass.tier 3 large
+tech.pass.tier3.4_large_median <- tech.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tech.pass.tier3.4_large_mean <- tech.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tech.pass.tier3.4_large_1q <- tech.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+tech.pass.tier3.4_large_min <- tech.pass.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# tech.pass.tier 3 small
+tech.pass.tier3.4_small_median <- tech.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+tech.pass.tier3.4_small_mean <- tech.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+tech.pass.tier3.4_small_1q <- tech.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25), na.rm = TRUE)
+
+tech.pass.tier3.4_small_min <- tech.pass.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+```
+
+## No quality filters
+
+```{r data collapse, include=FALSE}
+#### filter by tier first ###
+#allFail.tier 1 is HC5 for all endpoints
+allFail.tier1 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+      #   tier_zero_tech_f == "Red Criteria Passed",
+       #  tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness") %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#allFail.tier 2 is HC5 for all tissue and above endpoints
+allFail.tier2 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+        # tier_zero_tech_f == "Red Criteria Passed",
+        # tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness",
+         bio_f %in% c("Tissue","Organism","Population")) %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#allFail.tiers 3 and 4 are for organism level endpoints only
+allFail.tier3.4 <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+        # tier_zero_tech_f == "Red Criteria Passed",
+         #tier_zero_risk_f == "Red Criteria Passed",
+         lvl1_f == "Fitness",
+         bio_f == "Organism") %>% 
+  mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
+  drop_na(dose_new)
+
+#### Size filters ####
+### 100 - 5000 um
+allFail.tier1_large <- allFail.tier1 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+allFail.tier2_large <- allFail.tier2 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+allFail.tier3.4_large <- allFail.tier3.4 %>% 
+  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+
+### 10 - 100 um
+allFail.tier1_small <- allFail.tier1 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+allFail.tier2_small <- allFail.tier2 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+allFail.tier3.4_small <- allFail.tier3.4 %>% 
+  filter(size_f %in% c("1µm < 10µm"))
+
+#### Data Collapsing ####
+
+## allFail.tier 1 ##
+# allFail.tier 1 large
+allFail.tier1_large_median <- allFail.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+allFail.tier1_large_mean <- allFail.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+allFail.tier1_large_1q <- allFail.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+allFail.tier1_large_min <- allFail.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# allFail.tier 1 small
+allFail.tier1_small_median <- allFail.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+allFail.tier1_small_mean <- allFail.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+allFail.tier1_small_1q <- allFail.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+allFail.tier1_small_min <- allFail.tier1_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+## allFail.tier 2 ##
+# allFail.tier 1 large
+allFail.tier2_large_median <- allFail.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+allFail.tier2_large_mean <- allFail.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+allFail.tier2_large_1q <- allFail.tier2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+allFail.tier2_large_min <- allFail.tier1_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# allFail.tier 1 small
+allFail.tier2_small_median <- allFail.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+allFail.tier2_small_mean <- allFail.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+allFail.tier2_small_1q <- allFail.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+allFail.tier2_small_min <- allFail.tier2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+## allFail.tier 3 and 4 ##
+# allFail.tier 3 large
+allFail.tier3.4_large_median <- allFail.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+allFail.tier3.4_large_mean <- allFail.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+allFail.tier3.4_large_1q <- allFail.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+allFail.tier3.4_large_min <- allFail.tier3.4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+
+# allFail.tier 3 small
+allFail.tier3.4_small_median <- allFail.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = median(dose_new))
+
+allFail.tier3.4_small_mean <- allFail.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = mean(dose_new))
+
+allFail.tier3.4_small_1q <- allFail.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25), na.rm = TRUE)
+
+allFail.tier3.4_small_min <- allFail.tier3.4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = min(dose_new))
+```
+
+# SSD Build (Tech and Risk Tier Pass)
 ## Tier 1
 ### Large 
 #### Tier1_large_median
@@ -1531,7 +2008,6 @@ ggplot(pred_tier3.4_large_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-
 # Summary Table
 ```{r}
 # Small/Large x tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
@@ -1621,6 +2097,1382 @@ data.tables %>%
              larges_table = "10-5,000 um") %>% 
   tab_source_note(md("Calculated from SSDs")) %>% 
   tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and Tier",
+             subtitle = "Smalls and Larges") 
+```
+
+# SSD Build (Risk Tier Pass, Tech Tier Fail)
+## risk.pass.risk.pass.tier 1
+### Large 
+#### risk.pass.risk.pass.tier1_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.risk.pass.tier1_large_median <- ssd_fit_dists(risk.pass.risk.pass.tier1_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.risk.pass.tier1_large_median) #plots the distribution in ggplorisk.pass.risk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.risk.pass.tier1_large_median <- as.data.frame(ssd_gof(dists_risk.pass.risk.pass.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.risk.pass.tier1_large_median <- predict(dists_risk.pass.risk.pass.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.risk.pass.tier1_large_median <- risk.pass.risk.pass.tier1_large_median[order(risk.pass.risk.pass.tier1_large_median$Conc), ]
+SSD_risk.pass.risk.pass.tier1_large_median$frac <- ppoints(risk.pass.risk.pass.tier1_large_median$Conc, 0.5)
+
+risk.pass.risk.pass.tier1_large_median_hc5 <- c(pred_risk.pass.risk.pass.tier1_large_median$est[5])
+pred_risk.pass.risk.pass.tier1_large_median$est_format <-format(pred_risk.pass.risk.pass.tier1_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+risk.pass.risk.pass.tier1_large_median_ggplot <- ggplot(pred_risk.pass.risk.pass.tier1_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier1_large_median_ggplot
+```
+
+#### risk.pass.tier1_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_large_mean <- ssd_fit_dists(risk.pass.tier1_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_large_mean) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_large_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_large_mean <- predict(dists_risk.pass.tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_large_mean <- risk.pass.tier1_large_mean[order(risk.pass.tier1_large_mean$Conc), ]
+SSD_risk.pass.tier1_large_mean$frac <- ppoints(risk.pass.tier1_large_mean$Conc, 0.5)
+
+risk.pass.tier1_large_mean_hc5 <- c(pred_risk.pass.tier1_large_mean$est[5])
+pred_risk.pass.tier1_large_mean$est_format <-format(pred_risk.pass.tier1_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+risk.pass.tier1_large_mean_ggplot <- ggplot(pred_risk.pass.tier1_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier1_large_mean_ggplot
+```
+
+#### risk.pass.tier1_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_large_1q <- ssd_fit_dists(risk.pass.tier1_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_large_1q) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_large_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_large_1q <- predict(dists_risk.pass.tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_large_1q <- risk.pass.tier1_large_1q[order(risk.pass.tier1_large_1q$Conc), ]
+SSD_risk.pass.tier1_large_1q$frac <- ppoints(risk.pass.tier1_large_1q$Conc, 0.5)
+
+risk.pass.tier1_large_1q_hc5 <- c(pred_risk.pass.tier1_large_1q$est[5])
+pred_risk.pass.tier1_large_1q$est_format <-format(pred_risk.pass.tier1_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier1_large_1q_ggplot <- ggplot(pred_risk.pass.tier1_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier1_large_1q_ggplot
+```
+
+#### risk.pass.tier1_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_large_min <- ssd_fit_dists(risk.pass.tier1_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_large_min) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_large_min <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_large_min <- predict(dists_risk.pass.tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_large_min <- risk.pass.tier1_large_min[order(risk.pass.tier1_large_min$Conc), ]
+SSD_risk.pass.tier1_large_min$frac <- ppoints(risk.pass.tier1_large_min$Conc, 0.5)
+
+risk.pass.tier1_large_min_hc5 <- c(pred_risk.pass.tier1_large_min$est[5])
+pred_risk.pass.tier1_large_min$est_format <-format(pred_risk.pass.tier1_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier1_large_min_ggplot <- ggplot(pred_risk.pass.tier1_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier1_large_min_ggplot
+```
+
+### small 
+#### risk.pass.tier1_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_small_median <- ssd_fit_dists(risk.pass.tier1_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_small_median) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_small_median <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_small_median <- predict(dists_risk.pass.tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_small_median <- risk.pass.tier1_small_median[order(risk.pass.tier1_small_median$Conc), ]
+SSD_risk.pass.tier1_small_median$frac <- ppoints(risk.pass.tier1_small_median$Conc, 0.5)
+
+risk.pass.tier1_small_median_hc5 <- c(pred_risk.pass.tier1_small_median$est[5])
+pred_risk.pass.tier1_small_median$est_format <-format(pred_risk.pass.tier1_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier1_small_median_ggplot <- ggplot(pred_risk.pass.tier1_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier1_small_median_ggplot
+```
+
+#### risk.pass.tier1_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_small_mean <- ssd_fit_dists(risk.pass.tier1_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_small_mean) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_small_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_small_mean <- predict(dists_risk.pass.tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_small_mean <- risk.pass.tier1_small_mean[order(risk.pass.tier1_small_mean$Conc), ]
+SSD_risk.pass.tier1_small_mean$frac <- ppoints(risk.pass.tier1_small_mean$Conc, 0.5)
+
+risk.pass.tier1_small_mean_hc5 <- c(pred_risk.pass.tier1_small_mean$est[5])
+pred_risk.pass.tier1_small_mean$est_format <-format(pred_risk.pass.tier1_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+risk.pass.tier1_small_mean_ggplot <- ggplot(pred_risk.pass.tier1_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier1_small_mean_ggplot
+```
+
+#### risk.pass.tier1_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_small_1q <- ssd_fit_dists(risk.pass.tier1_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_small_1q) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_small_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_small_1q <- predict(dists_risk.pass.tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_small_1q <- risk.pass.tier1_small_1q[order(risk.pass.tier1_small_1q$Conc), ]
+SSD_risk.pass.tier1_small_1q$frac <- ppoints(risk.pass.tier1_small_1q$Conc, 0.5)
+
+risk.pass.tier1_small_1q_hc5 <- c(pred_risk.pass.tier1_small_1q$est[5])
+pred_risk.pass.tier1_small_1q$est_format <-format(pred_risk.pass.tier1_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier1_small_1q_ggplot <- ggplot(pred_risk.pass.tier1_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier1_small_1q_ggplot
+```
+
+#### risk.pass.tier1_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier1_small_min <- ssd_fit_dists(risk.pass.tier1_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier1_small_min) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier1_small_min <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier1_small_min <- predict(dists_risk.pass.tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier1_small_min <- risk.pass.tier1_small_min[order(risk.pass.tier1_small_min$Conc), ]
+SSD_risk.pass.tier1_small_min$frac <- ppoints(risk.pass.tier1_small_min$Conc, 0.5)
+
+risk.pass.tier1_small_min_hc5 <- c(pred_risk.pass.tier1_small_min$est[5])
+pred_risk.pass.tier1_small_min$est_format <-format(pred_risk.pass.tier1_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier1_small_min_ggplot <- ggplot(pred_risk.pass.tier1_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier1_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier1_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier1_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier1_small_min_ggplot
+```
+
+## risk.pass.tier 2
+### Large 
+#### risk.pass.tier2_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_large_median <- ssd_fit_dists(risk.pass.tier2_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_large_median) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_large_median <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_large_median <- predict(dists_risk.pass.tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_large_median <- risk.pass.tier2_large_median[order(risk.pass.tier2_large_median$Conc), ]
+SSD_risk.pass.tier2_large_median$frac <- ppoints(risk.pass.tier2_large_median$Conc, 0.5)
+
+risk.pass.tier2_large_median_hc5 <- c(pred_risk.pass.tier2_large_median$est[5])
+pred_risk.pass.tier2_large_median$est_format <-format(pred_risk.pass.tier2_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+risk.pass.tier2_large_median_ggplot <- ggplot(pred_risk.pass.tier2_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier2_large_median_ggplot
+```
+
+#### risk.pass.tier2_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_large_mean <- ssd_fit_dists(risk.pass.tier2_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_large_mean) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_large_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_large_mean <- predict(dists_risk.pass.tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_large_mean <- risk.pass.tier2_large_mean[order(risk.pass.tier2_large_mean$Conc), ]
+SSD_risk.pass.tier2_large_mean$frac <- ppoints(risk.pass.tier2_large_mean$Conc, 0.5)
+
+risk.pass.tier2_large_mean_hc5 <- c(pred_risk.pass.tier2_large_mean$est[5])
+pred_risk.pass.tier2_large_mean$est_format <-format(pred_risk.pass.tier2_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+risk.pass.tier2_large_mean_ggplot <- ggplot(pred_risk.pass.tier2_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier2_large_mean_ggplot
+```
+
+#### risk.pass.tier2_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_large_1q <- ssd_fit_dists(risk.pass.tier2_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_large_1q) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_large_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_large_1q <- predict(dists_risk.pass.tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_large_1q <- risk.pass.tier2_large_1q[order(risk.pass.tier2_large_1q$Conc), ]
+SSD_risk.pass.tier2_large_1q$frac <- ppoints(risk.pass.tier2_large_1q$Conc, 0.5)
+
+risk.pass.tier2_large_1q_hc5 <- c(pred_risk.pass.tier2_large_1q$est[5])
+pred_risk.pass.tier2_large_1q$est_format <-format(pred_risk.pass.tier2_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier2_large_1q_ggplot <- ggplot(pred_risk.pass.tier2_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier2_large_1q_ggplot
+```
+
+#### risk.pass.tier2_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_large_min <- ssd_fit_dists(risk.pass.tier2_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_large_min) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_large_min <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_large_min <- predict(dists_risk.pass.tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_large_min <- risk.pass.tier2_large_min[order(risk.pass.tier2_large_min$Conc), ]
+SSD_risk.pass.tier2_large_min$frac <- ppoints(risk.pass.tier2_large_min$Conc, 0.5)
+
+risk.pass.tier2_large_min_hc5 <- c(pred_risk.pass.tier2_large_min$est[5])
+pred_risk.pass.tier2_large_min$est_format <-format(pred_risk.pass.tier2_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier2_large_min_ggplot <- ggplot(pred_risk.pass.tier2_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier2_large_min_ggplot
+```
+### small 
+#### risk.pass.tier2_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_small_median <- ssd_fit_dists(risk.pass.tier2_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_small_median) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_small_median <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_small_median <- predict(dists_risk.pass.tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_small_median <- risk.pass.tier2_small_median[order(risk.pass.tier2_small_median$Conc), ]
+SSD_risk.pass.tier2_small_median$frac <- ppoints(risk.pass.tier2_small_median$Conc, 0.5)
+
+risk.pass.tier2_small_median_hc5 <- c(pred_risk.pass.tier2_small_median$est[5])
+pred_risk.pass.tier2_small_median$est_format <-format(pred_risk.pass.tier2_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier2_small_median_ggplot <- ggplot(pred_risk.pass.tier2_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier2_small_median_ggplot
+```
+
+#### risk.pass.tier2_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_small_mean <- ssd_fit_dists(risk.pass.tier2_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_small_mean) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_small_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_small_mean <- predict(dists_risk.pass.tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_small_mean <- risk.pass.tier2_small_mean[order(risk.pass.tier2_small_mean$Conc), ]
+SSD_risk.pass.tier2_small_mean$frac <- ppoints(risk.pass.tier2_small_mean$Conc, 0.5)
+
+risk.pass.tier2_small_mean_hc5 <- c(pred_risk.pass.tier2_small_mean$est[5])
+pred_risk.pass.tier2_small_mean$est_format <-format(pred_risk.pass.tier2_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+risk.pass.tier2_small_mean_ggplot <- ggplot(pred_risk.pass.tier2_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier2_small_mean_ggplot
+```
+
+#### risk.pass.tier2_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_small_1q <- ssd_fit_dists(risk.pass.tier2_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_small_1q) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_small_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_small_1q <- predict(dists_risk.pass.tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_small_1q <- risk.pass.tier2_small_1q[order(risk.pass.tier2_small_1q$Conc), ]
+SSD_risk.pass.tier2_small_1q$frac <- ppoints(risk.pass.tier2_small_1q$Conc, 0.5)
+
+risk.pass.tier2_small_1q_hc5 <- c(pred_risk.pass.tier2_small_1q$est[5])
+pred_risk.pass.tier2_small_1q$est_format <-format(pred_risk.pass.tier2_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier2_small_1q_ggplot <- ggplot(pred_risk.pass.tier2_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier2_small_1q_ggplot
+```
+
+#### risk.pass.tier2_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier2_small_min <- ssd_fit_dists(risk.pass.tier2_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier2_small_min) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier2_small_min <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier2_small_min <- predict(dists_risk.pass.tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier2_small_min <- risk.pass.tier2_small_min[order(risk.pass.tier2_small_min$Conc), ]
+SSD_risk.pass.tier2_small_min$frac <- ppoints(risk.pass.tier2_small_min$Conc, 0.5)
+
+risk.pass.tier2_small_min_hc5 <- c(pred_risk.pass.tier2_small_min$est[5])
+pred_risk.pass.tier2_small_min$est_format <-format(pred_risk.pass.tier2_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier2_small_min_ggplot <- ggplot(pred_risk.pass.tier2_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier2_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier2_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier2_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier2_small_min_ggplot
+```
+
+## risk.pass.tier 3
+### Large 
+#### risk.pass.tier3.4_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_large_median <- ssd_fit_dists(risk.pass.tier3.4_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_large_median) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_large_median <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_large_median <- predict(dists_risk.pass.tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_large_median <- risk.pass.tier3.4_large_median[order(risk.pass.tier3.4_large_median$Conc), ]
+SSD_risk.pass.tier3.4_large_median$frac <- ppoints(risk.pass.tier3.4_large_median$Conc, 0.5)
+
+risk.pass.tier3.4_large_median_hc5 <- c(pred_risk.pass.tier3.4_large_median$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_large_median_hc10 <- c(pred_risk.pass.tier3.4_large_median$est[10])
+pred_risk.pass.tier3.4_large_median$est_format <-format(pred_risk.pass.tier3.4_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+risk.pass.tier3.4_large_median_ggplot <- ggplot(pred_risk.pass.tier3.4_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier3.4_large_median_ggplot
+```
+
+#### risk.pass.tier3.4_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_large_mean <- ssd_fit_dists(risk.pass.tier3.4_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_large_mean) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_large_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_large_mean <- predict(dists_risk.pass.tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_large_mean <- risk.pass.tier3.4_large_mean[order(risk.pass.tier3.4_large_mean$Conc), ]
+SSD_risk.pass.tier3.4_large_mean$frac <- ppoints(risk.pass.tier3.4_large_mean$Conc, 0.5)
+
+risk.pass.tier3.4_large_mean_hc5 <- c(pred_risk.pass.tier3.4_large_mean$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_large_mean_hc10 <- c(pred_risk.pass.tier3.4_large_mean$est[10])
+
+pred_risk.pass.tier3.4_large_mean$est_format <-format(pred_risk.pass.tier3.4_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+risk.pass.tier3.4_large_mean_ggplot <- ggplot(pred_risk.pass.tier3.4_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier3.4_large_mean_ggplot
+```
+
+#### risk.pass.tier3.4_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_large_1q <- ssd_fit_dists(risk.pass.tier3.4_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_large_1q) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_large_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_large_1q <- predict(dists_risk.pass.tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_large_1q <- risk.pass.tier3.4_large_1q[order(risk.pass.tier3.4_large_1q$Conc), ]
+SSD_risk.pass.tier3.4_large_1q$frac <- ppoints(risk.pass.tier3.4_large_1q$Conc, 0.5)
+
+risk.pass.tier3.4_large_1q_hc5 <- c(pred_risk.pass.tier3.4_large_1q$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_large_1q_hc10 <- c(pred_risk.pass.tier3.4_large_1q$est[10])
+pred_risk.pass.tier3.4_large_1q$est_format <-format(pred_risk.pass.tier3.4_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier3.4_large_1q_ggplot <- ggplot(pred_risk.pass.tier3.4_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier3.4_large_1q_ggplot
+```
+
+#### risk.pass.tier3.4_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_large_min <- ssd_fit_dists(risk.pass.tier3.4_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_large_min) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_large_min <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_large_min <- predict(dists_risk.pass.tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_large_min <- risk.pass.tier3.4_large_min[order(risk.pass.tier3.4_large_min$Conc), ]
+SSD_risk.pass.tier3.4_large_min$frac <- ppoints(risk.pass.tier3.4_large_min$Conc, 0.5)
+
+risk.pass.tier3.4_large_min_hc5 <- c(pred_risk.pass.tier3.4_large_min$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_large_min_hc10 <- c(pred_risk.pass.tier3.4_large_min$est[10])
+pred_risk.pass.tier3.4_large_min$est_format <-format(pred_risk.pass.tier3.4_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier3.4_large_min_ggplot <- ggplot(pred_risk.pass.tier3.4_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier3.4_large_min_ggplot
+```
+
+### small 
+#### risk.pass.tier3.4_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_small_median <- ssd_fit_dists(risk.pass.tier3.4_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_small_median) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_small_median <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_small_median <- predict(dists_risk.pass.tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_small_median <- risk.pass.tier3.4_small_median[order(risk.pass.tier3.4_small_median$Conc), ]
+SSD_risk.pass.tier3.4_small_median$frac <- ppoints(risk.pass.tier3.4_small_median$Conc, 0.5)
+
+risk.pass.tier3.4_small_median_hc5 <- c(pred_risk.pass.tier3.4_small_median$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_small_median_hc10 <- c(pred_risk.pass.tier3.4_small_median$est[10])
+
+pred_risk.pass.tier3.4_small_median$est_format <-format(pred_risk.pass.tier3.4_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier3.4_small_median_ggplot <- ggplot(pred_risk.pass.tier3.4_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier3.4_small_median_ggplot
+```
+
+#### risk.pass.tier3.4_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_small_mean <- ssd_fit_dists(risk.pass.tier3.4_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_small_mean) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_small_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_small_mean <- predict(dists_risk.pass.tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_small_mean <- risk.pass.tier3.4_small_mean[order(risk.pass.tier3.4_small_mean$Conc), ]
+SSD_risk.pass.tier3.4_small_mean$frac <- ppoints(risk.pass.tier3.4_small_mean$Conc, 0.5)
+
+risk.pass.tier3.4_small_mean_hc5 <- c(pred_risk.pass.tier3.4_small_mean$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_small_mean_hc10 <- c(pred_risk.pass.tier3.4_small_mean$est[10])
+
+pred_risk.pass.tier3.4_small_mean$est_format <-format(pred_risk.pass.tier3.4_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+risk.pass.tier3.4_small_mean_ggplot <- ggplot(pred_risk.pass.tier3.4_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+risk.pass.tier3.4_small_mean_ggplot
+```
+
+#### risk.pass.tier3.4_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_small_1q <- ssd_fit_dists(risk.pass.tier3.4_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_small_1q) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_small_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_small_1q <- predict(dists_risk.pass.tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_small_1q <- risk.pass.tier3.4_small_1q[order(risk.pass.tier3.4_small_1q$Conc), ]
+SSD_risk.pass.tier3.4_small_1q$frac <- ppoints(risk.pass.tier3.4_small_1q$Conc, 0.5)
+
+risk.pass.tier3.4_small_1q_hc5 <- c(pred_risk.pass.tier3.4_small_1q$est[5])
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_small_1q_hc10 <- c(pred_risk.pass.tier3.4_small_1q$est[10])
+
+pred_risk.pass.tier3.4_small_1q$est_format <-format(pred_risk.pass.tier3.4_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier3.4_small_1q_ggplot <- ggplot(pred_risk.pass.tier3.4_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier3.4_small_1q_ggplot
+```
+
+#### risk.pass.tier3.4_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_risk.pass.tier3.4_small_min <- ssd_fit_dists(risk.pass.tier3.4_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_risk.pass.tier3.4_small_min) #plots the distribution in ggplorisk.pass.tier2
+#### Goodness of fit ####
+gof_risk.pass.tier3.4_small_min <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_risk.pass.tier3.4_small_min <- predict(dists_risk.pass.tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_risk.pass.tier3.4_small_min <- risk.pass.tier3.4_small_min[order(risk.pass.tier3.4_small_min$Conc), ]
+SSD_risk.pass.tier3.4_small_min$frac <- ppoints(risk.pass.tier3.4_small_min$Conc, 0.5)
+
+#extract hc5
+risk.pass.tier3.4_small_min_hc5 <- c(pred_risk.pass.tier3.4_small_min$est[5])
+
+#extrac hc10 (risk.pass.tier 4)
+risk.pass.tier3.4_small_min_hc10 <- c(pred_risk.pass.tier3.4_small_min$est[10])
+pred_risk.pass.tier3.4_small_min$est_format <-format(pred_risk.pass.tier3.4_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+risk.pass.tier3.4_small_min_ggplot <- ggplot(pred_risk.pass.tier3.4_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_risk.pass.tier3.4_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "risk.pass.tier3.4_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+risk.pass.tier3.4_small_min_ggplot
+```
+
+# Combine plots
+## risk.pass.tier 1
+### Smalls
+```{r}
+### risk.pass.tier1_small_median
+ggplot(pred_risk.pass.tier1_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_risk.pass.tier1_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: risk.pass.tier1_small_mean ###
+  geom_xribbon(data = pred_risk.pass.tier1_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_risk.pass.tier1_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_risk.pass.tier1_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: risk.pass.tier1_small_1q ###
+    geom_xribbon(data = pred_risk.pass.tier1_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_risk.pass.tier1_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_risk.pass.tier1_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+### fourth line: risk.pass.tier1_small_min ###
+    geom_xribbon(data = pred_risk.pass.tier1_small_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_risk.pass.tier1_small_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_risk.pass.tier1_small_min, aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (risk.pass.tier 1)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### risk.pass.tier1_large_median
+ggplot(pred_risk.pass.tier1_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_risk.pass.tier1_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: risk.pass.tier1_large_mean ###
+  geom_xribbon(data = pred_risk.pass.tier1_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_risk.pass.tier1_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_risk.pass.tier1_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: risk.pass.tier1_large_1q ###
+    geom_xribbon(data = pred_risk.pass.tier1_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_risk.pass.tier1_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_risk.pass.tier1_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+  ### fourth line: risk.pass.tier1_large_min ###
+    geom_xribbon(data = pred_risk.pass.tier1_large_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_risk.pass.tier1_large_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_risk.pass.tier1_large_min, aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (risk.pass.tier 1)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## risk.pass.tier 2
+### Smalls
+```{r}
+### risk.pass.tier2_small_median
+ggplot(pred_risk.pass.tier2_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_risk.pass.tier2_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: risk.pass.tier2_small_mean ###
+  geom_xribbon(data = pred_risk.pass.tier2_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_risk.pass.tier2_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_risk.pass.tier2_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: risk.pass.tier2_small_1q ###
+    geom_xribbon(data = pred_risk.pass.tier2_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_risk.pass.tier2_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_risk.pass.tier2_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  ### fourth line: risk.pass.tier2_small_min  ###
+    geom_xribbon(data = pred_risk.pass.tier2_small_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_risk.pass.tier2_small_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_risk.pass.tier2_small_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+  ### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (risk.pass.tier 2)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### risk.pass.tier2_large_median
+ggplot(pred_risk.pass.tier2_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_risk.pass.tier2_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: risk.pass.tier2_large_mean ###
+  geom_xribbon(data = pred_risk.pass.tier2_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_risk.pass.tier2_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_risk.pass.tier2_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: risk.pass.tier2_large_1q  ###
+    geom_xribbon(data = pred_risk.pass.tier2_large_1q , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_risk.pass.tier2_large_1q , aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_risk.pass.tier2_large_1q , aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+    ### fourth line: risk.pass.tier2_large_min  ###
+    geom_xribbon(data = pred_risk.pass.tier2_large_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_risk.pass.tier2_large_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_risk.pass.tier2_large_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (risk.pass.tier 2)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## risk.pass.tier 3/4
+### Smalls
+```{r}
+### risk.pass.tier3.4_small_median
+ggplot(pred_risk.pass.tier3.4_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: risk.pass.tier3.4_small_mean ###
+  geom_xribbon(data = pred_risk.pass.tier3.4_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_risk.pass.tier3.4_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: risk.pass.tier3.4_small_1q ###
+    geom_xribbon(data = pred_risk.pass.tier3.4_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_risk.pass.tier3.4_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+      ### fourth line: risk.pass.tier3.4_small_min ###
+    geom_xribbon(data = pred_risk.pass.tier3.4_small_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_risk.pass.tier3.4_small_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_risk.pass.tier3.4_small_min, aes(x = Conc, y =frac), 
+                 color = "grey10") + 
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (risk.pass.tier 3/4)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = min"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### risk.pass.tier3.4_large_median
+ggplot(pred_risk.pass.tier3.4_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: risk.pass.tier3.4_large_mean ###
+  geom_xribbon(data = pred_risk.pass.tier3.4_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_risk.pass.tier3.4_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: risk.pass.tier3.4_large_1q ###
+    geom_xribbon(data = pred_risk.pass.tier3.4_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_risk.pass.tier3.4_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+      ### fourth line: risk.pass.tier3.4_large_min  ###
+    geom_xribbon(data = pred_risk.pass.tier3.4_large_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_risk.pass.tier3.4_large_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_risk.pass.tier3.4_large_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (risk.pass.tier 3/4)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+
+# Summary Table
+```{r}
+# Small/Large x risk.pass.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
+larges <- list(risk.pass.tier1_large_median_hc5, risk.pass.tier1_large_mean_hc5, risk.pass.tier1_large_1q_hc5, risk.pass.tier1_large_min_hc5,
+          #risk.pass.tier 2
+          risk.pass.tier2_large_median_hc5, risk.pass.tier2_large_mean_hc5, risk.pass.tier2_large_1q_hc5, risk.pass.tier2_large_min_hc5,
+          #risk.pass.tier 3 (hc5)
+          risk.pass.tier3.4_large_median_hc5, risk.pass.tier3.4_large_mean_hc5, risk.pass.tier3.4_large_1q_hc5, risk.pass.tier3.4_large_min_hc5,
+          #risk.pass.tier 4 (hc10)
+          risk.pass.tier3.4_large_median_hc10, risk.pass.tier3.4_large_mean_hc10, risk.pass.tier3.4_large_1q_hc10, risk.pass.tier3.4_large_min_hc10)
+
+smalls <- list(risk.pass.tier1_small_median_hc5, risk.pass.tier1_small_mean_hc5, risk.pass.tier1_small_1q_hc5, risk.pass.tier1_small_min_hc5,
+          #risk.pass.tier 2
+          risk.pass.tier2_small_median_hc5, risk.pass.tier2_small_mean_hc5, risk.pass.tier2_small_1q_hc5, risk.pass.tier2_small_min_hc5,
+          #risk.pass.tier 3.4
+          risk.pass.tier3.4_small_median_hc5, risk.pass.tier3.4_small_mean_hc5, risk.pass.tier3.4_small_1q_hc5, risk.pass.tier3.4_small_min_hc5,
+          #risk.pass.tier 4 (hc10)
+          risk.pass.tier3.4_small_median_hc10, risk.pass.tier3.4_small_mean_hc10, risk.pass.tier3.4_small_1q_hc10, risk.pass.tier3.4_small_min_hc10)
+
+## Conver to data frames
+largesdf <- data.frame(t(matrix(unlist(larges), ncol = 4)))
+smallsdf <- data.frame(t(matrix(unlist(smalls), ncol = 4))) #t = transpose
+
+# convert mg/L to ug/L
+largesdf <- largesdf * 1000
+smallsdf <- smallsdf * 1000
+
+# rename columns and rows
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+
+rownames(largesdf) <- c("risk.pass.tier 1", "risk.pass.tier 2", "risk.pass.tier 3", "risk.pass.tier 4")
+rownames(smallsdf) <- c("risk.pass.tier 1", "risk.pass.tier 2", "risk.pass.tier 3", "risk.pass.tier 4")
+
+# provide risk.pass.tier column
+largestibble <- tibble(largesdf,
+                       risk.pass.tier = rownames(largesdf))
+
+#re-arrange columns
+largestibble <- largestibble[c("risk.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+
+# provide risk.pass.tier column
+smallstibble <- tibble(smallsdf,
+                       risk.pass.tier = rownames(smallsdf))
+
+#re-arrange columns
+smallstibble <- smallstibble[c("risk.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+
+#function to create tables
+hp_table <- function(x){
+  #get full value range for whole table conditional formatting
+  full_val_range <- x %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+  
+  #format colors accordingly
+  gt(x) %>% 
+    fmt_number(columns = vars(Mean, Median, Quartile_1, Minimum),
+             n_sigfig = 2,
+             use_seps = TRUE) %>% 
+    data_color(
+    columns = names(x)[2:5],
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),domain = full_val_range),
+    alpha = 0.75) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+    as_raw_html() # return as html
+}
+
+#larges gt
+larges_gt <- largestibble %>% 
+  hp_table()
+
+#smalls gt
+smalls_gt <- smallstibble %>% 
+  hp_table() 
+  
+## Combine
+data.tables <- data.frame(smalls_table = smalls_gt,
+                          larges_table = larges_gt)
+#Combine
+data.tables %>% 
+  gt() %>% 
+  fmt_markdown(columns = TRUE) %>% 
+  cols_label(smalls_table = "1-10 um",
+             larges_table = "10-5,000 um") %>% 
+  tab_source_note(md("Calculated from SSDs")) %>% 
+  tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and risk.pass.tier",
              subtitle = "Smalls and Larges") 
 ```
 
