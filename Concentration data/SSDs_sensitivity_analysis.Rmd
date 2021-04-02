@@ -73,8 +73,8 @@ particle_mass_check_ssd <- 'mg/L' #assign whether or not to use particles/mL or 
 # Data Import
 #require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-#aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
-source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+#source("Tox Data/RDA_Maker.R")
 ```
 
 
@@ -116,22 +116,34 @@ tier3.4 <- aoc_z %>%
 ### 100 - 5000 um
 tier1_large <- tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+tier1_large.obs <- tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tier2_large <- tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+tier2_large.obs <- tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tier3.4_large <- tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+tier3.4_large.obs <- tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 ### 10 - 100 um
 tier1_small <- tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+# Count observations and studies
+tier1_small.obs <- tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tier2_small <- tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+tier2_small.obs <- tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tier3.4_small <- tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+tier3.4_small.obs <- tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 #### Data Collapsing ####
 
@@ -242,7 +254,7 @@ tier3.4_small_min <- tier3.4_small %>%
 ```
 
 ## Risk Tier Pass, Tech Tier Fail
-```{r data collapse, include=FALSE}
+```{r include=FALSE}
 #### filter by risk.pass.tier first ###
 #risk.pass.tier 1 is HC5 for all endpoints
 risk.pass.tier1 <- aoc_z %>% 
@@ -277,22 +289,34 @@ risk.pass.tier3.4 <- aoc_z %>%
 ### 100 - 5000 um
 risk.pass.tier1_large <- risk.pass.tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+risk.pass.tier1_large.obs <- risk.pass.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 risk.pass.tier2_large <- risk.pass.tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+risk.pass.tier2_large.obs <- risk.pass.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 risk.pass.tier3.4_large <- risk.pass.tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+risk.pass.tier3.4_large.obs <- risk.pass.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 ### 10 - 100 um
 risk.pass.tier1_small <- risk.pass.tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+# Count observations and studies
+risk.pass.tier1_small.obs <- risk.pass.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 risk.pass.tier2_small <- risk.pass.tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+risk.pass.tier2_small.obs <- risk.pass.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 risk.pass.tier3.4_small <- risk.pass.tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+risk.pass.tier3.4_small.obs <- risk.pass.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 #### Data Collapsing ####
 
@@ -404,7 +428,7 @@ risk.pass.tier3.4_small_min <- risk.pass.tier3.4_small %>%
 
 ## Tech Tier Pass, Risk Tier Fail
 
-```{r data collapse, include=FALSE}
+```{r include=FALSE}
 #### filter by tech.pass.tier first ###
 #tech.pass.tier 1 is HC5 for all endpoints
 tech.pass.tier1 <- aoc_z %>% 
@@ -439,22 +463,34 @@ tech.pass.tier3.4 <- aoc_z %>%
 ### 100 - 5000 um
 tech.pass.tier1_large <- tech.pass.tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+tech.pass.tier1_large.obs <- tech.pass.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tech.pass.tier2_large <- tech.pass.tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+tech.pass.tier2_large.obs <- tech.pass.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tech.pass.tier3.4_large <- tech.pass.tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+tech.pass.tier3.4_large.obs <- tech.pass.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 ### 10 - 100 um
 tech.pass.tier1_small <- tech.pass.tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+# Count observations and studies
+tech.pass.tier1_small.obs <- tech.pass.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tech.pass.tier2_small <- tech.pass.tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+tech.pass.tier2_small.obs <- tech.pass.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 tech.pass.tier3.4_small <- tech.pass.tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+tech.pass.tier3.4_small.obs <- tech.pass.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 #### Data Collapsing ####
 
@@ -566,7 +602,7 @@ tech.pass.tier3.4_small_min <- tech.pass.tier3.4_small %>%
 
 ## No quality filters
 
-```{r data collapse, include=FALSE}
+```{r include=FALSE}
 #### filter by tier first ###
 #allFail.tier 1 is HC5 for all endpoints
 allFail.tier1 <- aoc_z %>% 
@@ -601,22 +637,34 @@ allFail.tier3.4 <- aoc_z %>%
 ### 100 - 5000 um
 allFail.tier1_large <- allFail.tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+allFail.tier1_large.obs <- allFail.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 allFail.tier2_large <- allFail.tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+allFail.tier2_large.obs <- allFail.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 allFail.tier3.4_large <- allFail.tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
+# Count observations and studies
+allFail.tier3.4_large.obs <- allFail.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 ### 10 - 100 um
 allFail.tier1_small <- allFail.tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+# Count observations and studies
+allFail.tier1_small.obs <- allFail.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 allFail.tier2_small <- allFail.tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+allFail.tier2_small.obs <- allFail.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 allFail.tier3.4_small <- allFail.tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
+## Count observations and studies
+allFail.tier3.4_small.obs <- allFail.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
 
 #### Data Collapsing ####
 
@@ -2008,36 +2056,61 @@ ggplot(pred_tier3.4_large_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-# Summary Table
+## Summary Table
 ```{r}
 # Small/Large x tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(tier1_large_median_hc5, tier1_large_mean_hc5, tier1_large_1q_hc5, tier1_large_min_hc5,
+              tier1_large.obs[[1,1]], #n.obs
+               tier1_large.obs[[1,2]], #n.studies
           #tier 2
           tier2_large_median_hc5, tier2_large_mean_hc5, tier2_large_1q_hc5, tier2_large_min_hc5,
+          tier2_large.obs[[1,1]], #n.obs
+          tier2_large.obs[[1,2]], #n.studies
           #tier 3 (hc5)
           tier3.4_large_median_hc5, tier3.4_large_mean_hc5, tier3.4_large_1q_hc5, tier3.4_large_min_hc5,
+          tier3.4_large.obs[[1,1]], #n.obs
+          tier3.4_large.obs[[1,2]], #n.studies
           #tier 4 (hc10)
-          tier3.4_large_median_hc10, tier3.4_large_mean_hc10, tier3.4_large_1q_hc10, tier3.4_large_min_hc10)
+          tier3.4_large_median_hc10, tier3.4_large_mean_hc10, tier3.4_large_1q_hc10, tier3.4_large_min_hc10,
+          tier3.4_large.obs[[1,1]], #n.obs
+               tier3.4_large.obs[[1,2]] #n.studies
+          )
 
 smalls <- list(tier1_small_median_hc5, tier1_small_mean_hc5, tier1_small_1q_hc5, tier1_small_min_hc5,
+               tier1_small.obs[[1,1]], #n.obs
+               tier1_small.obs[[1,2]], #n.studies
           #tier 2
           tier2_small_median_hc5, tier2_small_mean_hc5, tier2_small_1q_hc5, tier2_small_min_hc5,
-          #tier 3.4
+          tier2_small.obs[[1,1]], #n.obs
+          tier2_small.obs[[1,2]], #n.studies
+          #tier 3 (hc5)
           tier3.4_small_median_hc5, tier3.4_small_mean_hc5, tier3.4_small_1q_hc5, tier3.4_small_min_hc5,
+          tier3.4_small.obs[[1,1]], #n.obs
+          tier3.4_small.obs[[1,2]], #n.studies
           #tier 4 (hc10)
-          tier3.4_small_median_hc10, tier3.4_small_mean_hc10, tier3.4_small_1q_hc10, tier3.4_small_min_hc10)
+          tier3.4_small_median_hc10, tier3.4_small_mean_hc10, tier3.4_small_1q_hc10, tier3.4_small_min_hc10,
+          tier3.4_small.obs[[1,1]], #n.obs
+               tier3.4_small.obs[[1,2]] #n.studies
+          )
 
 ## Conver to data frames
 largesdf <- data.frame(t(matrix(unlist(larges), ncol = 4)))
 smallsdf <- data.frame(t(matrix(unlist(smalls), ncol = 4))) #t = transpose
 
 # convert mg/L to ug/L
-largesdf <- largesdf * 1000
-smallsdf <- smallsdf * 1000
+largesdf <- largesdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
+
+smallsdf <- smallsdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
 
 rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
 rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
@@ -2047,14 +2120,14 @@ largestibble <- tibble(largesdf,
                        Tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum")]
+largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
 
 # provide tier column
 smallstibble <- tibble(smallsdf,
                        Tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum")]
+smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
 
 #function to create tables
 hp_table <- function(x){
@@ -2072,7 +2145,8 @@ hp_table <- function(x){
     data_color(
     columns = names(x)[2:5],
     colors = scales::col_numeric(
-      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),domain = full_val_range),
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
+      domain = full_val_range),
     alpha = 0.75) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
     as_raw_html() # return as html
@@ -2090,44 +2164,46 @@ smalls_gt <- smallstibble %>%
 data.tables <- data.frame(smalls_table = smalls_gt,
                           larges_table = larges_gt)
 #Combine
-data.tables %>% 
+allPass.summary <- data.tables %>% 
   gt() %>% 
   fmt_markdown(columns = TRUE) %>% 
   cols_label(smalls_table = "1-10 um",
              larges_table = "10-5,000 um") %>% 
   tab_source_note(md("Calculated from SSDs")) %>% 
   tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and Tier",
-             subtitle = "Smalls and Larges") 
+             subtitle = "Qualiter Filters: Risk and Tech Tier") 
+
+allPass.summary
 ```
 
 # SSD Build (Risk Tier Pass, Tech Tier Fail)
-## risk.pass.risk.pass.tier 1
+## risk.pass.tier 1
 ### Large 
-#### risk.pass.risk.pass.tier1_large_median
+#### risk.pass.tier1_large_median
 
 ```{r include=FALSE}
 ###### --modelling ####
-dists_risk.pass.risk.pass.tier1_large_median <- ssd_fit_dists(risk.pass.risk.pass.tier1_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+dists_risk.pass.tier1_large_median <- ssd_fit_dists(risk.pass.tier1_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 
-#autoplot(dists_risk.pass.risk.pass.tier1_large_median) #plots the distribution in ggplorisk.pass.risk.pass.tier2
+#autoplot(dists_risk.pass.tier1_large_median) #plots the distribution in ggplorisk.pass.risk.pass.tier2
 #### Goodness of fit ####
-gof_risk.pass.risk.pass.tier1_large_median <- as.data.frame(ssd_gof(dists_risk.pass.risk.pass.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+gof_risk.pass.tier1_large_median <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
 set.seed(99)
-pred_risk.pass.risk.pass.tier1_large_median <- predict(dists_risk.pass.risk.pass.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+pred_risk.pass.tier1_large_median <- predict(dists_risk.pass.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
-SSD_risk.pass.risk.pass.tier1_large_median <- risk.pass.risk.pass.tier1_large_median[order(risk.pass.risk.pass.tier1_large_median$Conc), ]
-SSD_risk.pass.risk.pass.tier1_large_median$frac <- ppoints(risk.pass.risk.pass.tier1_large_median$Conc, 0.5)
+SSD_risk.pass.tier1_large_median <- risk.pass.tier1_large_median[order(risk.pass.tier1_large_median$Conc), ]
+SSD_risk.pass.tier1_large_median$frac <- ppoints(risk.pass.tier1_large_median$Conc, 0.5)
 
-risk.pass.risk.pass.tier1_large_median_hc5 <- c(pred_risk.pass.risk.pass.tier1_large_median$est[5])
-pred_risk.pass.risk.pass.tier1_large_median$est_format <-format(pred_risk.pass.risk.pass.tier1_large_median$est, digits = 3, scientific = TRUE)
+risk.pass.tier1_large_median_hc5 <- c(pred_risk.pass.tier1_large_median$est[5])
+pred_risk.pass.tier1_large_median$est_format <-format(pred_risk.pass.tier1_large_median$est, digits = 3, scientific = TRUE)
 ```
 
 
 ```{r}
-risk.pass.risk.pass.tier1_large_median_ggplot <- ggplot(pred_risk.pass.risk.pass.tier1_large_median,aes_string(x = "est")) +
+risk.pass.tier1_large_median_ggplot <- ggplot(pred_risk.pass.tier1_large_median,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
       geom_line(aes_string(y = "percent/100"), color = "gray") +
       geom_point(data = SSD_risk.pass.tier1_large_median,aes(x = Conc, y =frac, color = Group)) + 
@@ -3384,53 +3460,78 @@ ggplot(pred_risk.pass.tier3.4_large_median, aes_string(x = "est")) +
 ```
 
 
-# Summary Table
+## Summary Table
 ```{r}
 # Small/Large x risk.pass.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(risk.pass.tier1_large_median_hc5, risk.pass.tier1_large_mean_hc5, risk.pass.tier1_large_1q_hc5, risk.pass.tier1_large_min_hc5,
+              risk.pass.tier1_large.obs[[1,1]], #n.obs
+               risk.pass.tier1_large.obs[[1,2]], #n.studies
           #risk.pass.tier 2
           risk.pass.tier2_large_median_hc5, risk.pass.tier2_large_mean_hc5, risk.pass.tier2_large_1q_hc5, risk.pass.tier2_large_min_hc5,
+          risk.pass.tier2_large.obs[[1,1]], #n.obs
+          risk.pass.tier2_large.obs[[1,2]], #n.studies
           #risk.pass.tier 3 (hc5)
           risk.pass.tier3.4_large_median_hc5, risk.pass.tier3.4_large_mean_hc5, risk.pass.tier3.4_large_1q_hc5, risk.pass.tier3.4_large_min_hc5,
+          risk.pass.tier3.4_large.obs[[1,1]], #n.obs
+          risk.pass.tier3.4_large.obs[[1,2]], #n.studies
           #risk.pass.tier 4 (hc10)
-          risk.pass.tier3.4_large_median_hc10, risk.pass.tier3.4_large_mean_hc10, risk.pass.tier3.4_large_1q_hc10, risk.pass.tier3.4_large_min_hc10)
+          risk.pass.tier3.4_large_median_hc10, risk.pass.tier3.4_large_mean_hc10, risk.pass.tier3.4_large_1q_hc10, risk.pass.tier3.4_large_min_hc10,
+          risk.pass.tier3.4_large.obs[[1,1]], #n.obs
+               risk.pass.tier3.4_large.obs[[1,2]] #n.studies
+          )
 
 smalls <- list(risk.pass.tier1_small_median_hc5, risk.pass.tier1_small_mean_hc5, risk.pass.tier1_small_1q_hc5, risk.pass.tier1_small_min_hc5,
+               risk.pass.tier1_small.obs[[1,1]], #n.obs
+               risk.pass.tier1_small.obs[[1,2]], #n.studies
           #risk.pass.tier 2
           risk.pass.tier2_small_median_hc5, risk.pass.tier2_small_mean_hc5, risk.pass.tier2_small_1q_hc5, risk.pass.tier2_small_min_hc5,
-          #risk.pass.tier 3.4
+          risk.pass.tier2_small.obs[[1,1]], #n.obs
+          risk.pass.tier2_small.obs[[1,2]], #n.studies
+          #risk.pass.tier 3 (hc5)
           risk.pass.tier3.4_small_median_hc5, risk.pass.tier3.4_small_mean_hc5, risk.pass.tier3.4_small_1q_hc5, risk.pass.tier3.4_small_min_hc5,
+          risk.pass.tier3.4_small.obs[[1,1]], #n.obs
+          risk.pass.tier3.4_small.obs[[1,2]], #n.studies
           #risk.pass.tier 4 (hc10)
-          risk.pass.tier3.4_small_median_hc10, risk.pass.tier3.4_small_mean_hc10, risk.pass.tier3.4_small_1q_hc10, risk.pass.tier3.4_small_min_hc10)
+          risk.pass.tier3.4_small_median_hc10, risk.pass.tier3.4_small_mean_hc10, risk.pass.tier3.4_small_1q_hc10, risk.pass.tier3.4_small_min_hc10,
+          risk.pass.tier3.4_small.obs[[1,1]], #n.obs
+               risk.pass.tier3.4_small.obs[[1,2]] #n.studies
+          )
 
 ## Conver to data frames
 largesdf <- data.frame(t(matrix(unlist(larges), ncol = 4)))
 smallsdf <- data.frame(t(matrix(unlist(smalls), ncol = 4))) #t = transpose
 
 # convert mg/L to ug/L
-largesdf <- largesdf * 1000
-smallsdf <- smallsdf * 1000
+largesdf <- largesdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
+
+smallsdf <- smallsdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
 
-rownames(largesdf) <- c("risk.pass.tier 1", "risk.pass.tier 2", "risk.pass.tier 3", "risk.pass.tier 4")
-rownames(smallsdf) <- c("risk.pass.tier 1", "risk.pass.tier 2", "risk.pass.tier 3", "risk.pass.tier 4")
+rownames(largesdf) <- c("tier 1", "tier 2", "tier 3", "tier 4")
+rownames(smallsdf) <- c("tier 1", "tier 2", "tier 3", "tier 4")
 
 # provide risk.pass.tier column
 largestibble <- tibble(largesdf,
-                       risk.pass.tier = rownames(largesdf))
+                       tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("risk.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+largestibble <- largestibble[c("tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
 
 # provide risk.pass.tier column
 smallstibble <- tibble(smallsdf,
-                       risk.pass.tier = rownames(smallsdf))
+                       tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("risk.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+smallstibble <- smallstibble[c("tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
 
 #function to create tables
 hp_table <- function(x){
@@ -3448,7 +3549,8 @@ hp_table <- function(x){
     data_color(
     columns = names(x)[2:5],
     colors = scales::col_numeric(
-      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),domain = full_val_range),
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
+      domain = full_val_range),
     alpha = 0.75) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
     as_raw_html() # return as html
@@ -3466,14 +3568,16 @@ smalls_gt <- smallstibble %>%
 data.tables <- data.frame(smalls_table = smalls_gt,
                           larges_table = larges_gt)
 #Combine
-data.tables %>% 
+risk.pass.summary <- data.tables %>% 
   gt() %>% 
   fmt_markdown(columns = TRUE) %>% 
   cols_label(smalls_table = "1-10 um",
              larges_table = "10-5,000 um") %>% 
   tab_source_note(md("Calculated from SSDs")) %>% 
   tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and risk.pass.tier",
-             subtitle = "Smalls and Larges") 
+             subtitle = "Qualiter Filters: Risk (pass), tech (pass & fail)") 
+#print
+risk.pass.summary
 ```
 
 # SSD Build (Tech Tier Pass, Risk Tier Fail)
@@ -4758,53 +4862,78 @@ ggplot(pred_tech.pass.tier3.4_large_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-# Summary Table
+## Summary Table
 ```{r}
 # Small/Large x tech.pass.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(tech.pass.tier1_large_median_hc5, tech.pass.tier1_large_mean_hc5, tech.pass.tier1_large_1q_hc5, tech.pass.tier1_large_min_hc5,
+              tech.pass.tier1_large.obs[[1,1]], #n.obs
+               tech.pass.tier1_large.obs[[1,2]], #n.studies
           #tech.pass.tier 2
           tech.pass.tier2_large_median_hc5, tech.pass.tier2_large_mean_hc5, tech.pass.tier2_large_1q_hc5, tech.pass.tier2_large_min_hc5,
+          tech.pass.tier2_large.obs[[1,1]], #n.obs
+          tech.pass.tier2_large.obs[[1,2]], #n.studies
           #tech.pass.tier 3 (hc5)
           tech.pass.tier3.4_large_median_hc5, tech.pass.tier3.4_large_mean_hc5, tech.pass.tier3.4_large_1q_hc5, tech.pass.tier3.4_large_min_hc5,
+          tech.pass.tier3.4_large.obs[[1,1]], #n.obs
+          tech.pass.tier3.4_large.obs[[1,2]], #n.studies
           #tech.pass.tier 4 (hc10)
-          tech.pass.tier3.4_large_median_hc10, tech.pass.tier3.4_large_mean_hc10, tech.pass.tier3.4_large_1q_hc10, tech.pass.tier3.4_large_min_hc10)
+          tech.pass.tier3.4_large_median_hc10, tech.pass.tier3.4_large_mean_hc10, tech.pass.tier3.4_large_1q_hc10, tech.pass.tier3.4_large_min_hc10,
+          tech.pass.tier3.4_large.obs[[1,1]], #n.obs
+               tech.pass.tier3.4_large.obs[[1,2]] #n.studies
+          )
 
 smalls <- list(tech.pass.tier1_small_median_hc5, tech.pass.tier1_small_mean_hc5, tech.pass.tier1_small_1q_hc5, tech.pass.tier1_small_min_hc5,
+               tech.pass.tier1_small.obs[[1,1]], #n.obs
+               tech.pass.tier1_small.obs[[1,2]], #n.studies
           #tech.pass.tier 2
           tech.pass.tier2_small_median_hc5, tech.pass.tier2_small_mean_hc5, tech.pass.tier2_small_1q_hc5, tech.pass.tier2_small_min_hc5,
-          #tech.pass.tier 3.4
+          tech.pass.tier2_small.obs[[1,1]], #n.obs
+          tech.pass.tier2_small.obs[[1,2]], #n.studies
+          #tech.pass.tier 3 (hc5)
           tech.pass.tier3.4_small_median_hc5, tech.pass.tier3.4_small_mean_hc5, tech.pass.tier3.4_small_1q_hc5, tech.pass.tier3.4_small_min_hc5,
+          tech.pass.tier3.4_small.obs[[1,1]], #n.obs
+          tech.pass.tier3.4_small.obs[[1,2]], #n.studies
           #tech.pass.tier 4 (hc10)
-          tech.pass.tier3.4_small_median_hc10, tech.pass.tier3.4_small_mean_hc10, tech.pass.tier3.4_small_1q_hc10, tech.pass.tier3.4_small_min_hc10)
+          tech.pass.tier3.4_small_median_hc10, tech.pass.tier3.4_small_mean_hc10, tech.pass.tier3.4_small_1q_hc10, tech.pass.tier3.4_small_min_hc10,
+          tech.pass.tier3.4_small.obs[[1,1]], #n.obs
+               tech.pass.tier3.4_small.obs[[1,2]] #n.studies
+          )
 
 ## Conver to data frames
 largesdf <- data.frame(t(matrix(unlist(larges), ncol = 4)))
 smallsdf <- data.frame(t(matrix(unlist(smalls), ncol = 4))) #t = transpose
 
 # convert mg/L to ug/L
-largesdf <- largesdf * 1000
-smallsdf <- smallsdf * 1000
+largesdf <- largesdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
+
+smallsdf <- smallsdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
 
-rownames(largesdf) <- c("tech.pass.tier 1", "tech.pass.tier 2", "tech.pass.tier 3", "tech.pass.tier 4")
-rownames(smallsdf) <- c("tech.pass.tier 1", "tech.pass.tier 2", "tech.pass.tier 3", "tech.pass.tier 4")
+rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
+rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
 
-# provide tech.pass.tier column
+# provide tier column
 largestibble <- tibble(largesdf,
-                       tech.pass.tier = rownames(largesdf))
+                       Tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("tech.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
 
-# provide tech.pass.tier column
+# provide tier column
 smallstibble <- tibble(smallsdf,
-                       tech.pass.tier = rownames(smallsdf))
+                       Tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("tech.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
 
 #function to create tables
 hp_table <- function(x){
@@ -4822,7 +4951,8 @@ hp_table <- function(x){
     data_color(
     columns = names(x)[2:5],
     colors = scales::col_numeric(
-      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),domain = full_val_range),
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
+      domain = full_val_range),
     alpha = 0.75) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
     as_raw_html() # return as html
@@ -4840,12 +4970,1434 @@ smalls_gt <- smallstibble %>%
 data.tables <- data.frame(smalls_table = smalls_gt,
                           larges_table = larges_gt)
 #Combine
-data.tables %>% 
+tech.pass.summary <- data.tables %>% 
   gt() %>% 
   fmt_markdown(columns = TRUE) %>% 
   cols_label(smalls_table = "1-10 um",
              larges_table = "10-5,000 um") %>% 
   tab_source_note(md("Calculated from SSDs")) %>% 
-  tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and tech.pass.tier",
-             subtitle = "Smalls and Larges") 
+  tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and Tier",
+             subtitle = "Qualiter Filters: Risk (pass & fail) Tech (pass)") 
+#print
+tech.pass.summary
 ```
+
+# SSD Build(All Fail)
+## allFail.tier 1
+### Large 
+#### allFail.tier1_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_large_median <- ssd_fit_dists(allFail.tier1_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_large_median) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_large_median <- as.data.frame(ssd_gof(dists_allFail.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_large_median <- predict(dists_allFail.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_large_median <- allFail.tier1_large_median[order(allFail.tier1_large_median$Conc), ]
+SSD_allFail.tier1_large_median$frac <- ppoints(allFail.tier1_large_median$Conc, 0.5)
+
+allFail.tier1_large_median_hc5 <- c(pred_allFail.tier1_large_median$est[5])
+pred_allFail.tier1_large_median$est_format <-format(pred_allFail.tier1_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+allFail.tier1_large_median_ggplot <- ggplot(pred_allFail.tier1_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier1_large_median_ggplot
+```
+
+#### allFail.tier1_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_large_mean <- ssd_fit_dists(allFail.tier1_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_large_mean) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_large_mean <- as.data.frame(ssd_gof(dists_allFail.tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_large_mean <- predict(dists_allFail.tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_large_mean <- allFail.tier1_large_mean[order(allFail.tier1_large_mean$Conc), ]
+SSD_allFail.tier1_large_mean$frac <- ppoints(allFail.tier1_large_mean$Conc, 0.5)
+
+allFail.tier1_large_mean_hc5 <- c(pred_allFail.tier1_large_mean$est[5])
+pred_allFail.tier1_large_mean$est_format <-format(pred_allFail.tier1_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+allFail.tier1_large_mean_ggplot <- ggplot(pred_allFail.tier1_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier1_large_mean_ggplot
+```
+
+#### allFail.tier1_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_large_1q <- ssd_fit_dists(allFail.tier1_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_large_1q) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_large_1q <- as.data.frame(ssd_gof(dists_allFail.tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_large_1q <- predict(dists_allFail.tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_large_1q <- allFail.tier1_large_1q[order(allFail.tier1_large_1q$Conc), ]
+SSD_allFail.tier1_large_1q$frac <- ppoints(allFail.tier1_large_1q$Conc, 0.5)
+
+allFail.tier1_large_1q_hc5 <- c(pred_allFail.tier1_large_1q$est[5])
+pred_allFail.tier1_large_1q$est_format <-format(pred_allFail.tier1_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier1_large_1q_ggplot <- ggplot(pred_allFail.tier1_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier1_large_1q_ggplot
+```
+
+#### allFail.tier1_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_large_min <- ssd_fit_dists(allFail.tier1_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_large_min) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_large_min <- as.data.frame(ssd_gof(dists_allFail.tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_large_min <- predict(dists_allFail.tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_large_min <- allFail.tier1_large_min[order(allFail.tier1_large_min$Conc), ]
+SSD_allFail.tier1_large_min$frac <- ppoints(allFail.tier1_large_min$Conc, 0.5)
+
+allFail.tier1_large_min_hc5 <- c(pred_allFail.tier1_large_min$est[5])
+pred_allFail.tier1_large_min$est_format <-format(pred_allFail.tier1_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier1_large_min_ggplot <- ggplot(pred_allFail.tier1_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier1_large_min_ggplot
+```
+
+### small 
+#### allFail.tier1_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_small_median <- ssd_fit_dists(allFail.tier1_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_small_median) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_small_median <- as.data.frame(ssd_gof(dists_allFail.tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_small_median <- predict(dists_allFail.tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_small_median <- allFail.tier1_small_median[order(allFail.tier1_small_median$Conc), ]
+SSD_allFail.tier1_small_median$frac <- ppoints(allFail.tier1_small_median$Conc, 0.5)
+
+allFail.tier1_small_median_hc5 <- c(pred_allFail.tier1_small_median$est[5])
+pred_allFail.tier1_small_median$est_format <-format(pred_allFail.tier1_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier1_small_median_ggplot <- ggplot(pred_allFail.tier1_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier1_small_median_ggplot
+```
+
+#### allFail.tier1_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_small_mean <- ssd_fit_dists(allFail.tier1_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_small_mean) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_small_mean <- as.data.frame(ssd_gof(dists_allFail.tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_small_mean <- predict(dists_allFail.tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_small_mean <- allFail.tier1_small_mean[order(allFail.tier1_small_mean$Conc), ]
+SSD_allFail.tier1_small_mean$frac <- ppoints(allFail.tier1_small_mean$Conc, 0.5)
+
+allFail.tier1_small_mean_hc5 <- c(pred_allFail.tier1_small_mean$est[5])
+pred_allFail.tier1_small_mean$est_format <-format(pred_allFail.tier1_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+allFail.tier1_small_mean_ggplot <- ggplot(pred_allFail.tier1_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier1_small_mean_ggplot
+```
+
+#### allFail.tier1_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_small_1q <- ssd_fit_dists(allFail.tier1_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_small_1q) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_small_1q <- as.data.frame(ssd_gof(dists_allFail.tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_small_1q <- predict(dists_allFail.tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_small_1q <- allFail.tier1_small_1q[order(allFail.tier1_small_1q$Conc), ]
+SSD_allFail.tier1_small_1q$frac <- ppoints(allFail.tier1_small_1q$Conc, 0.5)
+
+allFail.tier1_small_1q_hc5 <- c(pred_allFail.tier1_small_1q$est[5])
+pred_allFail.tier1_small_1q$est_format <-format(pred_allFail.tier1_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier1_small_1q_ggplot <- ggplot(pred_allFail.tier1_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier1_small_1q_ggplot
+```
+
+#### allFail.tier1_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier1_small_min <- ssd_fit_dists(allFail.tier1_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier1_small_min) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier1_small_min <- as.data.frame(ssd_gof(dists_allFail.tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier1_small_min <- predict(dists_allFail.tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier1_small_min <- allFail.tier1_small_min[order(allFail.tier1_small_min$Conc), ]
+SSD_allFail.tier1_small_min$frac <- ppoints(allFail.tier1_small_min$Conc, 0.5)
+
+allFail.tier1_small_min_hc5 <- c(pred_allFail.tier1_small_min$est[5])
+pred_allFail.tier1_small_min$est_format <-format(pred_allFail.tier1_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier1_small_min_ggplot <- ggplot(pred_allFail.tier1_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier1_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier1_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier1_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier1_small_min_ggplot
+```
+
+## allFail.tier 2
+### Large 
+#### allFail.tier2_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_large_median <- ssd_fit_dists(allFail.tier2_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_large_median) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_large_median <- as.data.frame(ssd_gof(dists_allFail.tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_large_median <- predict(dists_allFail.tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_large_median <- allFail.tier2_large_median[order(allFail.tier2_large_median$Conc), ]
+SSD_allFail.tier2_large_median$frac <- ppoints(allFail.tier2_large_median$Conc, 0.5)
+
+allFail.tier2_large_median_hc5 <- c(pred_allFail.tier2_large_median$est[5])
+pred_allFail.tier2_large_median$est_format <-format(pred_allFail.tier2_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+allFail.tier2_large_median_ggplot <- ggplot(pred_allFail.tier2_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier2_large_median_ggplot
+```
+
+#### allFail.tier2_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_large_mean <- ssd_fit_dists(allFail.tier2_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_large_mean) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_large_mean <- as.data.frame(ssd_gof(dists_allFail.tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_large_mean <- predict(dists_allFail.tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_large_mean <- allFail.tier2_large_mean[order(allFail.tier2_large_mean$Conc), ]
+SSD_allFail.tier2_large_mean$frac <- ppoints(allFail.tier2_large_mean$Conc, 0.5)
+
+allFail.tier2_large_mean_hc5 <- c(pred_allFail.tier2_large_mean$est[5])
+pred_allFail.tier2_large_mean$est_format <-format(pred_allFail.tier2_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+allFail.tier2_large_mean_ggplot <- ggplot(pred_allFail.tier2_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier2_large_mean_ggplot
+```
+
+#### allFail.tier2_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_large_1q <- ssd_fit_dists(allFail.tier2_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_large_1q) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_large_1q <- as.data.frame(ssd_gof(dists_allFail.tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_large_1q <- predict(dists_allFail.tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_large_1q <- allFail.tier2_large_1q[order(allFail.tier2_large_1q$Conc), ]
+SSD_allFail.tier2_large_1q$frac <- ppoints(allFail.tier2_large_1q$Conc, 0.5)
+
+allFail.tier2_large_1q_hc5 <- c(pred_allFail.tier2_large_1q$est[5])
+pred_allFail.tier2_large_1q$est_format <-format(pred_allFail.tier2_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier2_large_1q_ggplot <- ggplot(pred_allFail.tier2_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier2_large_1q_ggplot
+```
+
+#### allFail.tier2_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_large_min <- ssd_fit_dists(allFail.tier2_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_large_min) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_large_min <- as.data.frame(ssd_gof(dists_allFail.tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_large_min <- predict(dists_allFail.tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_large_min <- allFail.tier2_large_min[order(allFail.tier2_large_min$Conc), ]
+SSD_allFail.tier2_large_min$frac <- ppoints(allFail.tier2_large_min$Conc, 0.5)
+
+allFail.tier2_large_min_hc5 <- c(pred_allFail.tier2_large_min$est[5])
+pred_allFail.tier2_large_min$est_format <-format(pred_allFail.tier2_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier2_large_min_ggplot <- ggplot(pred_allFail.tier2_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier2_large_min_ggplot
+```
+### small 
+#### allFail.tier2_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_small_median <- ssd_fit_dists(allFail.tier2_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_small_median) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_small_median <- as.data.frame(ssd_gof(dists_allFail.tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_small_median <- predict(dists_allFail.tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_small_median <- allFail.tier2_small_median[order(allFail.tier2_small_median$Conc), ]
+SSD_allFail.tier2_small_median$frac <- ppoints(allFail.tier2_small_median$Conc, 0.5)
+
+allFail.tier2_small_median_hc5 <- c(pred_allFail.tier2_small_median$est[5])
+pred_allFail.tier2_small_median$est_format <-format(pred_allFail.tier2_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier2_small_median_ggplot <- ggplot(pred_allFail.tier2_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier2_small_median_ggplot
+```
+
+#### allFail.tier2_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_small_mean <- ssd_fit_dists(allFail.tier2_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_small_mean) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_small_mean <- as.data.frame(ssd_gof(dists_allFail.tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_small_mean <- predict(dists_allFail.tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_small_mean <- allFail.tier2_small_mean[order(allFail.tier2_small_mean$Conc), ]
+SSD_allFail.tier2_small_mean$frac <- ppoints(allFail.tier2_small_mean$Conc, 0.5)
+
+allFail.tier2_small_mean_hc5 <- c(pred_allFail.tier2_small_mean$est[5])
+pred_allFail.tier2_small_mean$est_format <-format(pred_allFail.tier2_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+allFail.tier2_small_mean_ggplot <- ggplot(pred_allFail.tier2_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier2_small_mean_ggplot
+```
+
+#### allFail.tier2_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_small_1q <- ssd_fit_dists(allFail.tier2_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_small_1q) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_small_1q <- as.data.frame(ssd_gof(dists_allFail.tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_small_1q <- predict(dists_allFail.tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_small_1q <- allFail.tier2_small_1q[order(allFail.tier2_small_1q$Conc), ]
+SSD_allFail.tier2_small_1q$frac <- ppoints(allFail.tier2_small_1q$Conc, 0.5)
+
+allFail.tier2_small_1q_hc5 <- c(pred_allFail.tier2_small_1q$est[5])
+pred_allFail.tier2_small_1q$est_format <-format(pred_allFail.tier2_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier2_small_1q_ggplot <- ggplot(pred_allFail.tier2_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier2_small_1q_ggplot
+```
+
+#### allFail.tier2_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier2_small_min <- ssd_fit_dists(allFail.tier2_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier2_small_min) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier2_small_min <- as.data.frame(ssd_gof(dists_allFail.tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier2_small_min <- predict(dists_allFail.tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier2_small_min <- allFail.tier2_small_min[order(allFail.tier2_small_min$Conc), ]
+SSD_allFail.tier2_small_min$frac <- ppoints(allFail.tier2_small_min$Conc, 0.5)
+
+allFail.tier2_small_min_hc5 <- c(pred_allFail.tier2_small_min$est[5])
+pred_allFail.tier2_small_min$est_format <-format(pred_allFail.tier2_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier2_small_min_ggplot <- ggplot(pred_allFail.tier2_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier2_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier2_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier2_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier2_small_min_ggplot
+```
+
+## allFail.tier 3
+### Large 
+#### allFail.tier3.4_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_large_median <- ssd_fit_dists(allFail.tier3.4_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_large_median) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_large_median <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_large_median <- predict(dists_allFail.tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_large_median <- allFail.tier3.4_large_median[order(allFail.tier3.4_large_median$Conc), ]
+SSD_allFail.tier3.4_large_median$frac <- ppoints(allFail.tier3.4_large_median$Conc, 0.5)
+
+allFail.tier3.4_large_median_hc5 <- c(pred_allFail.tier3.4_large_median$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_large_median_hc10 <- c(pred_allFail.tier3.4_large_median$est[10])
+pred_allFail.tier3.4_large_median$est_format <-format(pred_allFail.tier3.4_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+allFail.tier3.4_large_median_ggplot <- ggplot(pred_allFail.tier3.4_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier3.4_large_median_ggplot
+```
+
+#### allFail.tier3.4_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_large_mean <- ssd_fit_dists(allFail.tier3.4_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_large_mean) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_large_mean <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_large_mean <- predict(dists_allFail.tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_large_mean <- allFail.tier3.4_large_mean[order(allFail.tier3.4_large_mean$Conc), ]
+SSD_allFail.tier3.4_large_mean$frac <- ppoints(allFail.tier3.4_large_mean$Conc, 0.5)
+
+allFail.tier3.4_large_mean_hc5 <- c(pred_allFail.tier3.4_large_mean$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_large_mean_hc10 <- c(pred_allFail.tier3.4_large_mean$est[10])
+
+pred_allFail.tier3.4_large_mean$est_format <-format(pred_allFail.tier3.4_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+allFail.tier3.4_large_mean_ggplot <- ggplot(pred_allFail.tier3.4_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier3.4_large_mean_ggplot
+```
+
+#### allFail.tier3.4_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_large_1q <- ssd_fit_dists(allFail.tier3.4_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_large_1q) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_large_1q <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_large_1q <- predict(dists_allFail.tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_large_1q <- allFail.tier3.4_large_1q[order(allFail.tier3.4_large_1q$Conc), ]
+SSD_allFail.tier3.4_large_1q$frac <- ppoints(allFail.tier3.4_large_1q$Conc, 0.5)
+
+allFail.tier3.4_large_1q_hc5 <- c(pred_allFail.tier3.4_large_1q$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_large_1q_hc10 <- c(pred_allFail.tier3.4_large_1q$est[10])
+pred_allFail.tier3.4_large_1q$est_format <-format(pred_allFail.tier3.4_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier3.4_large_1q_ggplot <- ggplot(pred_allFail.tier3.4_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier3.4_large_1q_ggplot
+```
+
+#### allFail.tier3.4_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_large_min <- ssd_fit_dists(allFail.tier3.4_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_large_min) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_large_min <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_large_min <- predict(dists_allFail.tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_large_min <- allFail.tier3.4_large_min[order(allFail.tier3.4_large_min$Conc), ]
+SSD_allFail.tier3.4_large_min$frac <- ppoints(allFail.tier3.4_large_min$Conc, 0.5)
+
+allFail.tier3.4_large_min_hc5 <- c(pred_allFail.tier3.4_large_min$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_large_min_hc10 <- c(pred_allFail.tier3.4_large_min$est[10])
+pred_allFail.tier3.4_large_min$est_format <-format(pred_allFail.tier3.4_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier3.4_large_min_ggplot <- ggplot(pred_allFail.tier3.4_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier3.4_large_min_ggplot
+```
+
+### small 
+#### allFail.tier3.4_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_small_median <- ssd_fit_dists(allFail.tier3.4_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_small_median) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_small_median <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_small_median <- predict(dists_allFail.tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_small_median <- allFail.tier3.4_small_median[order(allFail.tier3.4_small_median$Conc), ]
+SSD_allFail.tier3.4_small_median$frac <- ppoints(allFail.tier3.4_small_median$Conc, 0.5)
+
+allFail.tier3.4_small_median_hc5 <- c(pred_allFail.tier3.4_small_median$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_small_median_hc10 <- c(pred_allFail.tier3.4_small_median$est[10])
+
+pred_allFail.tier3.4_small_median$est_format <-format(pred_allFail.tier3.4_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier3.4_small_median_ggplot <- ggplot(pred_allFail.tier3.4_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier3.4_small_median_ggplot
+```
+
+#### allFail.tier3.4_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_small_mean <- ssd_fit_dists(allFail.tier3.4_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_small_mean) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_small_mean <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_small_mean <- predict(dists_allFail.tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_small_mean <- allFail.tier3.4_small_mean[order(allFail.tier3.4_small_mean$Conc), ]
+SSD_allFail.tier3.4_small_mean$frac <- ppoints(allFail.tier3.4_small_mean$Conc, 0.5)
+
+allFail.tier3.4_small_mean_hc5 <- c(pred_allFail.tier3.4_small_mean$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_small_mean_hc10 <- c(pred_allFail.tier3.4_small_mean$est[10])
+
+pred_allFail.tier3.4_small_mean$est_format <-format(pred_allFail.tier3.4_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+allFail.tier3.4_small_mean_ggplot <- ggplot(pred_allFail.tier3.4_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+allFail.tier3.4_small_mean_ggplot
+```
+
+#### allFail.tier3.4_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_small_1q <- ssd_fit_dists(allFail.tier3.4_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_small_1q) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_small_1q <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_small_1q <- predict(dists_allFail.tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_small_1q <- allFail.tier3.4_small_1q[order(allFail.tier3.4_small_1q$Conc), ]
+SSD_allFail.tier3.4_small_1q$frac <- ppoints(allFail.tier3.4_small_1q$Conc, 0.5)
+
+allFail.tier3.4_small_1q_hc5 <- c(pred_allFail.tier3.4_small_1q$est[5])
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_small_1q_hc10 <- c(pred_allFail.tier3.4_small_1q$est[10])
+
+pred_allFail.tier3.4_small_1q$est_format <-format(pred_allFail.tier3.4_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier3.4_small_1q_ggplot <- ggplot(pred_allFail.tier3.4_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier3.4_small_1q_ggplot
+```
+
+#### allFail.tier3.4_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_allFail.tier3.4_small_min <- ssd_fit_dists(allFail.tier3.4_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_allFail.tier3.4_small_min) #plots the distribution in ggploallFail.tier2
+#### Goodness of fit ####
+gof_allFail.tier3.4_small_min <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_allFail.tier3.4_small_min <- predict(dists_allFail.tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_allFail.tier3.4_small_min <- allFail.tier3.4_small_min[order(allFail.tier3.4_small_min$Conc), ]
+SSD_allFail.tier3.4_small_min$frac <- ppoints(allFail.tier3.4_small_min$Conc, 0.5)
+
+#extract hc5
+allFail.tier3.4_small_min_hc5 <- c(pred_allFail.tier3.4_small_min$est[5])
+
+#extrac hc10 (allFail.tier 4)
+allFail.tier3.4_small_min_hc10 <- c(pred_allFail.tier3.4_small_min$est[10])
+pred_allFail.tier3.4_small_min$est_format <-format(pred_allFail.tier3.4_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+allFail.tier3.4_small_min_ggplot <- ggplot(pred_allFail.tier3.4_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_allFail.tier3.4_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_allFail.tier3.4_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "allFail.tier3.4_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+allFail.tier3.4_small_min_ggplot
+```
+
+# Combine plots
+## allFail.tier 1
+### Smalls
+```{r}
+### allFail.tier1_small_median
+ggplot(pred_allFail.tier1_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_allFail.tier1_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: allFail.tier1_small_mean ###
+  geom_xribbon(data = pred_allFail.tier1_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_allFail.tier1_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_allFail.tier1_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: allFail.tier1_small_1q ###
+    geom_xribbon(data = pred_allFail.tier1_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_allFail.tier1_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_allFail.tier1_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+### fourth line: allFail.tier1_small_min ###
+    geom_xribbon(data = pred_allFail.tier1_small_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_allFail.tier1_small_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_allFail.tier1_small_min, aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (allFail.tier 1)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### allFail.tier1_large_median
+ggplot(pred_allFail.tier1_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_allFail.tier1_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: allFail.tier1_large_mean ###
+  geom_xribbon(data = pred_allFail.tier1_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_allFail.tier1_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_allFail.tier1_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: allFail.tier1_large_1q ###
+    geom_xribbon(data = pred_allFail.tier1_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_allFail.tier1_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_allFail.tier1_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+  ### fourth line: allFail.tier1_large_min ###
+    geom_xribbon(data = pred_allFail.tier1_large_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_allFail.tier1_large_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_allFail.tier1_large_min, aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (allFail.tier 1)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## allFail.tier 2
+### Smalls
+```{r}
+### allFail.tier2_small_median
+ggplot(pred_allFail.tier2_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_allFail.tier2_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: allFail.tier2_small_mean ###
+  geom_xribbon(data = pred_allFail.tier2_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_allFail.tier2_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_allFail.tier2_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: allFail.tier2_small_1q ###
+    geom_xribbon(data = pred_allFail.tier2_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_allFail.tier2_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_allFail.tier2_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  ### fourth line: allFail.tier2_small_min  ###
+    geom_xribbon(data = pred_allFail.tier2_small_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_allFail.tier2_small_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_allFail.tier2_small_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+  ### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (allFail.tier 2)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### allFail.tier2_large_median
+ggplot(pred_allFail.tier2_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_allFail.tier2_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: allFail.tier2_large_mean ###
+  geom_xribbon(data = pred_allFail.tier2_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_allFail.tier2_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_allFail.tier2_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: allFail.tier2_large_1q  ###
+    geom_xribbon(data = pred_allFail.tier2_large_1q , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_allFail.tier2_large_1q , aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_allFail.tier2_large_1q , aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+    ### fourth line: allFail.tier2_large_min  ###
+    geom_xribbon(data = pred_allFail.tier2_large_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_allFail.tier2_large_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_allFail.tier2_large_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (allFail.tier 2)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## allFail.tier 3/4
+### Smalls
+```{r}
+### allFail.tier3.4_small_median
+ggplot(pred_allFail.tier3.4_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_allFail.tier3.4_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: allFail.tier3.4_small_mean ###
+  geom_xribbon(data = pred_allFail.tier3.4_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_allFail.tier3.4_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_allFail.tier3.4_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: allFail.tier3.4_small_1q ###
+    geom_xribbon(data = pred_allFail.tier3.4_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_allFail.tier3.4_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_allFail.tier3.4_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+      ### fourth line: allFail.tier3.4_small_min ###
+    geom_xribbon(data = pred_allFail.tier3.4_small_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_allFail.tier3.4_small_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_allFail.tier3.4_small_min, aes(x = Conc, y =frac), 
+                 color = "grey10") + 
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (allFail.tier 3/4)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = min"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### allFail.tier3.4_large_median
+ggplot(pred_allFail.tier3.4_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_allFail.tier3.4_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: allFail.tier3.4_large_mean ###
+  geom_xribbon(data = pred_allFail.tier3.4_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_allFail.tier3.4_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_allFail.tier3.4_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: allFail.tier3.4_large_1q ###
+    geom_xribbon(data = pred_allFail.tier3.4_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_allFail.tier3.4_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_allFail.tier3.4_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+      ### fourth line: allFail.tier3.4_large_min  ###
+    geom_xribbon(data = pred_allFail.tier3.4_large_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_allFail.tier3.4_large_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_allFail.tier3.4_large_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (allFail.tier 3/4)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+## Summary Table
+```{r}
+# Small/Large x allFail.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
+larges <- list(allFail.tier1_large_median_hc5, allFail.tier1_large_mean_hc5, allFail.tier1_large_1q_hc5, allFail.tier1_large_min_hc5,
+              allFail.tier1_large.obs[[1,1]], #n.obs
+               allFail.tier1_large.obs[[1,2]], #n.studies
+          #allFail.tier 2
+          allFail.tier2_large_median_hc5, allFail.tier2_large_mean_hc5, allFail.tier2_large_1q_hc5, allFail.tier2_large_min_hc5,
+          allFail.tier2_large.obs[[1,1]], #n.obs
+          allFail.tier2_large.obs[[1,2]], #n.studies
+          #allFail.tier 3 (hc5)
+          allFail.tier3.4_large_median_hc5, allFail.tier3.4_large_mean_hc5, allFail.tier3.4_large_1q_hc5, allFail.tier3.4_large_min_hc5,
+          allFail.tier3.4_large.obs[[1,1]], #n.obs
+          allFail.tier3.4_large.obs[[1,2]], #n.studies
+          #allFail.tier 4 (hc10)
+          allFail.tier3.4_large_median_hc10, allFail.tier3.4_large_mean_hc10, allFail.tier3.4_large_1q_hc10, allFail.tier3.4_large_min_hc10,
+          allFail.tier3.4_large.obs[[1,1]], #n.obs
+               allFail.tier3.4_large.obs[[1,2]] #n.studies
+          )
+
+smalls <- list(allFail.tier1_small_median_hc5, allFail.tier1_small_mean_hc5, allFail.tier1_small_1q_hc5, allFail.tier1_small_min_hc5,
+               allFail.tier1_small.obs[[1,1]], #n.obs
+               allFail.tier1_small.obs[[1,2]], #n.studies
+          #allFail.tier 2
+          allFail.tier2_small_median_hc5, allFail.tier2_small_mean_hc5, allFail.tier2_small_1q_hc5, allFail.tier2_small_min_hc5,
+          allFail.tier2_small.obs[[1,1]], #n.obs
+          allFail.tier2_small.obs[[1,2]], #n.studies
+          #allFail.tier 3 (hc5)
+          allFail.tier3.4_small_median_hc5, allFail.tier3.4_small_mean_hc5, allFail.tier3.4_small_1q_hc5, allFail.tier3.4_small_min_hc5,
+          allFail.tier3.4_small.obs[[1,1]], #n.obs
+          allFail.tier3.4_small.obs[[1,2]], #n.studies
+          #allFail.tier 4 (hc10)
+          allFail.tier3.4_small_median_hc10, allFail.tier3.4_small_mean_hc10, allFail.tier3.4_small_1q_hc10, allFail.tier3.4_small_min_hc10,
+          allFail.tier3.4_small.obs[[1,1]], #n.obs
+               allFail.tier3.4_small.obs[[1,2]] #n.studies
+          )
+
+## Conver to data frames
+largesdf <- data.frame(t(matrix(unlist(larges), ncol = 4)))
+smallsdf <- data.frame(t(matrix(unlist(smalls), ncol = 4))) #t = transpose
+
+# convert mg/L to ug/L
+largesdf <- largesdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
+
+smallsdf <- smallsdf %>% 
+  mutate_at(c(1:4), as.numeric) %>%
+  mutate_at(c(1:4), funs(. * 1000)) %>% #don't convert n.obs and n.doi
+  mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
+
+# rename columns and rows
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+
+rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
+rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
+
+# provide tier column
+largestibble <- tibble(largesdf,
+                       Tier = rownames(largesdf))
+
+#re-arrange columns
+largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+
+# provide tier column
+smallstibble <- tibble(smallsdf,
+                       Tier = rownames(smallsdf))
+
+#re-arrange columns
+smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+
+#function to create tables
+hp_table <- function(x){
+  #get full value range for whole table conditional formatting
+  full_val_range <- x %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+  
+  #format colors accordingly
+  gt(x) %>% 
+    fmt_number(columns = vars(Mean, Median, Quartile_1, Minimum),
+             n_sigfig = 2,
+             use_seps = TRUE) %>% 
+    data_color(
+    columns = names(x)[2:5],
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
+      domain = full_val_range),
+    alpha = 0.75) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+    as_raw_html() # return as html
+}
+
+#larges gt
+larges_gt <- largestibble %>% 
+  hp_table()
+
+#smalls gt
+smalls_gt <- smallstibble %>% 
+  hp_table() 
+  
+## Combine
+data.tables <- data.frame(smalls_table = smalls_gt,
+                          larges_table = larges_gt)
+#Combine
+allFail.summary <- data.tables %>% 
+  gt() %>% 
+  fmt_markdown(columns = TRUE) %>% 
+  cols_label(smalls_table = "1-10 um",
+             larges_table = "10-5,000 um") %>% 
+  tab_source_note(md("Calculated from SSDs")) %>% 
+  tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and Tier",
+             subtitle = "Qualiter Filters: Risk (pass & fail); Tech (pass & fail)") 
+#print
+allFail.summary
+```
+
+# Grand Summary Table
+```{r}
+## Combine data tables from all quality tiers
+data.tables <- data.frame(allPass = allPass.summary,
+                          risk.pass = risk.pass.summary,
+                          tech.pass = tech.pass.summary,
+                          allFail = allFail.summary)
+#Combine
+data.tables %>% 
+  gt() %>% 
+  fmt_markdown(columns = TRUE) #%>% 
+  #cols_label(allPass = "Risk and Tech Tier Pass",
+   #          risk.pass = "Risk Pass; Tech Pass & Fail",
+    #         tech.pass = "Risk Pass & Fail; Tech Fail",
+     #        allFail = "Risk Pass & Fail; Tech Pass & Fail")
+```
+
