@@ -3476,3 +3476,1376 @@ data.tables %>%
              subtitle = "Smalls and Larges") 
 ```
 
+# SSD Build (Tech Tier Pass, Risk Tier Fail)
+## tech.pass.tier 1
+### Large 
+#### tech.pass.tier1_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_large_median <- ssd_fit_dists(tech.pass.tier1_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_large_median) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_large_median <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_large_median <- predict(dists_tech.pass.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_large_median <- tech.pass.tier1_large_median[order(tech.pass.tier1_large_median$Conc), ]
+SSD_tech.pass.tier1_large_median$frac <- ppoints(tech.pass.tier1_large_median$Conc, 0.5)
+
+tech.pass.tier1_large_median_hc5 <- c(pred_tech.pass.tier1_large_median$est[5])
+pred_tech.pass.tier1_large_median$est_format <-format(pred_tech.pass.tier1_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+tech.pass.tier1_large_median_ggplot <- ggplot(pred_tech.pass.tier1_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier1_large_median_ggplot
+```
+
+#### tech.pass.tier1_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_large_mean <- ssd_fit_dists(tech.pass.tier1_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_large_mean) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_large_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_large_mean <- predict(dists_tech.pass.tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_large_mean <- tech.pass.tier1_large_mean[order(tech.pass.tier1_large_mean$Conc), ]
+SSD_tech.pass.tier1_large_mean$frac <- ppoints(tech.pass.tier1_large_mean$Conc, 0.5)
+
+tech.pass.tier1_large_mean_hc5 <- c(pred_tech.pass.tier1_large_mean$est[5])
+pred_tech.pass.tier1_large_mean$est_format <-format(pred_tech.pass.tier1_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+tech.pass.tier1_large_mean_ggplot <- ggplot(pred_tech.pass.tier1_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier1_large_mean_ggplot
+```
+
+#### tech.pass.tier1_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_large_1q <- ssd_fit_dists(tech.pass.tier1_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_large_1q) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_large_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_large_1q <- predict(dists_tech.pass.tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_large_1q <- tech.pass.tier1_large_1q[order(tech.pass.tier1_large_1q$Conc), ]
+SSD_tech.pass.tier1_large_1q$frac <- ppoints(tech.pass.tier1_large_1q$Conc, 0.5)
+
+tech.pass.tier1_large_1q_hc5 <- c(pred_tech.pass.tier1_large_1q$est[5])
+pred_tech.pass.tier1_large_1q$est_format <-format(pred_tech.pass.tier1_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier1_large_1q_ggplot <- ggplot(pred_tech.pass.tier1_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier1_large_1q_ggplot
+```
+
+#### tech.pass.tier1_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_large_min <- ssd_fit_dists(tech.pass.tier1_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_large_min) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_large_min <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_large_min <- predict(dists_tech.pass.tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_large_min <- tech.pass.tier1_large_min[order(tech.pass.tier1_large_min$Conc), ]
+SSD_tech.pass.tier1_large_min$frac <- ppoints(tech.pass.tier1_large_min$Conc, 0.5)
+
+tech.pass.tier1_large_min_hc5 <- c(pred_tech.pass.tier1_large_min$est[5])
+pred_tech.pass.tier1_large_min$est_format <-format(pred_tech.pass.tier1_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier1_large_min_ggplot <- ggplot(pred_tech.pass.tier1_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier1_large_min_ggplot
+```
+
+### small 
+#### tech.pass.tier1_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_small_median <- ssd_fit_dists(tech.pass.tier1_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_small_median) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_small_median <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_small_median <- predict(dists_tech.pass.tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_small_median <- tech.pass.tier1_small_median[order(tech.pass.tier1_small_median$Conc), ]
+SSD_tech.pass.tier1_small_median$frac <- ppoints(tech.pass.tier1_small_median$Conc, 0.5)
+
+tech.pass.tier1_small_median_hc5 <- c(pred_tech.pass.tier1_small_median$est[5])
+pred_tech.pass.tier1_small_median$est_format <-format(pred_tech.pass.tier1_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier1_small_median_ggplot <- ggplot(pred_tech.pass.tier1_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier1_small_median_ggplot
+```
+
+#### tech.pass.tier1_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_small_mean <- ssd_fit_dists(tech.pass.tier1_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_small_mean) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_small_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_small_mean <- predict(dists_tech.pass.tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_small_mean <- tech.pass.tier1_small_mean[order(tech.pass.tier1_small_mean$Conc), ]
+SSD_tech.pass.tier1_small_mean$frac <- ppoints(tech.pass.tier1_small_mean$Conc, 0.5)
+
+tech.pass.tier1_small_mean_hc5 <- c(pred_tech.pass.tier1_small_mean$est[5])
+pred_tech.pass.tier1_small_mean$est_format <-format(pred_tech.pass.tier1_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+tech.pass.tier1_small_mean_ggplot <- ggplot(pred_tech.pass.tier1_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier1_small_mean_ggplot
+```
+
+#### tech.pass.tier1_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_small_1q <- ssd_fit_dists(tech.pass.tier1_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_small_1q) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_small_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_small_1q <- predict(dists_tech.pass.tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_small_1q <- tech.pass.tier1_small_1q[order(tech.pass.tier1_small_1q$Conc), ]
+SSD_tech.pass.tier1_small_1q$frac <- ppoints(tech.pass.tier1_small_1q$Conc, 0.5)
+
+tech.pass.tier1_small_1q_hc5 <- c(pred_tech.pass.tier1_small_1q$est[5])
+pred_tech.pass.tier1_small_1q$est_format <-format(pred_tech.pass.tier1_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier1_small_1q_ggplot <- ggplot(pred_tech.pass.tier1_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier1_small_1q_ggplot
+```
+
+#### tech.pass.tier1_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier1_small_min <- ssd_fit_dists(tech.pass.tier1_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier1_small_min) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier1_small_min <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier1_small_min <- predict(dists_tech.pass.tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier1_small_min <- tech.pass.tier1_small_min[order(tech.pass.tier1_small_min$Conc), ]
+SSD_tech.pass.tier1_small_min$frac <- ppoints(tech.pass.tier1_small_min$Conc, 0.5)
+
+tech.pass.tier1_small_min_hc5 <- c(pred_tech.pass.tier1_small_min$est[5])
+pred_tech.pass.tier1_small_min$est_format <-format(pred_tech.pass.tier1_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier1_small_min_ggplot <- ggplot(pred_tech.pass.tier1_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier1_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier1_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier1_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier1_small_min_ggplot
+```
+
+## tech.pass.tier 2
+### Large 
+#### tech.pass.tier2_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_large_median <- ssd_fit_dists(tech.pass.tier2_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_large_median) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_large_median <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_large_median <- predict(dists_tech.pass.tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_large_median <- tech.pass.tier2_large_median[order(tech.pass.tier2_large_median$Conc), ]
+SSD_tech.pass.tier2_large_median$frac <- ppoints(tech.pass.tier2_large_median$Conc, 0.5)
+
+tech.pass.tier2_large_median_hc5 <- c(pred_tech.pass.tier2_large_median$est[5])
+pred_tech.pass.tier2_large_median$est_format <-format(pred_tech.pass.tier2_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+tech.pass.tier2_large_median_ggplot <- ggplot(pred_tech.pass.tier2_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier2_large_median_ggplot
+```
+
+#### tech.pass.tier2_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_large_mean <- ssd_fit_dists(tech.pass.tier2_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_large_mean) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_large_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_large_mean <- predict(dists_tech.pass.tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_large_mean <- tech.pass.tier2_large_mean[order(tech.pass.tier2_large_mean$Conc), ]
+SSD_tech.pass.tier2_large_mean$frac <- ppoints(tech.pass.tier2_large_mean$Conc, 0.5)
+
+tech.pass.tier2_large_mean_hc5 <- c(pred_tech.pass.tier2_large_mean$est[5])
+pred_tech.pass.tier2_large_mean$est_format <-format(pred_tech.pass.tier2_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+tech.pass.tier2_large_mean_ggplot <- ggplot(pred_tech.pass.tier2_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier2_large_mean_ggplot
+```
+
+#### tech.pass.tier2_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_large_1q <- ssd_fit_dists(tech.pass.tier2_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_large_1q) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_large_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_large_1q <- predict(dists_tech.pass.tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_large_1q <- tech.pass.tier2_large_1q[order(tech.pass.tier2_large_1q$Conc), ]
+SSD_tech.pass.tier2_large_1q$frac <- ppoints(tech.pass.tier2_large_1q$Conc, 0.5)
+
+tech.pass.tier2_large_1q_hc5 <- c(pred_tech.pass.tier2_large_1q$est[5])
+pred_tech.pass.tier2_large_1q$est_format <-format(pred_tech.pass.tier2_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier2_large_1q_ggplot <- ggplot(pred_tech.pass.tier2_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier2_large_1q_ggplot
+```
+
+#### tech.pass.tier2_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_large_min <- ssd_fit_dists(tech.pass.tier2_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_large_min) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_large_min <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_large_min <- predict(dists_tech.pass.tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_large_min <- tech.pass.tier2_large_min[order(tech.pass.tier2_large_min$Conc), ]
+SSD_tech.pass.tier2_large_min$frac <- ppoints(tech.pass.tier2_large_min$Conc, 0.5)
+
+tech.pass.tier2_large_min_hc5 <- c(pred_tech.pass.tier2_large_min$est[5])
+pred_tech.pass.tier2_large_min$est_format <-format(pred_tech.pass.tier2_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier2_large_min_ggplot <- ggplot(pred_tech.pass.tier2_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier2_large_min_ggplot
+```
+### small 
+#### tech.pass.tier2_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_small_median <- ssd_fit_dists(tech.pass.tier2_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_small_median) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_small_median <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_small_median <- predict(dists_tech.pass.tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_small_median <- tech.pass.tier2_small_median[order(tech.pass.tier2_small_median$Conc), ]
+SSD_tech.pass.tier2_small_median$frac <- ppoints(tech.pass.tier2_small_median$Conc, 0.5)
+
+tech.pass.tier2_small_median_hc5 <- c(pred_tech.pass.tier2_small_median$est[5])
+pred_tech.pass.tier2_small_median$est_format <-format(pred_tech.pass.tier2_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier2_small_median_ggplot <- ggplot(pred_tech.pass.tier2_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier2_small_median_ggplot
+```
+
+#### tech.pass.tier2_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_small_mean <- ssd_fit_dists(tech.pass.tier2_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_small_mean) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_small_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_small_mean <- predict(dists_tech.pass.tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_small_mean <- tech.pass.tier2_small_mean[order(tech.pass.tier2_small_mean$Conc), ]
+SSD_tech.pass.tier2_small_mean$frac <- ppoints(tech.pass.tier2_small_mean$Conc, 0.5)
+
+tech.pass.tier2_small_mean_hc5 <- c(pred_tech.pass.tier2_small_mean$est[5])
+pred_tech.pass.tier2_small_mean$est_format <-format(pred_tech.pass.tier2_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+tech.pass.tier2_small_mean_ggplot <- ggplot(pred_tech.pass.tier2_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier2_small_mean_ggplot
+```
+
+#### tech.pass.tier2_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_small_1q <- ssd_fit_dists(tech.pass.tier2_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_small_1q) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_small_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_small_1q <- predict(dists_tech.pass.tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_small_1q <- tech.pass.tier2_small_1q[order(tech.pass.tier2_small_1q$Conc), ]
+SSD_tech.pass.tier2_small_1q$frac <- ppoints(tech.pass.tier2_small_1q$Conc, 0.5)
+
+tech.pass.tier2_small_1q_hc5 <- c(pred_tech.pass.tier2_small_1q$est[5])
+pred_tech.pass.tier2_small_1q$est_format <-format(pred_tech.pass.tier2_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier2_small_1q_ggplot <- ggplot(pred_tech.pass.tier2_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier2_small_1q_ggplot
+```
+
+#### tech.pass.tier2_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier2_small_min <- ssd_fit_dists(tech.pass.tier2_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier2_small_min) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier2_small_min <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier2_small_min <- predict(dists_tech.pass.tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier2_small_min <- tech.pass.tier2_small_min[order(tech.pass.tier2_small_min$Conc), ]
+SSD_tech.pass.tier2_small_min$frac <- ppoints(tech.pass.tier2_small_min$Conc, 0.5)
+
+tech.pass.tier2_small_min_hc5 <- c(pred_tech.pass.tier2_small_min$est[5])
+pred_tech.pass.tier2_small_min$est_format <-format(pred_tech.pass.tier2_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier2_small_min_ggplot <- ggplot(pred_tech.pass.tier2_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier2_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier2_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier2_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier2_small_min_ggplot
+```
+
+## tech.pass.tier 3
+### Large 
+#### tech.pass.tier3.4_large_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_large_median <- ssd_fit_dists(tech.pass.tier3.4_large_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_large_median) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_large_median <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_large_median <- predict(dists_tech.pass.tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_large_median <- tech.pass.tier3.4_large_median[order(tech.pass.tier3.4_large_median$Conc), ]
+SSD_tech.pass.tier3.4_large_median$frac <- ppoints(tech.pass.tier3.4_large_median$Conc, 0.5)
+
+tech.pass.tier3.4_large_median_hc5 <- c(pred_tech.pass.tier3.4_large_median$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_large_median_hc10 <- c(pred_tech.pass.tier3.4_large_median$est[10])
+pred_tech.pass.tier3.4_large_median$est_format <-format(pred_tech.pass.tier3.4_large_median$est, digits = 3, scientific = TRUE)
+```
+
+
+```{r}
+tech.pass.tier3.4_large_median_ggplot <- ggplot(pred_tech.pass.tier3.4_large_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_large_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_large_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier3.4_large_median_ggplot
+```
+
+#### tech.pass.tier3.4_large_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_large_mean <- ssd_fit_dists(tech.pass.tier3.4_large_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_large_mean) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_large_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_large_mean <- predict(dists_tech.pass.tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_large_mean <- tech.pass.tier3.4_large_mean[order(tech.pass.tier3.4_large_mean$Conc), ]
+SSD_tech.pass.tier3.4_large_mean$frac <- ppoints(tech.pass.tier3.4_large_mean$Conc, 0.5)
+
+tech.pass.tier3.4_large_mean_hc5 <- c(pred_tech.pass.tier3.4_large_mean$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_large_mean_hc10 <- c(pred_tech.pass.tier3.4_large_mean$est[10])
+
+pred_tech.pass.tier3.4_large_mean$est_format <-format(pred_tech.pass.tier3.4_large_mean$est, digits = 3, scientific = TRUE)
+```
+
+```{r}
+tech.pass.tier3.4_large_mean_ggplot <- ggplot(pred_tech.pass.tier3.4_large_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_large_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_large_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier3.4_large_mean_ggplot
+```
+
+#### tech.pass.tier3.4_large_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_large_1q <- ssd_fit_dists(tech.pass.tier3.4_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_large_1q) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_large_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_large_1q <- predict(dists_tech.pass.tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_large_1q <- tech.pass.tier3.4_large_1q[order(tech.pass.tier3.4_large_1q$Conc), ]
+SSD_tech.pass.tier3.4_large_1q$frac <- ppoints(tech.pass.tier3.4_large_1q$Conc, 0.5)
+
+tech.pass.tier3.4_large_1q_hc5 <- c(pred_tech.pass.tier3.4_large_1q$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_large_1q_hc10 <- c(pred_tech.pass.tier3.4_large_1q$est[10])
+pred_tech.pass.tier3.4_large_1q$est_format <-format(pred_tech.pass.tier3.4_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier3.4_large_1q_ggplot <- ggplot(pred_tech.pass.tier3.4_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_large_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier3.4_large_1q_ggplot
+```
+
+#### tech.pass.tier3.4_large_min
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_large_min <- ssd_fit_dists(tech.pass.tier3.4_large_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_large_min) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_large_min <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_large_min <- predict(dists_tech.pass.tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_large_min <- tech.pass.tier3.4_large_min[order(tech.pass.tier3.4_large_min$Conc), ]
+SSD_tech.pass.tier3.4_large_min$frac <- ppoints(tech.pass.tier3.4_large_min$Conc, 0.5)
+
+tech.pass.tier3.4_large_min_hc5 <- c(pred_tech.pass.tier3.4_large_min$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_large_min_hc10 <- c(pred_tech.pass.tier3.4_large_min$est[10])
+pred_tech.pass.tier3.4_large_min$est_format <-format(pred_tech.pass.tier3.4_large_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier3.4_large_min_ggplot <- ggplot(pred_tech.pass.tier3.4_large_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_large_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_large_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier3.4_large_min_ggplot
+```
+
+### small 
+#### tech.pass.tier3.4_small_median
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_small_median <- ssd_fit_dists(tech.pass.tier3.4_small_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_small_median) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_small_median <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_small_median <- predict(dists_tech.pass.tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_small_median <- tech.pass.tier3.4_small_median[order(tech.pass.tier3.4_small_median$Conc), ]
+SSD_tech.pass.tier3.4_small_median$frac <- ppoints(tech.pass.tier3.4_small_median$Conc, 0.5)
+
+tech.pass.tier3.4_small_median_hc5 <- c(pred_tech.pass.tier3.4_small_median$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_small_median_hc10 <- c(pred_tech.pass.tier3.4_small_median$est[10])
+
+pred_tech.pass.tier3.4_small_median$est_format <-format(pred_tech.pass.tier3.4_small_median$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier3.4_small_median_ggplot <- ggplot(pred_tech.pass.tier3.4_small_median,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_median,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_small_median, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_small_median") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier3.4_small_median_ggplot
+```
+
+#### tech.pass.tier3.4_small_mean
+
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_small_mean <- ssd_fit_dists(tech.pass.tier3.4_small_mean, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_small_mean) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_small_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_small_mean <- predict(dists_tech.pass.tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_small_mean <- tech.pass.tier3.4_small_mean[order(tech.pass.tier3.4_small_mean$Conc), ]
+SSD_tech.pass.tier3.4_small_mean$frac <- ppoints(tech.pass.tier3.4_small_mean$Conc, 0.5)
+
+tech.pass.tier3.4_small_mean_hc5 <- c(pred_tech.pass.tier3.4_small_mean$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_small_mean_hc10 <- c(pred_tech.pass.tier3.4_small_mean$est[10])
+
+pred_tech.pass.tier3.4_small_mean$est_format <-format(pred_tech.pass.tier3.4_small_mean$est, digits = 3, scientific = TRUE)
+
+## ggplot
+tech.pass.tier3.4_small_mean_ggplot <- ggplot(pred_tech.pass.tier3.4_small_mean,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_mean,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_small_mean, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_small_mean") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+tech.pass.tier3.4_small_mean_ggplot
+```
+
+#### tech.pass.tier3.4_small_1q
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_small_1q <- ssd_fit_dists(tech.pass.tier3.4_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_small_1q) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_small_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_small_1q <- predict(dists_tech.pass.tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_small_1q <- tech.pass.tier3.4_small_1q[order(tech.pass.tier3.4_small_1q$Conc), ]
+SSD_tech.pass.tier3.4_small_1q$frac <- ppoints(tech.pass.tier3.4_small_1q$Conc, 0.5)
+
+tech.pass.tier3.4_small_1q_hc5 <- c(pred_tech.pass.tier3.4_small_1q$est[5])
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_small_1q_hc10 <- c(pred_tech.pass.tier3.4_small_1q$est[10])
+
+pred_tech.pass.tier3.4_small_1q$est_format <-format(pred_tech.pass.tier3.4_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier3.4_small_1q_ggplot <- ggplot(pred_tech.pass.tier3.4_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_small_1q") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier3.4_small_1q_ggplot
+```
+
+#### tech.pass.tier3.4_small_min
+```{r include=FALSE}
+###### --modelling ####
+dists_tech.pass.tier3.4_small_min <- ssd_fit_dists(tech.pass.tier3.4_small_min, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tech.pass.tier3.4_small_min) #plots the distribution in ggplotech.pass.tier2
+#### Goodness of fit ####
+gof_tech.pass.tier3.4_small_min <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tech.pass.tier3.4_small_min <- predict(dists_tech.pass.tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tech.pass.tier3.4_small_min <- tech.pass.tier3.4_small_min[order(tech.pass.tier3.4_small_min$Conc), ]
+SSD_tech.pass.tier3.4_small_min$frac <- ppoints(tech.pass.tier3.4_small_min$Conc, 0.5)
+
+#extract hc5
+tech.pass.tier3.4_small_min_hc5 <- c(pred_tech.pass.tier3.4_small_min$est[5])
+
+#extrac hc10 (tech.pass.tier 4)
+tech.pass.tier3.4_small_min_hc10 <- c(pred_tech.pass.tier3.4_small_min$est[10])
+pred_tech.pass.tier3.4_small_min$est_format <-format(pred_tech.pass.tier3.4_small_min$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tech.pass.tier3.4_small_min_ggplot <- ggplot(pred_tech.pass.tier3.4_small_min,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_min,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tech.pass.tier3.4_small_min, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "tech.pass.tier3.4_small_min") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+tech.pass.tier3.4_small_min_ggplot
+```
+
+# Combine plots
+## tech.pass.tier 1
+### Smalls
+```{r}
+### tech.pass.tier1_small_median
+ggplot(pred_tech.pass.tier1_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tech.pass.tier1_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tech.pass.tier1_small_mean ###
+  geom_xribbon(data = pred_tech.pass.tier1_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tech.pass.tier1_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tech.pass.tier1_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tech.pass.tier1_small_1q ###
+    geom_xribbon(data = pred_tech.pass.tier1_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tech.pass.tier1_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tech.pass.tier1_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+### fourth line: tech.pass.tier1_small_min ###
+    geom_xribbon(data = pred_tech.pass.tier1_small_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_tech.pass.tier1_small_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_tech.pass.tier1_small_min, aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (tech.pass.tier 1)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### tech.pass.tier1_large_median
+ggplot(pred_tech.pass.tier1_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tech.pass.tier1_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tech.pass.tier1_large_mean ###
+  geom_xribbon(data = pred_tech.pass.tier1_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tech.pass.tier1_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tech.pass.tier1_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tech.pass.tier1_large_1q ###
+    geom_xribbon(data = pred_tech.pass.tier1_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tech.pass.tier1_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tech.pass.tier1_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+  ### fourth line: tech.pass.tier1_large_min ###
+    geom_xribbon(data = pred_tech.pass.tier1_large_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_tech.pass.tier1_large_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_tech.pass.tier1_large_min, aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (tech.pass.tier 1)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## tech.pass.tier 2
+### Smalls
+```{r}
+### tech.pass.tier2_small_median
+ggplot(pred_tech.pass.tier2_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tech.pass.tier2_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tech.pass.tier2_small_mean ###
+  geom_xribbon(data = pred_tech.pass.tier2_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tech.pass.tier2_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tech.pass.tier2_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tech.pass.tier2_small_1q ###
+    geom_xribbon(data = pred_tech.pass.tier2_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tech.pass.tier2_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tech.pass.tier2_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  ### fourth line: tech.pass.tier2_small_min  ###
+    geom_xribbon(data = pred_tech.pass.tier2_small_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_tech.pass.tier2_small_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_tech.pass.tier2_small_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+  ### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (tech.pass.tier 2)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### tech.pass.tier2_large_median
+ggplot(pred_tech.pass.tier2_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tech.pass.tier2_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tech.pass.tier2_large_mean ###
+  geom_xribbon(data = pred_tech.pass.tier2_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tech.pass.tier2_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tech.pass.tier2_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tech.pass.tier2_large_1q  ###
+    geom_xribbon(data = pred_tech.pass.tier2_large_1q , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tech.pass.tier2_large_1q , aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tech.pass.tier2_large_1q , aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+    ### fourth line: tech.pass.tier2_large_min  ###
+    geom_xribbon(data = pred_tech.pass.tier2_large_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_tech.pass.tier2_large_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_tech.pass.tier2_large_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (tech.pass.tier 2)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## tech.pass.tier 3/4
+### Smalls
+```{r}
+### tech.pass.tier3.4_small_median
+ggplot(pred_tech.pass.tier3.4_small_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tech.pass.tier3.4_small_mean ###
+  geom_xribbon(data = pred_tech.pass.tier3.4_small_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tech.pass.tier3.4_small_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tech.pass.tier3.4_small_1q ###
+    geom_xribbon(data = pred_tech.pass.tier3.4_small_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tech.pass.tier3.4_small_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+      ### fourth line: tech.pass.tier3.4_small_min ###
+    geom_xribbon(data = pred_tech.pass.tier3.4_small_min, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_tech.pass.tier3.4_small_min, aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_tech.pass.tier3.4_small_min, aes(x = Conc, y =frac), 
+                 color = "grey10") + 
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (tech.pass.tier 3/4)",
+       subtitle = ("Size Range: 1 - 10 um; Red = median, blue = mean, green = first quartile, grey = min"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### larges
+```{r}
+### tech.pass.tier3.4_large_median
+ggplot(pred_tech.pass.tier3.4_large_median, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+                   color = "red", fill = "red") +
+      geom_line(aes_string(y = "percent/100"), 
+                color = "red") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_median,aes(x = Conc, y =frac), 
+                 color = "red") + 
+      
+### second line: tech.pass.tier3.4_large_mean ###
+  geom_xribbon(data = pred_tech.pass.tier3.4_large_mean, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "blue", fill = "blue") +
+      geom_line(data = pred_tech.pass.tier3.4_large_mean, aes_string(y = "percent/100"), 
+                color = "blue") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_mean, aes(x = Conc, y =frac), 
+                 color = "blue") +  
+### third line: tech.pass.tier3.4_large_1q ###
+    geom_xribbon(data = pred_tech.pass.tier3.4_large_1q, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "green", fill = "green") +
+      geom_line(data = pred_tech.pass.tier3.4_large_1q, aes_string(y = "percent/100"), 
+                color = "green") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_1q, aes(x = Conc, y =frac), 
+                 color = "green") +  
+  
+      ### fourth line: tech.pass.tier3.4_large_min  ###
+    geom_xribbon(data = pred_tech.pass.tier3.4_large_min , aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, 
+               color = "grey10", fill = "grey10") +
+      geom_line(data = pred_tech.pass.tier3.4_large_min , aes_string(y = "percent/100"), 
+                color = "grey10") +
+      geom_point(data = SSD_tech.pass.tier3.4_large_min , aes(x = Conc, y =frac), 
+                 color = "grey10") +  
+### plot parameters ###
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      xlab(particle_mass_check_ssd)+
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+  labs(title = "Species Sensitivity Distributions by Data Collapsing (tech.pass.tier 3/4)",
+       subtitle = ("Size Range: 10 - 5,000 um; Red = median, blue = mean, green = first quartile, grey = minimum"),
+       caption = ("All endpoints")) +
+  theme.type +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+# Summary Table
+```{r}
+# Small/Large x tech.pass.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
+larges <- list(tech.pass.tier1_large_median_hc5, tech.pass.tier1_large_mean_hc5, tech.pass.tier1_large_1q_hc5, tech.pass.tier1_large_min_hc5,
+          #tech.pass.tier 2
+          tech.pass.tier2_large_median_hc5, tech.pass.tier2_large_mean_hc5, tech.pass.tier2_large_1q_hc5, tech.pass.tier2_large_min_hc5,
+          #tech.pass.tier 3 (hc5)
+          tech.pass.tier3.4_large_median_hc5, tech.pass.tier3.4_large_mean_hc5, tech.pass.tier3.4_large_1q_hc5, tech.pass.tier3.4_large_min_hc5,
+          #tech.pass.tier 4 (hc10)
+          tech.pass.tier3.4_large_median_hc10, tech.pass.tier3.4_large_mean_hc10, tech.pass.tier3.4_large_1q_hc10, tech.pass.tier3.4_large_min_hc10)
+
+smalls <- list(tech.pass.tier1_small_median_hc5, tech.pass.tier1_small_mean_hc5, tech.pass.tier1_small_1q_hc5, tech.pass.tier1_small_min_hc5,
+          #tech.pass.tier 2
+          tech.pass.tier2_small_median_hc5, tech.pass.tier2_small_mean_hc5, tech.pass.tier2_small_1q_hc5, tech.pass.tier2_small_min_hc5,
+          #tech.pass.tier 3.4
+          tech.pass.tier3.4_small_median_hc5, tech.pass.tier3.4_small_mean_hc5, tech.pass.tier3.4_small_1q_hc5, tech.pass.tier3.4_small_min_hc5,
+          #tech.pass.tier 4 (hc10)
+          tech.pass.tier3.4_small_median_hc10, tech.pass.tier3.4_small_mean_hc10, tech.pass.tier3.4_small_1q_hc10, tech.pass.tier3.4_small_min_hc10)
+
+## Conver to data frames
+largesdf <- data.frame(t(matrix(unlist(larges), ncol = 4)))
+smallsdf <- data.frame(t(matrix(unlist(smalls), ncol = 4))) #t = transpose
+
+# convert mg/L to ug/L
+largesdf <- largesdf * 1000
+smallsdf <- smallsdf * 1000
+
+# rename columns and rows
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum")
+
+rownames(largesdf) <- c("tech.pass.tier 1", "tech.pass.tier 2", "tech.pass.tier 3", "tech.pass.tier 4")
+rownames(smallsdf) <- c("tech.pass.tier 1", "tech.pass.tier 2", "tech.pass.tier 3", "tech.pass.tier 4")
+
+# provide tech.pass.tier column
+largestibble <- tibble(largesdf,
+                       tech.pass.tier = rownames(largesdf))
+
+#re-arrange columns
+largestibble <- largestibble[c("tech.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+
+# provide tech.pass.tier column
+smallstibble <- tibble(smallsdf,
+                       tech.pass.tier = rownames(smallsdf))
+
+#re-arrange columns
+smallstibble <- smallstibble[c("tech.pass.tier", "Mean", "Median", "Quartile_1", "Minimum")]
+
+#function to create tables
+hp_table <- function(x){
+  #get full value range for whole table conditional formatting
+  full_val_range <- x %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+  
+  #format colors accordingly
+  gt(x) %>% 
+    fmt_number(columns = vars(Mean, Median, Quartile_1, Minimum),
+             n_sigfig = 2,
+             use_seps = TRUE) %>% 
+    data_color(
+    columns = names(x)[2:5],
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),domain = full_val_range),
+    alpha = 0.75) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+    as_raw_html() # return as html
+}
+
+#larges gt
+larges_gt <- largestibble %>% 
+  hp_table()
+
+#smalls gt
+smalls_gt <- smallstibble %>% 
+  hp_table() 
+  
+## Combine
+data.tables <- data.frame(smalls_table = smalls_gt,
+                          larges_table = larges_gt)
+#Combine
+data.tables %>% 
+  gt() %>% 
+  fmt_markdown(columns = TRUE) %>% 
+  cols_label(smalls_table = "1-10 um",
+             larges_table = "10-5,000 um") %>% 
+  tab_source_note(md("Calculated from SSDs")) %>% 
+  tab_header(title = "Microplastics HC5 (ug/L) by Data Collapse and tech.pass.tier",
+             subtitle = "Smalls and Larges") 
+```
