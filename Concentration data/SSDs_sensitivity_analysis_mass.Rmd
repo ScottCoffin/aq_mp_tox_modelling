@@ -78,7 +78,8 @@ aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ## First filter data with global filters
 aoc_final <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
+  filter(environment != "Terrestrial", 
+         environment != "Not Reported",
          org_f != "Bacterium",
          org_f != "Plant")
 ```
