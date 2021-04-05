@@ -81,7 +81,8 @@ aoc_final <- aoc_z %>%
   filter(environment != "Terrestrial", 
          environment != "Not Reported",
          org_f != "Bacterium",
-         org_f != "Plant")
+         org_f != "Plant",
+         effect.metric != "HONEC")
 ```
 
 # Data Collapse
