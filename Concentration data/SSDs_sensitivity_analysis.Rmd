@@ -73,8 +73,14 @@ particle_mass_check_ssd <- 'mg/L' #assign whether or not to use particles/mL or 
 # Data Import
 #require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 #source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+
+## First filter data with global filters
+aoc_final <- aoc_z %>% 
+  filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != "Bacterium",
+         org_f != "Plant")
 ```
 
 # Data Collapse
@@ -83,20 +89,16 @@ aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```{r data collapse, include=FALSE}
 #### filter by tier first ###
 #Tier 1 is HC5 for all endpoints
-tier1 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-         tier_zero_tech_f == "Red Criteria Passed",
+tier1 <- aoc_final %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed") %>% 
          # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #Tier 2 is HC5 for all tissue and above endpoints
-tier2 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-         tier_zero_tech_f == "Red Criteria Passed",
+tier2 <- aoc_final %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
@@ -104,10 +106,8 @@ tier2 <- aoc_z %>%
   drop_na(dose_new)
 
 #Tiers 3 and 4 are for organism level endpoints only
-tier3.4 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-         tier_zero_tech_f == "Red Criteria Passed",
+tier3.4 <- aoc_final %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Organism","Population")) %>% 
@@ -259,20 +259,16 @@ tier3.4_small_min <- tier3.4_small %>%
 ```{r include=FALSE}
 #### filter by risk.pass.tier first ###
 #risk.pass.tier 1 is HC5 for all endpoints
-risk.pass.tier1 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-        # tier_zero_tech_f == "Red Criteria Passed",
+risk.pass.tier1 <- aoc_final %>% 
+  filter(# tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed") %>% 
          # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #risk.pass.tier 2 is HC5 for all tissue and above endpoints
-risk.pass.tier2 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-        # tier_zero_tech_f == "Red Criteria Passed",
+risk.pass.tier2 <- aoc_final %>% 
+  filter(# tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
@@ -280,10 +276,8 @@ risk.pass.tier2 <- aoc_z %>%
   drop_na(dose_new)
 
 #risk.pass.tiers 3 and 4 are for organism level endpoints only
-risk.pass.tier3.4 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-        # tier_zero_tech_f == "Red Criteria Passed",
+risk.pass.tier3.4 <- aoc_final %>% 
+  filter(# tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Organism","Population")) %>% 
@@ -436,20 +430,16 @@ risk.pass.tier3.4_small_min <- risk.pass.tier3.4_small %>%
 ```{r include=FALSE}
 #### filter by tech.pass.tier first ###
 #tech.pass.tier 1 is HC5 for all endpoints
-tech.pass.tier1 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-         tier_zero_tech_f == "Red Criteria Passed") %>% 
+tech.pass.tier1 <- aoc_final %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
         # tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #tech.pass.tier 2 is HC5 for all tissue and above endpoints
-tech.pass.tier2 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-         tier_zero_tech_f == "Red Criteria Passed",
+tech.pass.tier2 <- aoc_final %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
@@ -457,10 +447,8 @@ tech.pass.tier2 <- aoc_z %>%
   drop_na(dose_new)
 
 #tech.pass.tiers 3 and 4 are for organism level endpoints only
-tech.pass.tier3.4 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-         tier_zero_tech_f == "Red Criteria Passed",
+tech.pass.tier3.4 <- aoc_final %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
          lvl1_f == "Fitness",
          bio_f %in% c("Organism","Population")) %>% 
@@ -613,20 +601,16 @@ tech.pass.tier3.4_small_min <- tech.pass.tier3.4_small %>%
 ```{r include=FALSE}
 #### filter by tier first ###
 #allFail.tier 1 is HC5 for all endpoints
-allFail.tier1 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant")) %>% 
-      #   tier_zero_tech_f == "Red Criteria Passed",
+allFail.tier1 <- aoc_final %>% 
+  #filter(#   tier_zero_tech_f == "Red Criteria Passed",
        #  tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #allFail.tier 2 is HC5 for all tissue and above endpoints
-allFail.tier2 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-        # tier_zero_tech_f == "Red Criteria Passed",
+allFail.tier2 <- aoc_final %>% 
+  filter(# tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
@@ -634,10 +618,8 @@ allFail.tier2 <- aoc_z %>%
   drop_na(dose_new)
 
 #allFail.tiers 3 and 4 are for organism level endpoints only
-allFail.tier3.4 <- aoc_z %>% 
-  filter(environment != c("Terrestrial", "Not Reported"),
-         org_f != c("Bacterium", "Plant"),
-        # tier_zero_tech_f == "Red Criteria Passed",
+allFail.tier3.4 <- aoc_final %>% 
+  filter( # tier_zero_tech_f == "Red Criteria Passed",
          #tier_zero_risk_f == "Red Criteria Passed",
          # lvl1_f == "Fitness",
          bio_f %in% c("Organism","Population")) %>% 
