@@ -53,39 +53,65 @@ library(gridExtra)
 library(interpret) #explainable boosting machine
 library(infotheo)
 library(tidyinftheo)
+library(sidekicks)
 ```
 
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-#source("Tox Data/RDA_Maker.R")
+source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ```
 
-#Look at the data and mutual information
+#Look at the data highlight potential variable issues for modeling.
 
 ```{r include = FALSE}
-skim(aoc_z)
+aoc_z_characters <- aoc_z %>%
+  mutate_if(is.factor, as.character)
+
+#tells us if any of the variables have more than 50% of the data missing. 
+skimmed_aoc_flag_missing <- skim(aoc_z_characters) %>%
+  filter(n_missing > 0.5*nrow(aoc_z)) %>%
+  pull(skim_variable)
+
+#tells us if any of the variables have more variable groups than 10% of the total rows 
+skimmed_aoc_flag_deep <- skim(aoc_z_characters) %>%
+  filter(character.n_unique > 0.1*nrow(aoc_z)) %>%
+  pull(skim_variable)
+
+#variables that only have one group (not useful)
+skimmed_aoc_flag_shallow <- skim(aoc_z_characters) %>%
+  filter(character.n_unique == 1) %>%
+  pull(skim_variable)
+
+#tells us which variables have character groups that have fewer than 3 observations.
+skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
+  filter(character.min < 3) %>%
+  pull(skim_variable)
 
 ```
-variables that shouldn't get used in the model because
-They are too deep (too many unique classes): doi, authors, 
-
-
-
 
 #Look at mututal information between variables
 
 ```{r include=F}
+#Mutual information
 discretized <- discretize(aoc_z)
 matrix <- discretized %>%
-  mutual_info_matrix(names(.), normalized = T)
+  mutinformation() 
+df <- as.data.frame(as.table(matrix))
 
-```
+#Correlation matrix
+aoc_no_logical <- aoc_z %>%
+  select(-c(skimmed_aoc_flag_shallow, 
+            skimmed_aoc_flag_deep, 
+            skimmed_aoc_flag_missing, 
+            skimmed_aoc_inadequate_n_char)) %>%
+  select_if(function(col) !is.logical(col)) %>%
+  mutate_if(is.factor, as.character) 
 
-```{r include=F}
-mutual_info_heatmap(matrix)
+cor_matrix <- cor2(aoc_no_logical)
+
 ```
 
 
@@ -116,7 +142,7 @@ df <- aoc_z %>%
                   #density.mg.um.3,
                   #environment,
                   exposure.route,
-                  dose.surface.area.um2.mL.master,
+                  dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
                   lvl1_f
                   )) %>% 
   mutate(effect.metric = as.character(effect.metric)) %>% 
@@ -129,7 +155,7 @@ df <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  filter(effect.metric != "not_available") %>% 
+  #filter(effect.metric != "not_available") %>% 
   filter(exposure.route == "water") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
@@ -784,7 +810,7 @@ kitchenSink <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  filter(effect.metric != "not_available") %>% 
+  #filter(effect.metric != "not_available") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
 mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
@@ -793,7 +819,7 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
       effect == "N" ~ 0
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
-  dplyr::select(-(effect))
+  dplyr::select(-c(effect, effect.metric))
 
 #ensure completeness
 skim(kitchenSink)
@@ -973,7 +999,7 @@ kable(makePaddedDataFrame(
 While the absolute best model contains 18 variables with an estimated accuracy of 93.89%, it is possible to achieve ~93% accuracy with just eight variables, as displayed in the above table. The advantage of including fewer variables is that less information is needed to accurately predict toxicity. The final model with these eight variables will be further refined through an iterative tuning process to determine the optimal number of variables to be randomly collected for sampling at each split (mtry), and the number of branches to grow after each split.Code for the following section is inspired from https://rpubs.com/phamdinhkhanh/389752. 
 ```{r}
 final_df <-df %>% 
-  dplyr::select(c(effect.metric, 
+  dplyr::select(c(#effect.metric, 
                   lvl2_f, 
                   dose.surface.area.um2.mL.master, 
                   effect_10, 
