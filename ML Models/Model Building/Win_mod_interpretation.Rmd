@@ -38,7 +38,7 @@ knitr::knit_hooks$set(time_it = local({
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 # load required packages
-#library(rsample)
+library(rsample)
 library(dplyr)
 library(DALEX)
 library(tidyverse)
@@ -59,7 +59,7 @@ library(sidekicks)
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-source("Tox Data/RDA_Maker.R")
+#source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ```
@@ -92,27 +92,7 @@ skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
 
 ```
 
-#Look at mututal information between variables
 
-```{r include=F}
-#Mutual information
-discretized <- discretize(aoc_z)
-matrix <- discretized %>%
-  mutinformation() 
-df <- as.data.frame(as.table(matrix))
-
-#Correlation matrix
-aoc_no_logical <- aoc_z %>%
-  select(-c(skimmed_aoc_flag_shallow, 
-            skimmed_aoc_flag_deep, 
-            skimmed_aoc_flag_missing, 
-            skimmed_aoc_inadequate_n_char)) %>%
-  select_if(function(col) !is.logical(col)) %>%
-  mutate_if(is.factor, as.character) 
-
-cor_matrix <- cor2(aoc_no_logical)
-
-```
 
 
 
@@ -128,6 +108,8 @@ df <- aoc_z %>%
                   #exposure.duration.d, 
                   #lvl1_f, 
                   dose.um3.mL.master, 
+                  dose.mg.L.master,
+                  dose.particles.mL.master,
                   #dose.mg.L.master, 
                   #dose.particles.mL.master, 
                   #life.stage,
@@ -166,11 +148,127 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(effect, exposure.route, effect.metric))
+  dplyr::select(-c(effect, exposure.route, effect.metric)) %>%
+  mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
 
 #ensure completeness
 skim(df)
 ```
+
+#Look at mututal information between variables
+
+```{r include=F}
+library(tidyverse)
+library(rcompanion)
+
+
+# Calculate a pairwise association between all variables in a data-frame. In particular nominal vs nominal with Chi-square, numeric vs numeric with Pearson correlation, and nominal vs numeric with ANOVA.
+# Adopted from https://stackoverflow.com/a/52557631/590437
+mixed_assoc = function(df, cor_method="spearman", adjust_cramersv_bias=TRUE){
+    df_comb = expand.grid(names(df), names(df),  stringsAsFactors = F) %>% set_names("X1", "X2")
+
+    is_nominal = function(x) class(x) %in% c("factor", "character")
+    # https://community.rstudio.com/t/why-is-purr-is-numeric-deprecated/3559
+    # https://github.com/r-lib/rlang/issues/781
+    is_numeric <- function(x) { is.integer(x) || is_double(x)}
+
+    f = function(xName,yName) {
+        x =  pull(df, xName)
+        y =  pull(df, yName)
+
+        result = if(is_nominal(x) && is_nominal(y)){
+            # use bias corrected cramersV as described in https://rdrr.io/cran/rcompanion/man/cramerV.html
+            cv = cramerV(as.character(x), as.character(y), bias.correct = adjust_cramersv_bias)
+            data.frame(xName, yName, assoc=cv, type="cramersV")
+
+        }else if(is_numeric(x) && is_numeric(y)){
+            correlation = cor(x, y, method=cor_method, use="complete.obs")
+            data.frame(xName, yName, assoc=correlation, type="correlation")
+
+        }else if(is_numeric(x) && is_nominal(y)){
+            # from https://stats.stackexchange.com/questions/119835/correlation-between-a-nominal-iv-and-a-continuous-dv-variable/124618#124618
+            r_squared = summary(lm(x ~ y))$r.squared
+            data.frame(xName, yName, assoc=sqrt(r_squared), type="anova")
+
+        }else if(is_nominal(x) && is_numeric(y)){
+            r_squared = summary(lm(y ~x))$r.squared
+            data.frame(xName, yName, assoc=sqrt(r_squared), type="anova")
+
+        }else {
+            warning(paste("unmatched column type combination: ", class(x), class(y)))
+        }
+
+        # finally add complete obs number and ratio to table
+        result %>% mutate(complete_obs_pairs=sum(!is.na(x) & !is.na(y)), complete_obs_ratio=complete_obs_pairs/length(x)) %>% rename(x=xName, y=yName)
+    }
+
+    # apply function to each variable combination
+    map2_df(df_comb$X1, df_comb$X2, f)
+}
+
+
+#Mutual information
+discretized <- discretize(df)
+matrix <- discretized %>%
+  mutinformation() 
+dfmatrix <- as.data.frame(as.table(matrix))
+
+#Correlation matrix
+mixedassoc <- mixed_assoc(df)
+
+library(corrr)
+
+df %>%
+    #select(- name) %>%
+    mixed_assoc() %>%
+    select(x, y, assoc) %>%
+    spread(y, assoc) %>%
+    column_to_rownames("x") %>%
+    as.matrix %>%
+    as_cordf %>%
+    rplot()
+
+#Correlation matrix
+#aoc_no_logical <- aoc_z %>%
+#  select(-c(skimmed_aoc_flag_shallow, 
+#            skimmed_aoc_flag_deep, 
+#            skimmed_aoc_flag_missing, 
+#            skimmed_aoc_inadequate_n_char)) %>%
+#  select_if(function(col) !is.logical(col)) %>%
+#  mutate_if(is.factor, as.character) 
+
+#cor_matrix <- cor2(aoc_no_logical)
+
+```
+
+#Stepwise regression
+```{r}
+library(MASS)
+training.samples <- df$effect_10 %>% 
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- df[training.samples, ]
+test.data <- df[-training.samples, ]
+
+# Fit the model
+model <- glm(effect_10 ~., data = train.data, family = binomial) %>%
+  stepAIC(trace = FALSE)
+# Summarize the final selected model
+summary(model)
+# Make predictions
+probabilities <- model %>% predict(test.data, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+# Model accuracy
+mean(predicted.classes==test.data$effect_10)
+
+
+full.model <- glm(effect_10 ~., data = train.data, family = binomial)
+coef(full.model)
+
+step.model <- full.model %>% stepAIC(trace = FALSE)
+coef(step.model)
+
+```
+
 
 ```{r}
 # create train, validation, and test splits
@@ -215,6 +313,12 @@ ebm <- ebm_classify(train_x, #features
                             max_leaves = 3,
                             min_samples_leaf = 2,
                             random_state = 42)
+
+
+
+
+
+
 
 #####build additional models using caret package and expain using DALEX package #####
 classif_rf <- train(effect_10~., data = train, method = "rf", ntree = 100, tuneLength = 1)
@@ -267,6 +371,8 @@ explainer_classif_xgbTree <- DALEX::explain(classif_svm,  label = "eXtreme Gradi
 ```{r model performance, include=FALSE}
 ### EBM model ###
 proba_test <- ebm_predict_proba(ebm, test_x) #keeps giving NA's for some reason...
+
+ebm_show(ebm, name = "bio.org")
 
 #### Caret models ####
 mp_classif_rf <- model_performance(explainer_classif_rf)
