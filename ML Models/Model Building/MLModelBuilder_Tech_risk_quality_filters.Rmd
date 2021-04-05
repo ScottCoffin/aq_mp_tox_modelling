@@ -49,13 +49,14 @@ library(knitr)
 library(doParallel)
 library(modelplotr)
 library(gridExtra)
+library(interpret) #explainable boosting machine
 ```
 
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-source("Tox Data/RDA_Maker.R")
-#aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+#source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
 # Data Selection
 
@@ -64,8 +65,28 @@ source("Tox Data/RDA_Maker.R")
 ```{r}
 df <- aoc_z %>% 
   filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
-  filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
-  dplyr::select(c(organism.group, exposure.duration.d, lvl1_f, dose.um3.mL.master, dose.mg.L.master, dose.particles.mL.master, life.stage, bio.org, polymer, shape, size.length.um.used.for.conversions, treatments, effect, effect.metric, particle.volume.um3, density.mg.um.3, environment, exposure.route, lvl2_f)) %>% 
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(organism.group, 
+                  #exposure.duration.d, 
+                  #lvl1_f, 
+                  dose.um3.mL.master, 
+                  #dose.mg.L.master, 
+                  #dose.particles.mL.master, 
+                  #life.stage,
+                  bio.org, 
+                  #polymer, 
+                  #shape,
+                  #size.length.um.used.for.conversions, 
+                  #treatments, 
+                  effect, 
+                  effect.metric,
+                  #particle.volume.um3,
+                  #density.mg.um.3,
+                  #environment,
+                  exposure.route,
+                  dose.surface.area.um2.mL.master,
+                  lvl1_f
+                  )) %>% 
   mutate(effect.metric = as.character(effect.metric)) %>% 
   mutate(effect.metric = (case_when(
     effect.metric == "NONEC" ~ "NOEC",
@@ -76,6 +97,8 @@ df <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  filter(effect.metric != "not_available") %>% 
+  filter(exposure.route == "water") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
 mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
@@ -84,7 +107,8 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
       effect == "N" ~ 0
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
-  dplyr::select(-(effect))
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(effect, exposure.route, effect.metric))
 
 #ensure completeness
 skim(df)
@@ -103,13 +127,38 @@ df_split <- df %>%
 train <- training(df_split)
 test <- testing(df_split)
 
-# variable names for resonse & features
+# variable names for response & features
 y <- "effect_10"
 x <- setdiff(names(df), y) 
+
+## subset for ebm syntax
+train_x <- as.data.frame(train %>% dplyr::select(-effect_10))
+train_y <- as.numeric(as.vector(train$effect_10))
+
+test_x <- as.data.frame(test %>% dplyr::select(-effect_10))
+test_y <- as.numeric(as.vector(test$effect_10))
 ```
 
 ```{r All Model Training, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 # Examine the environment to be sure # of observations looks like the 75/25 split. 3199:1066.
+
+####build explainable boosting machine model #####
+ebm <- ebm_classify(train_x, #features
+                    train_y, #target,
+                            ## hyper-parameters, currently in default state:
+                            max_bins = 255,
+                            outer_bags = 16,
+                            inner_bags = 0,
+                            learning_rate = 0.01,
+                            validation_size = 0.15,
+                            early_stopping_rounds = 50,
+                            early_stopping_tolerance = 1e-4,
+                            max_rounds = 5000,
+                            max_leaves = 3,
+                            min_samples_leaf = 2,
+                            random_state = 42)
+
+#####build additional models using caret package and expain using DALEX package #####
 classif_rf <- train(effect_10~., data = train, method = "rf", ntree = 100, tuneLength = 1)
 
 classif_glm <- train(effect_10~., data = train, method = "glm", family = "binomial")
@@ -124,32 +173,44 @@ classif_nnet <- train(effect_10~., data = train, method = "nnet", preProcess=c("
 classif_xgbTree <- train(effect_10~., data = train, method = "xgbTree")
 
 
-# explain
+##### build explainers ####
+# extract test data#
 yTest <- as.numeric(as.character(test$effect_10))
 
-explainer_classif_rf <- DALEX::explain(classif_rf, label = "rf",
-                                       data = test, 
+#explainer_classif_ebm <- DALEX::explain(classif_ebm,
+ #                                      label = "EBM",
+  #                                     data = subset(test, select = -c(effect_10)), 
+   #                                    y = yTest)
+
+
+explainer_classif_rf <- DALEX::explain(classif_rf,
+                                       label = "rf",
+                                       data = test_x, 
                                        y = yTest)
                                        
 explainer_classif_glm <- DALEX::explain(classif_glm, label = "glm", 
-                                        data = test, y = yTest)
+                                        data = test_x, y = yTest)
                                        
 explainer_classif_svm <- DALEX::explain(classif_svm,  label = "svm", 
-                                        data = test, y = yTest)
+                                        data = test_x, y = yTest)
 
 explainer_classif_decTree <- DALEX::explain(classif_rf, label = "Decision Tree",
-                                       data = test, 
+                                       data = test_x, 
                                        y = yTest)
                                        
 explainer_classif_nnet <- DALEX::explain(classif_glm, label = "Neural Net", 
-                                        data = test, y = yTest)
+                                        data = test_x, y = yTest)
                                        
 explainer_classif_xgbTree <- DALEX::explain(classif_svm,  label = "eXtreme Gradient Boosting Trees", 
-                                        data = test, y = yTest)
+                                        data = test_x, y = yTest)
 ```
 # Modelling
 ## Model Performance
 ```{r model performance, include=FALSE}
+### EBM model ###
+proba_test <- ebm_predict_proba(ebm, test_x) #keeps giving NA's for some reason...
+
+#### Caret models ####
 mp_classif_rf <- model_performance(explainer_classif_rf)
 mp_classif_glm <- model_performance(explainer_classif_glm)
 mp_classif_svm <- model_performance(explainer_classif_svm)
@@ -332,8 +393,13 @@ plot(vi_classif_rf, vi_classif_glm, vi_classif_svm)#, #vi_classif_logicBag)
 ```{r}
 plot(vi_classif_decTree, vi_classif_nnet, vi_classif_xgbTree)
 ```
-
-
+#### EBM
+```{r}
+ebm_show(ebm, "dose.surface.area.um2.mL.master")
+```
+```{r}
+ebm_show(ebm, "dose.um3.mL.master")
+```
 
 
 ### Partial Dependence Plot
@@ -370,36 +436,36 @@ plot(pdp_classif_rf$agr_profiles, pdp_classif_glm$agr_profiles, pdp_classif_svm$
 ##### Grouped Partial Dependence Plots
 ```{r include=FALSE}
 plot(pdp_classif_rf)
-#Partial Dependence by dose.particles.mL.master and effect.metric
-pdp_classif_rf  <- model_profile(explainer_classif_rf, variable = "dose.particles.mL.master", 
-                                 groups = "effect.metric")
-pdp_classif_glm  <- model_profile(explainer_classif_glm, variable = "dose.particles.mL.master", 
-                                 groups = "effect.metric")
-pdp_classif_svm  <- model_profile(explainer_classif_svm, variable = "dose.particles.mL.master", 
-                                 groups = "effect.metric")
-pdp_classif_decTree  <- model_profile(explainer_classif_decTree, variable = "dose.particles.mL.master", 
-                                 groups = "effect.metric")
-pdp_classif_nnet  <- model_profile(explainer_classif_nnet, variable = "dose.particles.mL.master", 
-                                 groups = "effect.metric")
-pdp_classif_xgbTree  <- model_profile(explainer_classif_xgbTree, variable = "dose.particles.mL.master", 
-                                 groups = "effect.metric")
+#Partial Dependence by dose.surface.area.um2.mL.master and bio.org
+pdp_classif_rf  <- model_profile(explainer_classif_rf, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_glm  <- model_profile(explainer_classif_glm, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_svm  <- model_profile(explainer_classif_svm, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_decTree  <- model_profile(explainer_classif_decTree, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_nnet  <- model_profile(explainer_classif_nnet, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_xgbTree  <- model_profile(explainer_classif_xgbTree, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
 ```
 
 ```{r}
 #plot neural net and glm
 glm <- plot(pdp_classif_glm$agr_profiles) +
-  ggtitle("GLM: Partial Dependence Profiles by Dose and Effect Metric", "") +
+  ggtitle("GLM: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
   xlab("log10(dose particles/mL)") +
   ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
 nnet <- plot(pdp_classif_nnet$agr_profiles) +
-  ggtitle("Neural Net: Partial Dependence Profiles by Dose and Effect Metric", "") +
+  ggtitle("Neural Net: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
   xlab("log10(dose particles/mL)") +
   ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 grid.arrange(glm, nnet)
@@ -408,18 +474,18 @@ grid.arrange(glm, nnet)
 ```{r}
 #plot rf and decision tree
 rf <- plot(pdp_classif_rf$agr_profiles) +
-  ggtitle("Random Forest:Partial Dependence Profiles by Dose and Effect Metric", "") +
+  ggtitle("Random Forest:Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
   xlab("log10(dose particles/mL)") +
   ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
 decTree <- plot(pdp_classif_decTree$agr_profiles) +
-  ggtitle("Decision Tree: Partial Dependence Profiles by Dose and Effect Metric", "") +
+  ggtitle("Decision Tree: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
   xlab("log10(dose particles/mL)") +
   ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 grid.arrange(rf, decTree)
@@ -428,18 +494,18 @@ grid.arrange(rf, decTree)
 ```{r}
 #plot rf and decision tree
 svm <- plot(pdp_classif_svm$agr_profiles) +
-  ggtitle("Support Vector Machine:Partial Dependence Profiles by Dose and Effect Metric", "") +
+  ggtitle("Support Vector Machine:Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
   xlab("log10(dose particles/mL)") +
   ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
 xgbTree <- plot(pdp_classif_xgbTree$agr_profiles) +
-  ggtitle("eXtreme Gradient Boosing Trees: Partial Dependence Profiles by Dose and Effect Metric", "") +
+  ggtitle("eXtreme Gradient Boosing Trees: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
   xlab("log10(dose particles/mL)") +
   ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 grid.arrange(svm, xgbTree)
@@ -638,14 +704,93 @@ list(new_cust_nnet,new_cust_xgbTree) %>%
 
 Final models are saved in the folder: ML Models/FinalModels
 ```{r}
-saveRDS(classif_glm, "ML Models/FinalModels/final_glm_model/rds")
-
-saveRDS(classifnnet, "ML Models/FinalModels/final_nnet_model/rds")
+saveRDS(classif_glm, "ML Models/FinalModels/glm.rds")
+saveRDS(classifnnet, "ML Models/FinalModels/neuralNet.rds")
+saveRDS(ebm, file="ML Models/ebm_model.rds")
+saveRDS(classif_decTree, "ML Models/decisionTree.rds")
 ```
 
 
-# Final Model
+# Random Forest Tuning
 All in all random forest is my final model of choice: it appears the more balanced and is the most accurate overall. This model will now be tuned and refined for maximum performance.
+
+## Data selection
+
+First, let's feed the random forest model as many variables as we believe to be reasonable. Later, we will perform recursive feature selection to allow the model to show us which variables are best predictors.
+```{r}
+kitchenSink <- aoc_z %>% 
+  filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(organism.group, 
+                  exposure.duration.d, 
+                  lvl1_f, 
+                  dose.um3.mL.master, 
+                  dose.mg.L.master, 
+                  dose.particles.mL.master, 
+                  life.stage,
+                  bio.org, 
+                  polymer, 
+                  shape,
+                  size.length.um.used.for.conversions, 
+                  treatments, 
+                  effect, 
+                  effect.metric,
+                  particle.volume.um3,
+                  density.mg.um.3,
+                  environment,
+                  exposure.route,
+                  dose.surface.area.um2.mL.master,
+                  lvl2_f
+                  )) %>% 
+  mutate(effect.metric = as.character(effect.metric)) %>% 
+  mutate(effect.metric = (case_when(
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+  mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  filter(effect.metric != "not_available") %>% 
+  mutate(effect.metric = as.factor(effect.metric)) %>% 
+  drop_na() %>%  #drop missing
+mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10)) %>% 
+  dplyr::select(-(effect))
+
+#ensure completeness
+skim(kitchenSink)
+```
+
+```{r}
+# create train, validation, and test splits
+# Create calibration and validation splits with tidymodels initial_split() function.
+set.seed(4)
+ks_split <- kitchenSink %>%
+  initial_split(prop = 0.75)
+# default is 3/4ths split (but 75% training, 25% testing).
+
+# Create a training data set with the training() function
+# Pulls from training and testing sets created by initial_split()
+train_ks <- training(ks_split)
+test_ks <- testing(ks_split)
+
+# variable names for response & features
+y <- "effect_10"
+x <- setdiff(names(kitchenSink), y) 
+
+## subset for ebm syntax
+train_x_ks <- as.data.frame(train_ks %>% dplyr::select(-effect_10))
+train_y_ks <- as.numeric(as.vector(train_ks$effect_10))
+
+test_x_ks <- as.data.frame(test_ks %>% dplyr::select(-effect_10))
+test_y_ks <- as.numeric(as.vector(test_ks$effect_10))
+```
 
 ## Tuning
 http://rstudio-pubs-static.s3.amazonaws.com/480890_237ad52b09b6440e9c849a3c07a04d2f.html
@@ -666,7 +811,7 @@ start_time <- Sys.time() # Start timer
 my_grid1 <- expand.grid(mtry = 1:17)
 
 rf1 <- train(effect_10 ~ .,
-             data = train,
+             data = train_ks,
              method = "rf",
              metric = "Accuracy",
              tuneGrid = my_grid1,
@@ -707,8 +852,8 @@ my_ctrl <- rfeControl(functions = rfFuncs, #random forests
                       repeats = 5,
                       returnResamp = "all")
 
-rfProfile <- rfe(y = df$effect_10, # set dependent variable
-              x = df %>% 
+rfProfile <- rfe(y = train_ks$effect_10, # set dependent variable
+              x = train_ks %>% 
                 dplyr::select(-effect_10),
               rfeControl = my_ctrl,
                size = c(1:2, 4, 6, 8, 10, 12, 13))
@@ -796,7 +941,15 @@ kable(makePaddedDataFrame(
 While the absolute best model contains 18 variables with an estimated accuracy of 93.89%, it is possible to achieve ~93% accuracy with just eight variables, as displayed in the above table. The advantage of including fewer variables is that less information is needed to accurately predict toxicity. The final model with these eight variables will be further refined through an iterative tuning process to determine the optimal number of variables to be randomly collected for sampling at each split (mtry), and the number of branches to grow after each split.Code for the following section is inspired from https://rpubs.com/phamdinhkhanh/389752. 
 ```{r}
 final_df <-df %>% 
-  dplyr::select(c(effect.metric, dose.mg.L.master, lvl2_f, dose.particles.mL.master, effect_10, dose.um3.mL.master, organism.group, exposure.duration.d, treatments)) %>% 
+  dplyr::select(c(effect.metric, 
+                  lvl2_f, 
+                  dose.surface.area.um2.mL.master, 
+                  effect_10, 
+                  dose.um3.mL.master, 
+                  organism.group,
+                  exposure.duration.d#, 
+                  #treatments
+                  )) %>% 
   droplevels()
  
 #ensure completeness
@@ -824,7 +977,7 @@ x <- setdiff(names(final_df), y)
 The mtry parameter will be optimized below:
 
 ```{r}
-tunegrid <- expand.grid(.mtry=(1:7))
+tunegrid <- expand.grid(.mtry=(1:6))
                        # , .ntree=c(500, 1000, 1500, 2000, 2500)) #would like to optimize but can't figure out how!
 
 fitControl <- trainControl(## 10-fold CV
@@ -878,7 +1031,7 @@ dotplot(results)
 ### Final Model
 Now that we have optimized the variables for our final model, we will build and save the final simplified model that has the highest accuracy.
 ```{r Final Model}
-tunegrid <- expand.grid(.mtry=c(7))
+tunegrid <- expand.grid(.mtry=c(6))
 
 final_model <- train(effect_10~., data = train_final, method = "rf", ntree = 2500, tuneLength = 5)
 
@@ -895,7 +1048,7 @@ mp_classif_final_model
 
 ```{r final model save}
 #save model
-saveRDS(final_model, file="final_rf_model.rds")
+saveRDS(final_rf_model, file="ML Models/FinalModels/final_rf_model.rds")
 #load model
 # final_model <- readRDS("final_rf_model.rds")
 ```
@@ -945,6 +1098,77 @@ ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = pro
 
 ##### What parameters bias the model?
 Test residuals for size, dose, etc.
+
+# Decision Tree
+
+Decision trees are highly interpretable. An alternative package will be used to build and display a decision tree.
+
+```{r, echo = FALSE}
+#get column index of predicted variable in dataset
+typeColNum <- grep("effect",names(all))
+
+#build tree
+require(rpart)
+set.seed(15097)
+t1 <- rpart(effect_10 ~ dose.surface.area.um2.mL.master + lvl2_f + 
+              #exposure.route + 
+              effect.metric +
+              dose.um3.mL.master + bio.org + organism.group,
+            method = "class", #classification because response is discrete
+            control = rpart.control(minbucket = 20, cp=0.008), #requires that there be at least 19 cases (responded + nonrespondents) in the final grouping of variable values of the terminal node of the tre..
+            data = train)
+print(t1, digits=4)
+```
+
+
+Plot an interpretable tree.
+```{r, echo = FALSE}
+require(rpart.plot)
+cols <- ifelse(t1$frame$yval == 1, "gray50", "black")
+prp(t1, main="Tree for Effect",
+    extra=106, # display prob of survival and percent of obs
+    nn=TRUE, # display node numbers
+    fallen.leaves=TRUE, # put leaves on the bottom of page
+    branch=.5, # change angle of branch lines
+    faclen=0, # do not abbreviate factor levels
+    trace=1, # print automatically calculated cex
+    shadow.col="gray", # shadows under the leaves
+    branch.lty=1, # draw branches using solid lines
+    branch.type=5, # branch lines width = weight(frame$wt), no. of cases here
+    split.cex=1.2, # make split text larger than node text
+    split.prefix="is ", # put "is " before split text
+    split.suffix="?", # put "?" after split text
+    col=cols, border.col=cols, # cols[2] if survived
+    split.box.col="lightgray", # lightgray split boxes (default is white)
+    split.border.col="darkgray", # darkgray border on split boxes
+    split.round=0.5) # round the split box corners a tad
+```
+## Confusion matrix
+```{r}
+#make prediction
+t1_pred <- predict(t1, test, type = "class")
+#build confusion matrix
+confMat <- data.frame(confusionMatrix(t1_pred, test$effect_10)$table)
+#get accuracy
+table <- table(test$effect_10, t1_pred)
+decTreeAccuracy <- sum(diag(table))/sum(table)
+
+plotTable <- confMat %>%
+  mutate(goodbad = ifelse(confMat$Prediction == confMat$Reference, "good", "bad")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+# fill alpha relative to sensitivity/specificity by proportional outcomes within reference groups (see dplyr code above as well as original confusion matrix for comparison)
+ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  ggtitle(paste("Decision Tree Confusion Matrix (Accuracy = ", 100 * round(decTreeAccuracy,3), "%)")) +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  theme_bw()
+```
+
 
 # Machine Settings
 Time to knit:
