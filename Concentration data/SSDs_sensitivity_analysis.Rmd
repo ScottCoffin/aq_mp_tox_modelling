@@ -1,7 +1,7 @@
 ---
 title: "SSD Sensitivity Analysis"
 author: "Scott Coffin"
-date: "3/10/2021"
+date: "4/5/2021"
 output:   
   html_document:
     code_folding: hide
@@ -77,7 +77,6 @@ aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 #source("Tox Data/RDA_Maker.R")
 ```
 
-
 # Data Collapse
 ## Tech and Risk Tier Pass
 
@@ -86,18 +85,20 @@ aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 #Tier 1 is HC5 for all endpoints
 tier1 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
          tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness") %>% 
+         tier_zero_risk_f == "Red Criteria Passed") %>% 
+         # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #Tier 2 is HC5 for all tissue and above endpoints
 tier2 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
+         # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
@@ -105,10 +106,11 @@ tier2 <- aoc_z %>%
 #Tiers 3 and 4 are for organism level endpoints only
 tier3.4 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
-         bio_f == "Organism") %>% 
+         # lvl1_f == "Fitness",
+         bio_f %in% c("Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
@@ -117,33 +119,33 @@ tier3.4 <- aoc_z %>%
 tier1_large <- tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-tier1_large.obs <- tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tier1_large.obs <- tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tier2_large <- tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-tier2_large.obs <- tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tier2_large.obs <- tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tier3.4_large <- tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-tier3.4_large.obs <- tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tier3.4_large.obs <- tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 ### 10 - 100 um
 tier1_small <- tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 # Count observations and studies
-tier1_small.obs <- tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tier1_small.obs <- tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tier2_small <- tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-tier2_small.obs <- tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tier2_small.obs <- tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tier3.4_small <- tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-tier3.4_small.obs <- tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tier3.4_small.obs <- tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 #### Data Collapsing ####
 
@@ -259,18 +261,20 @@ tier3.4_small_min <- tier3.4_small %>%
 #risk.pass.tier 1 is HC5 for all endpoints
 risk.pass.tier1 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
         # tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness") %>% 
+         tier_zero_risk_f == "Red Criteria Passed") %>% 
+         # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #risk.pass.tier 2 is HC5 for all tissue and above endpoints
 risk.pass.tier2 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
         # tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
+         # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
@@ -278,10 +282,11 @@ risk.pass.tier2 <- aoc_z %>%
 #risk.pass.tiers 3 and 4 are for organism level endpoints only
 risk.pass.tier3.4 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
         # tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
-         bio_f == "Organism") %>% 
+         # lvl1_f == "Fitness",
+         bio_f %in% c("Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
@@ -290,33 +295,33 @@ risk.pass.tier3.4 <- aoc_z %>%
 risk.pass.tier1_large <- risk.pass.tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-risk.pass.tier1_large.obs <- risk.pass.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+risk.pass.tier1_large.obs <- risk.pass.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 risk.pass.tier2_large <- risk.pass.tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-risk.pass.tier2_large.obs <- risk.pass.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+risk.pass.tier2_large.obs <- risk.pass.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 risk.pass.tier3.4_large <- risk.pass.tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-risk.pass.tier3.4_large.obs <- risk.pass.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+risk.pass.tier3.4_large.obs <- risk.pass.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 ### 10 - 100 um
 risk.pass.tier1_small <- risk.pass.tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 # Count observations and studies
-risk.pass.tier1_small.obs <- risk.pass.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+risk.pass.tier1_small.obs <- risk.pass.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 risk.pass.tier2_small <- risk.pass.tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-risk.pass.tier2_small.obs <- risk.pass.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+risk.pass.tier2_small.obs <- risk.pass.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 risk.pass.tier3.4_small <- risk.pass.tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-risk.pass.tier3.4_small.obs <- risk.pass.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+risk.pass.tier3.4_small.obs <- risk.pass.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 #### Data Collapsing ####
 
@@ -433,18 +438,20 @@ risk.pass.tier3.4_small_min <- risk.pass.tier3.4_small %>%
 #tech.pass.tier 1 is HC5 for all endpoints
 tech.pass.tier1 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
-         tier_zero_tech_f == "Red Criteria Passed",
+         org_f != c("Bacterium", "Plant"),
+         tier_zero_tech_f == "Red Criteria Passed") %>% 
         # tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness") %>% 
+         # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #tech.pass.tier 2 is HC5 for all tissue and above endpoints
 tech.pass.tier2 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
          tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
+         # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
@@ -452,10 +459,11 @@ tech.pass.tier2 <- aoc_z %>%
 #tech.pass.tiers 3 and 4 are for organism level endpoints only
 tech.pass.tier3.4 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
          tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
          lvl1_f == "Fitness",
-         bio_f == "Organism") %>% 
+         bio_f %in% c("Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
@@ -464,33 +472,33 @@ tech.pass.tier3.4 <- aoc_z %>%
 tech.pass.tier1_large <- tech.pass.tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-tech.pass.tier1_large.obs <- tech.pass.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tech.pass.tier1_large.obs <- tech.pass.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tech.pass.tier2_large <- tech.pass.tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-tech.pass.tier2_large.obs <- tech.pass.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tech.pass.tier2_large.obs <- tech.pass.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tech.pass.tier3.4_large <- tech.pass.tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-tech.pass.tier3.4_large.obs <- tech.pass.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tech.pass.tier3.4_large.obs <- tech.pass.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 ### 10 - 100 um
 tech.pass.tier1_small <- tech.pass.tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 # Count observations and studies
-tech.pass.tier1_small.obs <- tech.pass.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tech.pass.tier1_small.obs <- tech.pass.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tech.pass.tier2_small <- tech.pass.tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-tech.pass.tier2_small.obs <- tech.pass.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tech.pass.tier2_small.obs <- tech.pass.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 tech.pass.tier3.4_small <- tech.pass.tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-tech.pass.tier3.4_small.obs <- tech.pass.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+tech.pass.tier3.4_small.obs <- tech.pass.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 #### Data Collapsing ####
 
@@ -607,18 +615,20 @@ tech.pass.tier3.4_small_min <- tech.pass.tier3.4_small %>%
 #allFail.tier 1 is HC5 for all endpoints
 allFail.tier1 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant")) %>% 
       #   tier_zero_tech_f == "Red Criteria Passed",
        #  tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness") %>% 
+         # lvl1_f == "Fitness") %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
 #allFail.tier 2 is HC5 for all tissue and above endpoints
 allFail.tier2 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
         # tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
+         # lvl1_f == "Fitness",
          bio_f %in% c("Tissue","Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
@@ -626,10 +636,11 @@ allFail.tier2 <- aoc_z %>%
 #allFail.tiers 3 and 4 are for organism level endpoints only
 allFail.tier3.4 <- aoc_z %>% 
   filter(environment != c("Terrestrial", "Not Reported"),
+         org_f != c("Bacterium", "Plant"),
         # tier_zero_tech_f == "Red Criteria Passed",
          #tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
-         bio_f == "Organism") %>% 
+         # lvl1_f == "Fitness",
+         bio_f %in% c("Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
 
@@ -638,33 +649,33 @@ allFail.tier3.4 <- aoc_z %>%
 allFail.tier1_large <- allFail.tier1 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-allFail.tier1_large.obs <- allFail.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+allFail.tier1_large.obs <- allFail.tier1_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 allFail.tier2_large <- allFail.tier2 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-allFail.tier2_large.obs <- allFail.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+allFail.tier2_large.obs <- allFail.tier2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 allFail.tier3.4_large <- allFail.tier3.4 %>% 
   filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm"))
 # Count observations and studies
-allFail.tier3.4_large.obs <- allFail.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+allFail.tier3.4_large.obs <- allFail.tier3.4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 ### 10 - 100 um
 allFail.tier1_small <- allFail.tier1 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 # Count observations and studies
-allFail.tier1_small.obs <- allFail.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+allFail.tier1_small.obs <- allFail.tier1_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 allFail.tier2_small <- allFail.tier2 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-allFail.tier2_small.obs <- allFail.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+allFail.tier2_small.obs <- allFail.tier2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 allFail.tier3.4_small <- allFail.tier3.4 %>% 
   filter(size_f %in% c("1µm < 10µm"))
 ## Count observations and studies
-allFail.tier3.4_small.obs <- allFail.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi))
+allFail.tier3.4_small.obs <- allFail.tier3.4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 #### Data Collapsing ####
 
@@ -776,7 +787,7 @@ allFail.tier3.4_small_min <- allFail.tier3.4_small %>%
 
 # SSD Build (Tech and Risk Tier Pass)
 ## Tier 1
-### Large 
+### Large (10 - 5000 um) (10 - 5000 um)
 #### Tier1_large_median
 
 ```{r include=FALSE}
@@ -935,7 +946,7 @@ tier1_large_min_ggplot <- ggplot(pred_tier1_large_min,aes_string(x = "est")) +
 tier1_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### Tier1_small_median
 
 ```{r include=FALSE}
@@ -1093,7 +1104,7 @@ tier1_small_min_ggplot
 ```
 
 ## tier 2
-### Large 
+### Large (10 - 5000 um) 
 #### tier2_large_median
 
 ```{r include=FALSE}
@@ -1250,7 +1261,7 @@ tier2_large_min_ggplot <- ggplot(pred_tier2_large_min,aes_string(x = "est")) +
       theme.type #user theme
 tier2_large_min_ggplot
 ```
-### small 
+### Small (1-10 um) 
 #### tier2_small_median
 
 ```{r include=FALSE}
@@ -1408,7 +1419,7 @@ tier2_small_min_ggplot
 ```
 
 ## Tier 3
-### Large 
+### Large (10 - 5000 um) 
 #### tier3.4_large_median
 
 ```{r include=FALSE}
@@ -1575,7 +1586,7 @@ tier3.4_large_min_ggplot <- ggplot(pred_tier3.4_large_min,aes_string(x = "est"))
 tier3.4_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### tier3.4_small_median
 
 ```{r include=FALSE}
@@ -1747,7 +1758,7 @@ tier3.4_small_min_ggplot
 
 # Combine plots
 ## Tier 1
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### tier1_small_median
 ggplot(pred_tier1_small_median, aes_string(x = "est")) +
@@ -1798,7 +1809,7 @@ ggplot(pred_tier1_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### tier1_large_median
 ggplot(pred_tier1_large_median, aes_string(x = "est")) +
@@ -1851,7 +1862,7 @@ ggplot(pred_tier1_large_median, aes_string(x = "est")) +
 ```
 
 ## Tier 2
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### tier2_small_median
 ggplot(pred_tier2_small_median, aes_string(x = "est")) +
@@ -1901,7 +1912,7 @@ ggplot(pred_tier2_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### tier2_large_median
 ggplot(pred_tier2_large_median, aes_string(x = "est")) +
@@ -1954,7 +1965,7 @@ ggplot(pred_tier2_large_median, aes_string(x = "est")) +
 ```
 
 ## Tier 3/4
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### tier3.4_small_median
 ggplot(pred_tier3.4_small_median, aes_string(x = "est")) +
@@ -2005,7 +2016,7 @@ ggplot(pred_tier3.4_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### tier3.4_large_median
 ggplot(pred_tier3.4_large_median, aes_string(x = "est")) +
@@ -2056,41 +2067,59 @@ ggplot(pred_tier3.4_large_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
+
 ## Summary Table
+
 ```{r}
 # Small/Large x tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(tier1_large_median_hc5, tier1_large_mean_hc5, tier1_large_1q_hc5, tier1_large_min_hc5,
               tier1_large.obs[[1,1]], #n.obs
-               tier1_large.obs[[1,2]], #n.studies
+              tier1_large.obs[[1,2]], #n.studies
+              tier1_large.obs[[1,3]], #n.taxa
+              tier1_large.obs[[1,4]], #n.species
           #tier 2
           tier2_large_median_hc5, tier2_large_mean_hc5, tier2_large_1q_hc5, tier2_large_min_hc5,
           tier2_large.obs[[1,1]], #n.obs
           tier2_large.obs[[1,2]], #n.studies
+          tier2_large.obs[[1,3]], #n.taxa
+          tier2_large.obs[[1,4]], #n.species
           #tier 3 (hc5)
           tier3.4_large_median_hc5, tier3.4_large_mean_hc5, tier3.4_large_1q_hc5, tier3.4_large_min_hc5,
           tier3.4_large.obs[[1,1]], #n.obs
           tier3.4_large.obs[[1,2]], #n.studies
+          tier3.4_large.obs[[1,3]], #n.taxa
+          tier3.4_large.obs[[1,4]], #n.species
           #tier 4 (hc10)
           tier3.4_large_median_hc10, tier3.4_large_mean_hc10, tier3.4_large_1q_hc10, tier3.4_large_min_hc10,
           tier3.4_large.obs[[1,1]], #n.obs
-               tier3.4_large.obs[[1,2]] #n.studies
+          tier3.4_large.obs[[1,2]], #n.studies
+          tier3.4_large.obs[[1,3]], #n.taxa
+          tier3.4_large.obs[[1,4]] #n.species
           )
 
 smalls <- list(tier1_small_median_hc5, tier1_small_mean_hc5, tier1_small_1q_hc5, tier1_small_min_hc5,
                tier1_small.obs[[1,1]], #n.obs
                tier1_small.obs[[1,2]], #n.studies
+               tier1_small.obs[[1,3]], #n.taxa
+               tier1_small.obs[[1,4]], #n.species
           #tier 2
           tier2_small_median_hc5, tier2_small_mean_hc5, tier2_small_1q_hc5, tier2_small_min_hc5,
           tier2_small.obs[[1,1]], #n.obs
           tier2_small.obs[[1,2]], #n.studies
+          tier2_small.obs[[1,3]], #n.taxa
+          tier2_small.obs[[1,4]], #n.species
           #tier 3 (hc5)
           tier3.4_small_median_hc5, tier3.4_small_mean_hc5, tier3.4_small_1q_hc5, tier3.4_small_min_hc5,
           tier3.4_small.obs[[1,1]], #n.obs
           tier3.4_small.obs[[1,2]], #n.studies
+          tier3.4_small.obs[[1,3]], #n.taxa
+          tier3.4_small.obs[[1,4]], #n.specie
           #tier 4 (hc10)
           tier3.4_small_median_hc10, tier3.4_small_mean_hc10, tier3.4_small_1q_hc10, tier3.4_small_min_hc10,
           tier3.4_small.obs[[1,1]], #n.obs
-               tier3.4_small.obs[[1,2]] #n.studies
+          tier3.4_small.obs[[1,2]], #n.studies
+          tier3.4_small.obs[[1,3]], #n.taxa
+          tier3.4_small.obs[[1,4]] #n.specie
           )
 
 ## Conver to data frames
@@ -2109,8 +2138,8 @@ smallsdf <- smallsdf %>%
   mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
 
 rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
 rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
@@ -2120,14 +2149,14 @@ largestibble <- tibble(largesdf,
                        Tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 # provide tier column
 smallstibble <- tibble(smallsdf,
                        Tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 #function to create tables
 hp_table <- function(x){
@@ -2178,7 +2207,7 @@ allPass.summary
 
 # SSD Build (Risk Tier Pass, Tech Tier Fail)
 ## risk.pass.tier 1
-### Large 
+### Large (10 - 5000 um) 
 #### risk.pass.tier1_large_median
 
 ```{r include=FALSE}
@@ -2337,7 +2366,7 @@ risk.pass.tier1_large_min_ggplot <- ggplot(pred_risk.pass.tier1_large_min,aes_st
 risk.pass.tier1_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### risk.pass.tier1_small_median
 
 ```{r include=FALSE}
@@ -2495,7 +2524,7 @@ risk.pass.tier1_small_min_ggplot
 ```
 
 ## risk.pass.tier 2
-### Large 
+### Large (10 - 5000 um) 
 #### risk.pass.tier2_large_median
 
 ```{r include=FALSE}
@@ -2652,7 +2681,7 @@ risk.pass.tier2_large_min_ggplot <- ggplot(pred_risk.pass.tier2_large_min,aes_st
       theme.type #user theme
 risk.pass.tier2_large_min_ggplot
 ```
-### small 
+### Small (1-10 um) 
 #### risk.pass.tier2_small_median
 
 ```{r include=FALSE}
@@ -2810,7 +2839,7 @@ risk.pass.tier2_small_min_ggplot
 ```
 
 ## risk.pass.tier 3
-### Large 
+### Large (10 - 5000 um) 
 #### risk.pass.tier3.4_large_median
 
 ```{r include=FALSE}
@@ -2977,7 +3006,7 @@ risk.pass.tier3.4_large_min_ggplot <- ggplot(pred_risk.pass.tier3.4_large_min,ae
 risk.pass.tier3.4_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### risk.pass.tier3.4_small_median
 
 ```{r include=FALSE}
@@ -3149,7 +3178,7 @@ risk.pass.tier3.4_small_min_ggplot
 
 # Combine plots
 ## risk.pass.tier 1
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### risk.pass.tier1_small_median
 ggplot(pred_risk.pass.tier1_small_median, aes_string(x = "est")) +
@@ -3200,7 +3229,7 @@ ggplot(pred_risk.pass.tier1_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### risk.pass.tier1_large_median
 ggplot(pred_risk.pass.tier1_large_median, aes_string(x = "est")) +
@@ -3253,7 +3282,7 @@ ggplot(pred_risk.pass.tier1_large_median, aes_string(x = "est")) +
 ```
 
 ## risk.pass.tier 2
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### risk.pass.tier2_small_median
 ggplot(pred_risk.pass.tier2_small_median, aes_string(x = "est")) +
@@ -3303,7 +3332,7 @@ ggplot(pred_risk.pass.tier2_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### risk.pass.tier2_large_median
 ggplot(pred_risk.pass.tier2_large_median, aes_string(x = "est")) +
@@ -3356,7 +3385,7 @@ ggplot(pred_risk.pass.tier2_large_median, aes_string(x = "est")) +
 ```
 
 ## risk.pass.tier 3/4
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### risk.pass.tier3.4_small_median
 ggplot(pred_risk.pass.tier3.4_small_median, aes_string(x = "est")) +
@@ -3407,7 +3436,7 @@ ggplot(pred_risk.pass.tier3.4_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### risk.pass.tier3.4_large_median
 ggplot(pred_risk.pass.tier3.4_large_median, aes_string(x = "est")) +
@@ -3465,36 +3494,52 @@ ggplot(pred_risk.pass.tier3.4_large_median, aes_string(x = "est")) +
 # Small/Large x risk.pass.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(risk.pass.tier1_large_median_hc5, risk.pass.tier1_large_mean_hc5, risk.pass.tier1_large_1q_hc5, risk.pass.tier1_large_min_hc5,
               risk.pass.tier1_large.obs[[1,1]], #n.obs
-               risk.pass.tier1_large.obs[[1,2]], #n.studies
+              risk.pass.tier1_large.obs[[1,2]], #n.studies
+              risk.pass.tier1_large.obs[[1,3]], #n.taxa
+              risk.pass.tier1_large.obs[[1,4]], #n.species
           #risk.pass.tier 2
           risk.pass.tier2_large_median_hc5, risk.pass.tier2_large_mean_hc5, risk.pass.tier2_large_1q_hc5, risk.pass.tier2_large_min_hc5,
           risk.pass.tier2_large.obs[[1,1]], #n.obs
           risk.pass.tier2_large.obs[[1,2]], #n.studies
+          risk.pass.tier2_large.obs[[1,3]], #n.taxa
+          risk.pass.tier2_large.obs[[1,4]], #n.species
           #risk.pass.tier 3 (hc5)
           risk.pass.tier3.4_large_median_hc5, risk.pass.tier3.4_large_mean_hc5, risk.pass.tier3.4_large_1q_hc5, risk.pass.tier3.4_large_min_hc5,
           risk.pass.tier3.4_large.obs[[1,1]], #n.obs
           risk.pass.tier3.4_large.obs[[1,2]], #n.studies
+          risk.pass.tier3.4_large.obs[[1,3]], #n.taxa
+          risk.pass.tier3.4_large.obs[[1,4]], #n.species
           #risk.pass.tier 4 (hc10)
           risk.pass.tier3.4_large_median_hc10, risk.pass.tier3.4_large_mean_hc10, risk.pass.tier3.4_large_1q_hc10, risk.pass.tier3.4_large_min_hc10,
           risk.pass.tier3.4_large.obs[[1,1]], #n.obs
-               risk.pass.tier3.4_large.obs[[1,2]] #n.studies
+          risk.pass.tier3.4_large.obs[[1,2]], #n.studies
+          risk.pass.tier3.4_large.obs[[1,3]], #n.taxa
+          risk.pass.tier3.4_large.obs[[1,4]]  #n.species
           )
 
 smalls <- list(risk.pass.tier1_small_median_hc5, risk.pass.tier1_small_mean_hc5, risk.pass.tier1_small_1q_hc5, risk.pass.tier1_small_min_hc5,
                risk.pass.tier1_small.obs[[1,1]], #n.obs
                risk.pass.tier1_small.obs[[1,2]], #n.studies
+               risk.pass.tier1_small.obs[[1,3]], #n.taxa
+               risk.pass.tier1_small.obs[[1,4]], #n.species
           #risk.pass.tier 2
           risk.pass.tier2_small_median_hc5, risk.pass.tier2_small_mean_hc5, risk.pass.tier2_small_1q_hc5, risk.pass.tier2_small_min_hc5,
           risk.pass.tier2_small.obs[[1,1]], #n.obs
           risk.pass.tier2_small.obs[[1,2]], #n.studies
+          risk.pass.tier2_small.obs[[1,3]], #n.taxa
+          risk.pass.tier2_small.obs[[1,4]], #n.species
           #risk.pass.tier 3 (hc5)
           risk.pass.tier3.4_small_median_hc5, risk.pass.tier3.4_small_mean_hc5, risk.pass.tier3.4_small_1q_hc5, risk.pass.tier3.4_small_min_hc5,
           risk.pass.tier3.4_small.obs[[1,1]], #n.obs
           risk.pass.tier3.4_small.obs[[1,2]], #n.studies
+          risk.pass.tier3.4_small.obs[[1,3]], #n.taxa
+          risk.pass.tier3.4_small.obs[[1,4]], #n.species
           #risk.pass.tier 4 (hc10)
           risk.pass.tier3.4_small_median_hc10, risk.pass.tier3.4_small_mean_hc10, risk.pass.tier3.4_small_1q_hc10, risk.pass.tier3.4_small_min_hc10,
           risk.pass.tier3.4_small.obs[[1,1]], #n.obs
-               risk.pass.tier3.4_small.obs[[1,2]] #n.studies
+          risk.pass.tier3.4_small.obs[[1,2]], #n.studies
+          risk.pass.tier3.4_small.obs[[1,3]], #n.taxa
+          risk.pass.tier3.4_small.obs[[1,4]]  #n.species
           )
 
 ## Conver to data frames
@@ -3513,8 +3558,8 @@ smallsdf <- smallsdf %>%
   mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
 
 rownames(largesdf) <- c("tier 1", "tier 2", "tier 3", "tier 4")
 rownames(smallsdf) <- c("tier 1", "tier 2", "tier 3", "tier 4")
@@ -3524,14 +3569,14 @@ largestibble <- tibble(largesdf,
                        tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+largestibble <- largestibble[c("tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 # provide risk.pass.tier column
 smallstibble <- tibble(smallsdf,
                        tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+smallstibble <- smallstibble[c("tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 #function to create tables
 hp_table <- function(x){
@@ -3582,7 +3627,7 @@ risk.pass.summary
 
 # SSD Build (Tech Tier Pass, Risk Tier Fail)
 ## tech.pass.tier 1
-### Large 
+### Large (10 - 5000 um) 
 #### tech.pass.tier1_large_median
 
 ```{r include=FALSE}
@@ -3741,7 +3786,7 @@ tech.pass.tier1_large_min_ggplot <- ggplot(pred_tech.pass.tier1_large_min,aes_st
 tech.pass.tier1_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### tech.pass.tier1_small_median
 
 ```{r include=FALSE}
@@ -3899,7 +3944,7 @@ tech.pass.tier1_small_min_ggplot
 ```
 
 ## tech.pass.tier 2
-### Large 
+### Large (10 - 5000 um) 
 #### tech.pass.tier2_large_median
 
 ```{r include=FALSE}
@@ -4056,7 +4101,7 @@ tech.pass.tier2_large_min_ggplot <- ggplot(pred_tech.pass.tier2_large_min,aes_st
       theme.type #user theme
 tech.pass.tier2_large_min_ggplot
 ```
-### small 
+### Small (1-10 um) 
 #### tech.pass.tier2_small_median
 
 ```{r include=FALSE}
@@ -4214,7 +4259,7 @@ tech.pass.tier2_small_min_ggplot
 ```
 
 ## tech.pass.tier 3
-### Large 
+### Large (10 - 5000 um) 
 #### tech.pass.tier3.4_large_median
 
 ```{r include=FALSE}
@@ -4381,7 +4426,7 @@ tech.pass.tier3.4_large_min_ggplot <- ggplot(pred_tech.pass.tier3.4_large_min,ae
 tech.pass.tier3.4_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### tech.pass.tier3.4_small_median
 
 ```{r include=FALSE}
@@ -4553,7 +4598,7 @@ tech.pass.tier3.4_small_min_ggplot
 
 # Combine plots
 ## tech.pass.tier 1
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### tech.pass.tier1_small_median
 ggplot(pred_tech.pass.tier1_small_median, aes_string(x = "est")) +
@@ -4604,7 +4649,7 @@ ggplot(pred_tech.pass.tier1_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### tech.pass.tier1_large_median
 ggplot(pred_tech.pass.tier1_large_median, aes_string(x = "est")) +
@@ -4657,7 +4702,7 @@ ggplot(pred_tech.pass.tier1_large_median, aes_string(x = "est")) +
 ```
 
 ## tech.pass.tier 2
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### tech.pass.tier2_small_median
 ggplot(pred_tech.pass.tier2_small_median, aes_string(x = "est")) +
@@ -4707,7 +4752,7 @@ ggplot(pred_tech.pass.tier2_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### tech.pass.tier2_large_median
 ggplot(pred_tech.pass.tier2_large_median, aes_string(x = "est")) +
@@ -4760,7 +4805,7 @@ ggplot(pred_tech.pass.tier2_large_median, aes_string(x = "est")) +
 ```
 
 ## tech.pass.tier 3/4
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### tech.pass.tier3.4_small_median
 ggplot(pred_tech.pass.tier3.4_small_median, aes_string(x = "est")) +
@@ -4811,7 +4856,7 @@ ggplot(pred_tech.pass.tier3.4_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### tech.pass.tier3.4_large_median
 ggplot(pred_tech.pass.tier3.4_large_median, aes_string(x = "est")) +
@@ -4867,36 +4912,52 @@ ggplot(pred_tech.pass.tier3.4_large_median, aes_string(x = "est")) +
 # Small/Large x tech.pass.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(tech.pass.tier1_large_median_hc5, tech.pass.tier1_large_mean_hc5, tech.pass.tier1_large_1q_hc5, tech.pass.tier1_large_min_hc5,
               tech.pass.tier1_large.obs[[1,1]], #n.obs
-               tech.pass.tier1_large.obs[[1,2]], #n.studies
+              tech.pass.tier1_large.obs[[1,2]], #n.studies
+              tech.pass.tier1_large.obs[[1,3]], #n.taxa
+              tech.pass.tier1_large.obs[[1,4]], #n.species
           #tech.pass.tier 2
           tech.pass.tier2_large_median_hc5, tech.pass.tier2_large_mean_hc5, tech.pass.tier2_large_1q_hc5, tech.pass.tier2_large_min_hc5,
           tech.pass.tier2_large.obs[[1,1]], #n.obs
           tech.pass.tier2_large.obs[[1,2]], #n.studies
+          tech.pass.tier2_large.obs[[1,3]], #n.taxa
+          tech.pass.tier2_large.obs[[1,4]], #n.species
           #tech.pass.tier 3 (hc5)
           tech.pass.tier3.4_large_median_hc5, tech.pass.tier3.4_large_mean_hc5, tech.pass.tier3.4_large_1q_hc5, tech.pass.tier3.4_large_min_hc5,
           tech.pass.tier3.4_large.obs[[1,1]], #n.obs
           tech.pass.tier3.4_large.obs[[1,2]], #n.studies
+          tech.pass.tier3.4_large.obs[[1,3]], #n.taxa
+          tech.pass.tier3.4_large.obs[[1,4]], #n.species
           #tech.pass.tier 4 (hc10)
           tech.pass.tier3.4_large_median_hc10, tech.pass.tier3.4_large_mean_hc10, tech.pass.tier3.4_large_1q_hc10, tech.pass.tier3.4_large_min_hc10,
           tech.pass.tier3.4_large.obs[[1,1]], #n.obs
-               tech.pass.tier3.4_large.obs[[1,2]] #n.studies
+          tech.pass.tier3.4_large.obs[[1,2]], #n.studies
+          tech.pass.tier3.4_large.obs[[1,3]], #n.taxa
+          tech.pass.tier3.4_large.obs[[1,4]]  #n.species
           )
 
 smalls <- list(tech.pass.tier1_small_median_hc5, tech.pass.tier1_small_mean_hc5, tech.pass.tier1_small_1q_hc5, tech.pass.tier1_small_min_hc5,
                tech.pass.tier1_small.obs[[1,1]], #n.obs
                tech.pass.tier1_small.obs[[1,2]], #n.studies
+               tech.pass.tier1_small.obs[[1,3]], #n.taxa
+               tech.pass.tier1_small.obs[[1,4]], #n.species
           #tech.pass.tier 2
           tech.pass.tier2_small_median_hc5, tech.pass.tier2_small_mean_hc5, tech.pass.tier2_small_1q_hc5, tech.pass.tier2_small_min_hc5,
           tech.pass.tier2_small.obs[[1,1]], #n.obs
           tech.pass.tier2_small.obs[[1,2]], #n.studies
+          tech.pass.tier2_small.obs[[1,3]], #n.taxa
+          tech.pass.tier2_small.obs[[1,4]], #n.species
           #tech.pass.tier 3 (hc5)
           tech.pass.tier3.4_small_median_hc5, tech.pass.tier3.4_small_mean_hc5, tech.pass.tier3.4_small_1q_hc5, tech.pass.tier3.4_small_min_hc5,
           tech.pass.tier3.4_small.obs[[1,1]], #n.obs
           tech.pass.tier3.4_small.obs[[1,2]], #n.studies
+          tech.pass.tier3.4_small.obs[[1,3]], #n.taxa
+          tech.pass.tier3.4_small.obs[[1,4]], #n.species
           #tech.pass.tier 4 (hc10)
           tech.pass.tier3.4_small_median_hc10, tech.pass.tier3.4_small_mean_hc10, tech.pass.tier3.4_small_1q_hc10, tech.pass.tier3.4_small_min_hc10,
           tech.pass.tier3.4_small.obs[[1,1]], #n.obs
-               tech.pass.tier3.4_small.obs[[1,2]] #n.studies
+          tech.pass.tier3.4_small.obs[[1,2]], #n.studies
+          tech.pass.tier3.4_small.obs[[1,3]], #n.taxa
+          tech.pass.tier3.4_small.obs[[1,4]]  #n.species
           )
 
 ## Conver to data frames
@@ -4915,8 +4976,8 @@ smallsdf <- smallsdf %>%
   mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
 
 rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
 rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
@@ -4926,14 +4987,14 @@ largestibble <- tibble(largesdf,
                        Tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 # provide tier column
 smallstibble <- tibble(smallsdf,
                        Tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 #function to create tables
 hp_table <- function(x){
@@ -4984,7 +5045,7 @@ tech.pass.summary
 
 # SSD Build(All Fail)
 ## allFail.tier 1
-### Large 
+### Large (10 - 5000 um) 
 #### allFail.tier1_large_median
 
 ```{r include=FALSE}
@@ -5143,7 +5204,7 @@ allFail.tier1_large_min_ggplot <- ggplot(pred_allFail.tier1_large_min,aes_string
 allFail.tier1_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### allFail.tier1_small_median
 
 ```{r include=FALSE}
@@ -5301,7 +5362,7 @@ allFail.tier1_small_min_ggplot
 ```
 
 ## allFail.tier 2
-### Large 
+### Large (10 - 5000 um) 
 #### allFail.tier2_large_median
 
 ```{r include=FALSE}
@@ -5458,7 +5519,7 @@ allFail.tier2_large_min_ggplot <- ggplot(pred_allFail.tier2_large_min,aes_string
       theme.type #user theme
 allFail.tier2_large_min_ggplot
 ```
-### small 
+### Small (1-10 um) 
 #### allFail.tier2_small_median
 
 ```{r include=FALSE}
@@ -5616,7 +5677,7 @@ allFail.tier2_small_min_ggplot
 ```
 
 ## allFail.tier 3
-### Large 
+### Large (10 - 5000 um) 
 #### allFail.tier3.4_large_median
 
 ```{r include=FALSE}
@@ -5783,7 +5844,7 @@ allFail.tier3.4_large_min_ggplot <- ggplot(pred_allFail.tier3.4_large_min,aes_st
 allFail.tier3.4_large_min_ggplot
 ```
 
-### small 
+### Small (1-10 um) 
 #### allFail.tier3.4_small_median
 
 ```{r include=FALSE}
@@ -5955,7 +6016,7 @@ allFail.tier3.4_small_min_ggplot
 
 # Combine plots
 ## allFail.tier 1
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### allFail.tier1_small_median
 ggplot(pred_allFail.tier1_small_median, aes_string(x = "est")) +
@@ -6006,7 +6067,7 @@ ggplot(pred_allFail.tier1_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### allFail.tier1_large_median
 ggplot(pred_allFail.tier1_large_median, aes_string(x = "est")) +
@@ -6059,7 +6120,7 @@ ggplot(pred_allFail.tier1_large_median, aes_string(x = "est")) +
 ```
 
 ## allFail.tier 2
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### allFail.tier2_small_median
 ggplot(pred_allFail.tier2_small_median, aes_string(x = "est")) +
@@ -6109,7 +6170,7 @@ ggplot(pred_allFail.tier2_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### allFail.tier2_large_median
 ggplot(pred_allFail.tier2_large_median, aes_string(x = "est")) +
@@ -6162,7 +6223,7 @@ ggplot(pred_allFail.tier2_large_median, aes_string(x = "est")) +
 ```
 
 ## allFail.tier 3/4
-### Smalls
+### Small (1-10 um)s
 ```{r}
 ### allFail.tier3.4_small_median
 ggplot(pred_allFail.tier3.4_small_median, aes_string(x = "est")) +
@@ -6213,7 +6274,7 @@ ggplot(pred_allFail.tier3.4_small_median, aes_string(x = "est")) +
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-### larges
+### Large (10 - 5000 um)s
 ```{r}
 ### allFail.tier3.4_large_median
 ggplot(pred_allFail.tier3.4_large_median, aes_string(x = "est")) +
@@ -6269,36 +6330,52 @@ ggplot(pred_allFail.tier3.4_large_median, aes_string(x = "est")) +
 # Small/Large x allFail.tier 1/2/3 x median/mean/q1 = 2 x 3 x 3 = 18 comparisons
 larges <- list(allFail.tier1_large_median_hc5, allFail.tier1_large_mean_hc5, allFail.tier1_large_1q_hc5, allFail.tier1_large_min_hc5,
               allFail.tier1_large.obs[[1,1]], #n.obs
-               allFail.tier1_large.obs[[1,2]], #n.studies
+              allFail.tier1_large.obs[[1,2]], #n.studies
+              allFail.tier1_large.obs[[1,3]], #n.taxa
+              allFail.tier1_large.obs[[1,4]], #n.species
           #allFail.tier 2
           allFail.tier2_large_median_hc5, allFail.tier2_large_mean_hc5, allFail.tier2_large_1q_hc5, allFail.tier2_large_min_hc5,
           allFail.tier2_large.obs[[1,1]], #n.obs
           allFail.tier2_large.obs[[1,2]], #n.studies
+          allFail.tier2_large.obs[[1,3]], #n.taxa
+          allFail.tier2_large.obs[[1,4]], #n.species
           #allFail.tier 3 (hc5)
           allFail.tier3.4_large_median_hc5, allFail.tier3.4_large_mean_hc5, allFail.tier3.4_large_1q_hc5, allFail.tier3.4_large_min_hc5,
           allFail.tier3.4_large.obs[[1,1]], #n.obs
           allFail.tier3.4_large.obs[[1,2]], #n.studies
+          allFail.tier3.4_large.obs[[1,3]], #n.taxa
+          allFail.tier3.4_large.obs[[1,4]], #n.species
           #allFail.tier 4 (hc10)
           allFail.tier3.4_large_median_hc10, allFail.tier3.4_large_mean_hc10, allFail.tier3.4_large_1q_hc10, allFail.tier3.4_large_min_hc10,
           allFail.tier3.4_large.obs[[1,1]], #n.obs
-               allFail.tier3.4_large.obs[[1,2]] #n.studies
+          allFail.tier3.4_large.obs[[1,2]], #n.studies
+          allFail.tier3.4_large.obs[[1,3]], #n.taxa
+          allFail.tier3.4_large.obs[[1,4]]  #n.species
           )
 
 smalls <- list(allFail.tier1_small_median_hc5, allFail.tier1_small_mean_hc5, allFail.tier1_small_1q_hc5, allFail.tier1_small_min_hc5,
                allFail.tier1_small.obs[[1,1]], #n.obs
                allFail.tier1_small.obs[[1,2]], #n.studies
+               allFail.tier1_small.obs[[1,3]], #n.taxa
+               allFail.tier1_small.obs[[1,4]], #n.species
           #allFail.tier 2
           allFail.tier2_small_median_hc5, allFail.tier2_small_mean_hc5, allFail.tier2_small_1q_hc5, allFail.tier2_small_min_hc5,
           allFail.tier2_small.obs[[1,1]], #n.obs
           allFail.tier2_small.obs[[1,2]], #n.studies
+          allFail.tier2_small.obs[[1,3]], #n.taxa
+          allFail.tier2_small.obs[[1,4]], #n.species
           #allFail.tier 3 (hc5)
           allFail.tier3.4_small_median_hc5, allFail.tier3.4_small_mean_hc5, allFail.tier3.4_small_1q_hc5, allFail.tier3.4_small_min_hc5,
           allFail.tier3.4_small.obs[[1,1]], #n.obs
           allFail.tier3.4_small.obs[[1,2]], #n.studies
+          allFail.tier3.4_small.obs[[1,3]], #n.taxa
+          allFail.tier3.4_small.obs[[1,4]], #n.species
           #allFail.tier 4 (hc10)
           allFail.tier3.4_small_median_hc10, allFail.tier3.4_small_mean_hc10, allFail.tier3.4_small_1q_hc10, allFail.tier3.4_small_min_hc10,
           allFail.tier3.4_small.obs[[1,1]], #n.obs
-               allFail.tier3.4_small.obs[[1,2]] #n.studies
+          allFail.tier3.4_small.obs[[1,2]], #n.studies
+          allFail.tier3.4_small.obs[[1,3]], #n.taxa
+          allFail.tier3.4_small.obs[[1,4]]  #n.species
           )
 
 ## Conver to data frames
@@ -6317,8 +6394,8 @@ smallsdf <- smallsdf %>%
   mutate_at(c(5:6), as.character) #make sure DOI and n are characters so they don't get color coded below
 
 # rename columns and rows
-colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
-colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")
+colnames(largesdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+colnames(smallsdf) <- c("Median", "Mean", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
 
 rownames(largesdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
 rownames(smallsdf) <- c("Tier 1", "Tier 2", "Tier 3", "Tier 4")
@@ -6328,14 +6405,14 @@ largestibble <- tibble(largesdf,
                        Tier = rownames(largesdf))
 
 #re-arrange columns
-largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+largestibble <- largestibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 # provide tier column
 smallstibble <- tibble(smallsdf,
                        Tier = rownames(smallsdf))
 
 #re-arrange columns
-smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi")]
+smallstibble <- smallstibble[c("Tier", "Mean", "Median", "Quartile_1", "Minimum", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")]
 
 #function to create tables
 hp_table <- function(x){
