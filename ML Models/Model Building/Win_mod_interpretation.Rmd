@@ -1,8 +1,8 @@
 ---
-title: "DALEX_TechQualityControl"
-author: "Scott Coffin"
-date: "2/23/2021"
-output: 
+title: "Win_mod_interpretation"
+author: "Win Cowger"
+date: "4/5/2021"
+output:
   html_document:
     code_folding: hide
     theme: journal
@@ -15,6 +15,7 @@ output:
   word_document:
     toc: yes
 ---
+
 ```{r global-options, include=FALSE}
 knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
                       warning=FALSE, message=FALSE,time_it = TRUE) #report time to knit for all chunks
@@ -37,7 +38,7 @@ knitr::knit_hooks$set(time_it = local({
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 # load required packages
-library(rsample)
+#library(rsample)
 library(dplyr)
 library(DALEX)
 library(tidyverse)
@@ -50,6 +51,8 @@ library(doParallel)
 library(modelplotr)
 library(gridExtra)
 library(interpret) #explainable boosting machine
+library(infotheo)
+library(tidyinftheo)
 ```
 
 ```{r include=FALSE}
@@ -57,7 +60,36 @@ require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+
 ```
+
+#Look at the data and mutual information
+
+```{r include = FALSE}
+skim(aoc_z)
+
+```
+variables that shouldn't get used in the model because
+They are too deep (too many unique classes): doi, authors, 
+
+
+
+
+#Look at mututal information between variables
+
+```{r include=F}
+discretized <- discretize(aoc_z)
+matrix <- discretized %>%
+  mutual_info_matrix(names(.), normalized = T)
+
+```
+
+```{r include=F}
+mutual_info_heatmap(matrix)
+```
+
+
+
 # Data Selection
 
 **Important**: this dataset has ONLY been filtered for 'red' criteria for technical quality.
@@ -84,7 +116,7 @@ df <- aoc_z %>%
                   #density.mg.um.3,
                   #environment,
                   exposure.route,
-                  dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
+                  dose.surface.area.um2.mL.master,
                   lvl1_f
                   )) %>% 
   mutate(effect.metric = as.character(effect.metric)) %>% 
@@ -97,7 +129,7 @@ df <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  #filter(effect.metric != "not_available") %>% 
+  filter(effect.metric != "not_available") %>% 
   filter(exposure.route == "water") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
@@ -752,7 +784,7 @@ kitchenSink <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  #filter(effect.metric != "not_available") %>% 
+  filter(effect.metric != "not_available") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
 mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
@@ -761,7 +793,7 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
       effect == "N" ~ 0
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
-  dplyr::select(-c(effect, effect.metric))
+  dplyr::select(-(effect))
 
 #ensure completeness
 skim(kitchenSink)
@@ -941,7 +973,7 @@ kable(makePaddedDataFrame(
 While the absolute best model contains 18 variables with an estimated accuracy of 93.89%, it is possible to achieve ~93% accuracy with just eight variables, as displayed in the above table. The advantage of including fewer variables is that less information is needed to accurately predict toxicity. The final model with these eight variables will be further refined through an iterative tuning process to determine the optimal number of variables to be randomly collected for sampling at each split (mtry), and the number of branches to grow after each split.Code for the following section is inspired from https://rpubs.com/phamdinhkhanh/389752. 
 ```{r}
 final_df <-df %>% 
-  dplyr::select(c(#effect.metric, 
+  dplyr::select(c(effect.metric, 
                   lvl2_f, 
                   dose.surface.area.um2.mL.master, 
                   effect_10, 

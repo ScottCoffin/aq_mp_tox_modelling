@@ -225,7 +225,7 @@ grouped <- aoc_z %>%
    filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
    filter(tier_zero_risk_f == "Red Criteria Passed") %>% 
   #Select NOECs/LOECs
-  filter(effect.metric == c("NOEC", "LOEC")) %>%
+  #filter(effect.metric == c("NOEC", "LOEC")) %>%
   #Select data where acute and chronic exposure is defined
   filter(acute.chronic_f == c("Acute", "Chronic")) %>%
   filter(size_f != "Not Reported") %>% 
@@ -292,7 +292,8 @@ NOEC.LOEC <- full_join(NOEC, LOEC, by = "combo") %>%
 NOEC.LOEC
 ```
 ```{r}
-summary(lm(effectLOEC.mass ~ effectNOEC.mass, data = NOEC.LOEC))
+noec.loec.lm <- summary(lm(effectLOEC.mass ~ effectNOEC.mass, data = NOEC.LOEC))
+noec.loec.lm
 ```
 
 ```{r}
@@ -304,12 +305,101 @@ NOEC.LOEC %>%
   geom_smooth(method = "lm") +
   stat_regline_equation(label.x = 1, label.y = 35) +
   stat_cor(label.x = 1, label.y = 30) +
+  geom_text(x = 5, y= 40, color = "forestgreen",
+    label = paste("NOEC/LOEC AF:",
+    round(noec.loec.lm$coefficients[2,1],2), #coefficient
+            "+-",
+            round(noec.loec.lm$coefficients[2,2],2), #std error
+    "(mean +- std.error)"))+
   ggrepel::geom_text_repel(aes(label = combo), color = "red") +
   labs(title = "LOEC/NOEC Assessment Factor Derivation",
        subtitle = "Grouped (averaged) by taxa, acute/chronic, particle size bin, level 1 effect",
        caption = "Data filtered for red criteria. Aquatic Tox database. 03-30-2021.") +
   xlab("Average NOEC (mg/L)") +
   ylab("Average LOEC (mg/L)") +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 14),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## HONEC/NOEC
+```{r}
+#create unique ID for each combo of interest for NOECs and HONECs
+NOEC <- grouped %>% 
+  mutate(combo = paste(org_f, acute.chronic_f, 
+                       size_f,
+                       lvl1_f)) %>% 
+  filter(effect.metric == "NOEC") %>% 
+  mutate(effectNOEC.particles = meanEffect.particles,
+         effectNOEC.mass = meanEffect.mass,
+         sdNOEC.mass = sdEffect.mass) %>% 
+  mutate(stderrorNOEC.mass = sdNOEC.mass / nstudies)
+
+HONEC <- grouped %>% 
+  mutate(combo = paste(org_f, acute.chronic_f,
+                       size_f,
+                       lvl1_f)) %>% 
+  filter(effect.metric == "HONEC") %>% 
+    mutate(effectHONEC.particles = meanEffect.particles,
+         effectHONEC.mass = meanEffect.mass,
+         sdHONEC.mass = sdEffect.mass) %>% 
+  mutate(stderrorHONEC.mass = sdHONEC.mass / nstudies)
+
+# join NOEC and HONEC dataframes and compute HONEC/NOEC ratio for each combo
+NOEC.HONEC <- full_join(NOEC, HONEC, by = "combo") %>%
+  select(c(combo,effectNOEC.particles, 
+           effectHONEC.particles, 
+           effectNOEC.mass, 
+           effectHONEC.mass, 
+           size_f.x,
+           size_f.y,
+           nstudies.x, 
+           nstudies.y,
+           sdHONEC.mass,
+           sdNOEC.mass,
+           stderrorNOEC.mass,
+           stderrorHONEC.mass)) %>% 
+  mutate(HONEC.NOEC.ratio.mass = effectHONEC.mass / effectNOEC.mass) %>%
+  mutate(HONEC.NOEC.ratio.particles = effectHONEC.particles / effectNOEC.particles) %>% 
+  filter(nstudies.y > 1) %>% 
+  filter(nstudies.x > 1) %>% 
+  #filter(HONEC.NOEC.ratio.mass > 1) %>%
+  #filter(HONEC.NOEC.ratio.particles > 1) %>% 
+  drop_na()
+
+NOEC.HONEC
+```
+```{r}
+honec.noec.lm <- summary(lm(effectHONEC.mass ~ effectNOEC.mass, data = NOEC.HONEC))
+honec.noec.lm
+```
+
+```{r}
+NOEC.HONEC %>% 
+  ggplot(aes(x = effectNOEC.mass, y = effectHONEC.mass)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = effectHONEC.mass - stderrorHONEC.mass, ymax = effectHONEC.mass + stderrorHONEC.mass,
+                    xmin = effectNOEC.mass - stderrorNOEC.mass, xmax = effectNOEC.mass + stderrorNOEC.mass)) +
+  geom_smooth(method = "lm") +
+  stat_regline_equation(label.x = 1, label.y = 150) +
+  stat_cor(label.x = 1, label.y = 135) +
+  geom_text(x = 25, y= 155,color = "forestgreen",
+    label = paste("HONEC/NOEC AF:",
+    round(honec.noec.lm$coefficients[2,1],2), #coefficient
+            "+-",
+            round(honec.noec.lm$coefficients[2,2],2), #std error
+    "(mean +- std.error)"))+
+  ggrepel::geom_text_repel(aes(label = combo), color = "red") +
+  labs(title = "HONEC/NOEC Assessment Factor Derivation",
+       subtitle = "Grouped (averaged) by taxa, acute/chronic, particle size bin, level 1 effect",
+       caption = "Data filtered for red criteria. Aquatic Tox database. 03-30-2021.") +
+  xlab("Average NOEC (mg/L)") +
+  ylab("Average HONEC (mg/L)") +
   theme_minimal() +
   theme(legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 14),
@@ -402,7 +492,8 @@ Acute.Chronic <- full_join(Acute, Chronic, by = "combo") %>%
 Acute.Chronic
 ```
 ```{r}
-summary(lm(effectChronic.mass ~ effectAcute.mass, data = Acute.Chronic))
+acute.chronic.lm <- summary(lm(effectChronic.mass ~ effectAcute.mass, data = Acute.Chronic))
+acute.chronic.lm
 ```
 
 ```{r}
@@ -414,6 +505,12 @@ Acute.Chronic %>%
   geom_smooth(method = "lm", se = FALSE) +
   stat_regline_equation(label.x = 5, label.y = 50) +
   stat_cor(label.x = 5, label.y = 30) +
+   geom_text(x = 5, y= 150,color = "forestgreen",
+    label = paste("Acute/Chronic AF:",
+    round(acute.chronic.lm$coefficients[2,1],2), #coefficient
+            "+-",
+            round(acute.chronic.lm$coefficients[2,2],2), #std error
+    "(mean +- std.error)"))+
   ggrepel::geom_text_repel(aes(label = combo), color = "red") +
   labs(title = "Chronic/Acute Assessment Factor Derivation",
        subtitle = "Grouped (averaged) by taxa, Acute/chronic, particle size bin, level 1 effect",
