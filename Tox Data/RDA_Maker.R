@@ -173,7 +173,7 @@ aoc_v1 <- aoc %>% # start with original dataset
                                      effect == "N" ~ "No"),
                            levels = c("No", "Yes"))) %>%
   # removing NAs to make data set nicer
-  replace_na(list(size.category = 0, shape = "Not Reported", polymer = "Not Reported", life.stage = "Not Reported"))
+  replace_na(list(size.category = 0, shape = "Not Reported", polymer = "Not Reported", life.stage = "Not Reported", chem.exp.typ.nominal = "Particle Only"))
 
 aoc_setup <- aoc_v1 %>% # start with original dataset
   mutate(size_f = factor(case_when(
