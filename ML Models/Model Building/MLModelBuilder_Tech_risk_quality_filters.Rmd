@@ -84,7 +84,7 @@ df <- aoc_z %>%
                   #density.mg.um.3,
                   #environment,
                   exposure.route,
-                  dose.surface.area.um2.mL.master,
+                  dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
                   lvl1_f
                   )) %>% 
   mutate(effect.metric = as.character(effect.metric)) %>% 
@@ -97,7 +97,7 @@ df <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  filter(effect.metric != "not_available") %>% 
+  #filter(effect.metric != "not_available") %>% 
   filter(exposure.route == "water") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
@@ -752,7 +752,7 @@ kitchenSink <- aoc_z %>%
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  filter(effect.metric != "not_available") %>% 
+  #filter(effect.metric != "not_available") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
 mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
@@ -761,7 +761,7 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
       effect == "N" ~ 0
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
-  dplyr::select(-(effect))
+  dplyr::select(-c(effect, effect.metric))
 
 #ensure completeness
 skim(kitchenSink)
@@ -941,7 +941,7 @@ kable(makePaddedDataFrame(
 While the absolute best model contains 18 variables with an estimated accuracy of 93.89%, it is possible to achieve ~93% accuracy with just eight variables, as displayed in the above table. The advantage of including fewer variables is that less information is needed to accurately predict toxicity. The final model with these eight variables will be further refined through an iterative tuning process to determine the optimal number of variables to be randomly collected for sampling at each split (mtry), and the number of branches to grow after each split.Code for the following section is inspired from https://rpubs.com/phamdinhkhanh/389752. 
 ```{r}
 final_df <-df %>% 
-  dplyr::select(c(effect.metric, 
+  dplyr::select(c(#effect.metric, 
                   lvl2_f, 
                   dose.surface.area.um2.mL.master, 
                   effect_10, 
