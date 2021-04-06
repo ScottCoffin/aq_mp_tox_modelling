@@ -105,8 +105,8 @@ df <- aoc_z %>%
                   #exposure.duration.d, 
                   #lvl1_f, 
                   dose.um3.mL.master, 
-                 # dose.mg.L.master,
-                  #dose.particles.mL.master,
+                  dose.mg.L.master,
+                  dose.particles.mL.master,
                   #dose.mg.L.master, 
                   #dose.particles.mL.master, 
                   #life.stage,
@@ -145,8 +145,8 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(effect, exposure.route, effect.metric)) #%>%
-  #mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
+  dplyr::select(-c(effect, exposure.route, effect.metric)) %>%
+  mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
 
 #ensure completeness
 skim(df)
@@ -247,12 +247,66 @@ predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
 # Model accuracy
 mean(predicted.classes==test.data$effect_10)
 
+library(mgcv)
+library(car)
+library(broom)
+
+meanmodel <- gam(effect_10 ~ 1, data = train.data, family = binomial)
+AIC(meanmodel)
+
+nodosemodel <- gam(effect_10 ~  organism.group + bio.org + lvl1_f, data = train.data, family = binomial)
+AIC(nodosemodel)
+
+dosemodel <- glm(effect_10 ~ dose.um3.mL.master + dose.surface.area.um2.mL.master + dose.particles.mL.master + dose.mg.L.master + sa_vol_ratio, data = train.data, family = binomial)
+AIC(dosemodel)
+summary(dosemodel)
+
+#looking into some of the model assumptions 
+#http://www.sthda.com/english/articles/36-classification-methods-essentials/148-logistic-regression-assumptions-and-diagnostics-in-r/
+probabilities <- predict(dosemodel, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+mydata <- train.data %>%
+  dplyr::select_if(is.numeric) 
+predictors <- colnames(mydata)
+# Bind the logit and tidying the data for plot
+#linearity
+mydata <- mydata %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(mydata, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
+#not super linear, perhaps some outliers.
+
+#Influential values 
+plot(dosemodel, which = 4, id.n = 10)
+model.data <- augment(dosemodel) %>% 
+  mutate(index = 1:n()) 
+
+model.data %>% top_n(10, .cooksd)
+
+ggplot(model.data, aes(index, .std.resid)) + 
+  geom_point(aes(color = effect_10), alpha = .5) +
+  theme_bw()
+#No outliers that we can remove. Need to be above 3 std.residual abs
+
+#Multicollinearity, VIF above 5 or 10 is bad. Too much colinearity here. 
+car::vif(dosemodel)
+
+dosemodel1 <- glm(effect_10 ~ dose.um3.mL.master + dose.particles.mL.master + dose.mg.L.master + sa_vol_ratio, data = train.data, family = binomial)
+AIC(dosemodel1)
+summary(dosemodel1)
+car::vif(dosemodel1)
+
+
 full.model <- glm(effect_10 ~., data = train.data, family = binomial)
 coef(full.model)
 summary(full.model)
 AIC(full.model)
 
-library(mgcv)
 full.model.smooth <- gam(effect_10 ~ organism.group + s(dose.um3.mL.master) + bio.org + s(dose.surface.area.um2.mL.master) + lvl1_f, data = train.data, family = binomial)
 AIC(full.model.smooth)
 
@@ -266,6 +320,7 @@ step.model <- full.model %>% stepAIC(direction = "both", trace = F)
 coef(step.model)
 
 # Make predictions
+#http://www.sthda.com/english/articles/36-classification-methods-essentials/148-logistic-regression-assumptions-and-diagnostics-in-r/
 probabilities <- full.model %>% predict(test.data, type = "response")
 predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
 # Prediction accuracy
@@ -277,6 +332,9 @@ predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
 # Prediction accuracy
 observed.classes <- test.data$effect_10
 mean(predicted.classes == observed.classes)
+
+
+
 
 library(tidyr)
 
