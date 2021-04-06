@@ -216,17 +216,6 @@ dfmatrix <- as.data.frame(as.table(matrix))
 #Correlation matrix
 mixedassoc <- mixed_assoc(df)
 
-library(corrr)
-
-df %>%
-    #select(- name) %>%
-    mixed_assoc() %>%
-    select(x, y, assoc) %>%
-    spread(y, assoc) %>%
-    column_to_rownames("x") %>%
-    as.matrix %>%
-    as_cordf %>%
-    rplot()
 
 #Correlation matrix
 #aoc_no_logical <- aoc_z %>%
@@ -260,12 +249,47 @@ predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
 # Model accuracy
 mean(predicted.classes==test.data$effect_10)
 
-
 full.model <- glm(effect_10 ~., data = train.data, family = binomial)
 coef(full.model)
+summary(full.model)
 
-step.model <- full.model %>% stepAIC(trace = FALSE)
+step.model <- full.model %>% stepAIC(direction = "both")
 coef(step.model)
+
+# Make predictions
+probabilities <- full.model %>% predict(test.data, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+# Prediction accuracy
+observed.classes <- test.data$effect_10
+mean(predicted.classes == observed.classes)
+
+probabilities <- predict(step.model, test.data, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+# Prediction accuracy
+observed.classes <- test.data$effect_10
+mean(predicted.classes == observed.classes)
+
+library(tidyr)
+
+#Should be able to make this a function somehow. 
+df_expand = df 
+
+df_expand$prob <- predict(full.model, df_expand, type = "response")
+
+org_endpoint_comb <- df %>%
+  dplyr::select(-dose.um3.mL.master, -dose.mg.L.master, -dose.particles.mL.master, -dose.surface.area.um2.mL.master, -sa_vol_ratio, -effect_10) %>%
+  distinct()
+
+for(row in 1:nrow(org_endpoint_comb)){
+  slice <- org_endpoint_comb[row,]
+  doses <- inner_join(df_expand, slice) %>%
+    dplyr::select(dose.um3.mL.master, dose.mg.L.master, dose.particles.mL.master, dose.surface.area.um2.mL.master, sa_vol_ratio, prob) %>%
+    pivot_longer(cols = -prob, names_to = "type", values_to = "values")
+ plot <- ggplot(doses) + geom_point(aes(x = values, y = prob)) + facet_wrap(type~., scales = "free") + labs(title = paste0(as.character(unlist(slice)), collapse = "_"))
+  ggsave(plot = plot, filename = paste0(paste0(as.character(unlist(slice)), collapse = "_"), ".png"), path = "Tox Data/figures")
+  
+}  
+
 
 ```
 
