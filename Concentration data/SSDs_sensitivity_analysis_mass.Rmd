@@ -81,7 +81,8 @@ aoc_final <- aoc_z %>%
   filter(environment != "Terrestrial", 
          environment != "Not Reported",
          org_f != "Bacterium",
-         org_f != "Plant")
+         org_f != "Plant",
+         effect.metric != "HONEC")
 ```
 
 # Data Collapse
@@ -782,7 +783,7 @@ dists_tier1_large_median <- ssd_fit_dists(tier1_large_median, left = "Conc", dis
 gof_tier1_large_median <- as.data.frame(ssd_gof(dists_tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_large_median <- predict(dists_tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -823,7 +824,7 @@ dists_tier1_large_mean <- ssd_fit_dists(tier1_large_mean, left = "Conc", dists =
 gof_tier1_large_mean <- as.data.frame(ssd_gof(dists_tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_large_mean <- predict(dists_tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -862,7 +863,7 @@ dists_tier1_large_1q <- ssd_fit_dists(tier1_large_1q, left = "Conc", dists = c("
 gof_tier1_large_1q <- as.data.frame(ssd_gof(dists_tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_large_1q <- predict(dists_tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -900,7 +901,7 @@ dists_tier1_large_min <- ssd_fit_dists(tier1_large_min, left = "Conc", dists = c
 gof_tier1_large_min <- as.data.frame(ssd_gof(dists_tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_large_min <- predict(dists_tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -941,7 +942,7 @@ dists_tier1_small_median <- ssd_fit_dists(tier1_small_median, left = "Conc", dis
 gof_tier1_small_median <- as.data.frame(ssd_gof(dists_tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_small_median <- predict(dists_tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -980,7 +981,7 @@ dists_tier1_small_mean <- ssd_fit_dists(tier1_small_mean, left = "Conc", dists =
 gof_tier1_small_mean <- as.data.frame(ssd_gof(dists_tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_small_mean <- predict(dists_tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1018,7 +1019,7 @@ dists_tier1_small_1q <- ssd_fit_dists(tier1_small_1q, left = "Conc", dists = c("
 gof_tier1_small_1q <- as.data.frame(ssd_gof(dists_tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_small_1q <- predict(dists_tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1057,7 +1058,7 @@ dists_tier1_small_min <- ssd_fit_dists(tier1_small_min, left = "Conc", dists = c
 gof_tier1_small_min <- as.data.frame(ssd_gof(dists_tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier1_small_min <- predict(dists_tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1099,7 +1100,7 @@ dists_tier2_large_median <- ssd_fit_dists(tier2_large_median, left = "Conc", dis
 gof_tier2_large_median <- as.data.frame(ssd_gof(dists_tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_large_median <- predict(dists_tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1140,7 +1141,7 @@ dists_tier2_large_mean <- ssd_fit_dists(tier2_large_mean, left = "Conc", dists =
 gof_tier2_large_mean <- as.data.frame(ssd_gof(dists_tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_large_mean <- predict(dists_tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1179,7 +1180,7 @@ dists_tier2_large_1q <- ssd_fit_dists(tier2_large_1q, left = "Conc", dists = c("
 gof_tier2_large_1q <- as.data.frame(ssd_gof(dists_tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_large_1q <- predict(dists_tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1217,7 +1218,7 @@ dists_tier2_large_min <- ssd_fit_dists(tier2_large_min, left = "Conc", dists = c
 gof_tier2_large_min <- as.data.frame(ssd_gof(dists_tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_large_min <- predict(dists_tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1256,7 +1257,7 @@ dists_tier2_small_median <- ssd_fit_dists(tier2_small_median, left = "Conc", dis
 gof_tier2_small_median <- as.data.frame(ssd_gof(dists_tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_small_median <- predict(dists_tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1295,7 +1296,7 @@ dists_tier2_small_mean <- ssd_fit_dists(tier2_small_mean, left = "Conc", dists =
 gof_tier2_small_mean <- as.data.frame(ssd_gof(dists_tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_small_mean <- predict(dists_tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1333,7 +1334,7 @@ dists_tier2_small_1q <- ssd_fit_dists(tier2_small_1q, left = "Conc", dists = c("
 gof_tier2_small_1q <- as.data.frame(ssd_gof(dists_tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_small_1q <- predict(dists_tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1372,7 +1373,7 @@ dists_tier2_small_min <- ssd_fit_dists(tier2_small_min, left = "Conc", dists = c
 gof_tier2_small_min <- as.data.frame(ssd_gof(dists_tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier2_small_min <- predict(dists_tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1414,7 +1415,7 @@ dists_tier3.4_large_median <- ssd_fit_dists(tier3.4_large_median, left = "Conc",
 gof_tier3.4_large_median <- as.data.frame(ssd_gof(dists_tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_large_median <- predict(dists_tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1457,7 +1458,7 @@ dists_tier3.4_large_mean <- ssd_fit_dists(tier3.4_large_mean, left = "Conc", dis
 gof_tier3.4_large_mean <- as.data.frame(ssd_gof(dists_tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_large_mean <- predict(dists_tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1499,7 +1500,7 @@ dists_tier3.4_large_1q <- ssd_fit_dists(tier3.4_large_1q, left = "Conc", dists =
 gof_tier3.4_large_1q <- as.data.frame(ssd_gof(dists_tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_large_1q <- predict(dists_tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1539,7 +1540,7 @@ dists_tier3.4_large_min <- ssd_fit_dists(tier3.4_large_min, left = "Conc", dists
 gof_tier3.4_large_min <- as.data.frame(ssd_gof(dists_tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_large_min <- predict(dists_tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1581,7 +1582,7 @@ dists_tier3.4_small_median <- ssd_fit_dists(tier3.4_small_median, left = "Conc",
 gof_tier3.4_small_median <- as.data.frame(ssd_gof(dists_tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_small_median <- predict(dists_tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1623,7 +1624,7 @@ dists_tier3.4_small_mean <- ssd_fit_dists(tier3.4_small_mean, left = "Conc", dis
 gof_tier3.4_small_mean <- as.data.frame(ssd_gof(dists_tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_small_mean <- predict(dists_tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1664,7 +1665,7 @@ dists_tier3.4_small_1q <- ssd_fit_dists(tier3.4_small_1q, left = "Conc", dists =
 gof_tier3.4_small_1q <- as.data.frame(ssd_gof(dists_tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_small_1q <- predict(dists_tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -1706,7 +1707,7 @@ dists_tier3.4_small_min <- ssd_fit_dists(tier3.4_small_min, left = "Conc", dists
 gof_tier3.4_small_min <- as.data.frame(ssd_gof(dists_tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tier3.4_small_min <- predict(dists_tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2202,7 +2203,7 @@ dists_risk.pass.tier1_large_median <- ssd_fit_dists(risk.pass.tier1_large_median
 gof_risk.pass.tier1_large_median <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_large_median <- predict(dists_risk.pass.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2243,7 +2244,7 @@ dists_risk.pass.tier1_large_mean <- ssd_fit_dists(risk.pass.tier1_large_mean, le
 gof_risk.pass.tier1_large_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_large_mean <- predict(dists_risk.pass.tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2282,7 +2283,7 @@ dists_risk.pass.tier1_large_1q <- ssd_fit_dists(risk.pass.tier1_large_1q, left =
 gof_risk.pass.tier1_large_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_large_1q <- predict(dists_risk.pass.tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2320,7 +2321,7 @@ dists_risk.pass.tier1_large_min <- ssd_fit_dists(risk.pass.tier1_large_min, left
 gof_risk.pass.tier1_large_min <- as.data.frame(ssd_gof(dists_risk.pass.tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_large_min <- predict(dists_risk.pass.tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2361,7 +2362,7 @@ dists_risk.pass.tier1_small_median <- ssd_fit_dists(risk.pass.tier1_small_median
 gof_risk.pass.tier1_small_median <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_small_median <- predict(dists_risk.pass.tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2400,7 +2401,7 @@ dists_risk.pass.tier1_small_mean <- ssd_fit_dists(risk.pass.tier1_small_mean, le
 gof_risk.pass.tier1_small_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_small_mean <- predict(dists_risk.pass.tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2438,7 +2439,7 @@ dists_risk.pass.tier1_small_1q <- ssd_fit_dists(risk.pass.tier1_small_1q, left =
 gof_risk.pass.tier1_small_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_small_1q <- predict(dists_risk.pass.tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2477,7 +2478,7 @@ dists_risk.pass.tier1_small_min <- ssd_fit_dists(risk.pass.tier1_small_min, left
 gof_risk.pass.tier1_small_min <- as.data.frame(ssd_gof(dists_risk.pass.tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier1_small_min <- predict(dists_risk.pass.tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2519,7 +2520,7 @@ dists_risk.pass.tier2_large_median <- ssd_fit_dists(risk.pass.tier2_large_median
 gof_risk.pass.tier2_large_median <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_large_median <- predict(dists_risk.pass.tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2560,7 +2561,7 @@ dists_risk.pass.tier2_large_mean <- ssd_fit_dists(risk.pass.tier2_large_mean, le
 gof_risk.pass.tier2_large_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_large_mean <- predict(dists_risk.pass.tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2599,7 +2600,7 @@ dists_risk.pass.tier2_large_1q <- ssd_fit_dists(risk.pass.tier2_large_1q, left =
 gof_risk.pass.tier2_large_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_large_1q <- predict(dists_risk.pass.tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2637,7 +2638,7 @@ dists_risk.pass.tier2_large_min <- ssd_fit_dists(risk.pass.tier2_large_min, left
 gof_risk.pass.tier2_large_min <- as.data.frame(ssd_gof(dists_risk.pass.tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_large_min <- predict(dists_risk.pass.tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2676,7 +2677,7 @@ dists_risk.pass.tier2_small_median <- ssd_fit_dists(risk.pass.tier2_small_median
 gof_risk.pass.tier2_small_median <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_small_median <- predict(dists_risk.pass.tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2715,7 +2716,7 @@ dists_risk.pass.tier2_small_mean <- ssd_fit_dists(risk.pass.tier2_small_mean, le
 gof_risk.pass.tier2_small_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_small_mean <- predict(dists_risk.pass.tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2753,7 +2754,7 @@ dists_risk.pass.tier2_small_1q <- ssd_fit_dists(risk.pass.tier2_small_1q, left =
 gof_risk.pass.tier2_small_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_small_1q <- predict(dists_risk.pass.tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2792,7 +2793,7 @@ dists_risk.pass.tier2_small_min <- ssd_fit_dists(risk.pass.tier2_small_min, left
 gof_risk.pass.tier2_small_min <- as.data.frame(ssd_gof(dists_risk.pass.tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier2_small_min <- predict(dists_risk.pass.tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2834,7 +2835,7 @@ dists_risk.pass.tier3.4_large_median <- ssd_fit_dists(risk.pass.tier3.4_large_me
 gof_risk.pass.tier3.4_large_median <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_large_median <- predict(dists_risk.pass.tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2877,7 +2878,7 @@ dists_risk.pass.tier3.4_large_mean <- ssd_fit_dists(risk.pass.tier3.4_large_mean
 gof_risk.pass.tier3.4_large_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_large_mean <- predict(dists_risk.pass.tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2919,7 +2920,7 @@ dists_risk.pass.tier3.4_large_1q <- ssd_fit_dists(risk.pass.tier3.4_large_1q, le
 gof_risk.pass.tier3.4_large_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_large_1q <- predict(dists_risk.pass.tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -2959,7 +2960,7 @@ dists_risk.pass.tier3.4_large_min <- ssd_fit_dists(risk.pass.tier3.4_large_min, 
 gof_risk.pass.tier3.4_large_min <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_large_min <- predict(dists_risk.pass.tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3001,7 +3002,7 @@ dists_risk.pass.tier3.4_small_median <- ssd_fit_dists(risk.pass.tier3.4_small_me
 gof_risk.pass.tier3.4_small_median <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_small_median <- predict(dists_risk.pass.tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3043,7 +3044,7 @@ dists_risk.pass.tier3.4_small_mean <- ssd_fit_dists(risk.pass.tier3.4_small_mean
 gof_risk.pass.tier3.4_small_mean <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_small_mean <- predict(dists_risk.pass.tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3084,7 +3085,7 @@ dists_risk.pass.tier3.4_small_1q <- ssd_fit_dists(risk.pass.tier3.4_small_1q, le
 gof_risk.pass.tier3.4_small_1q <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_small_1q <- predict(dists_risk.pass.tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3126,7 +3127,7 @@ dists_risk.pass.tier3.4_small_min <- ssd_fit_dists(risk.pass.tier3.4_small_min, 
 gof_risk.pass.tier3.4_small_min <- as.data.frame(ssd_gof(dists_risk.pass.tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_risk.pass.tier3.4_small_min <- predict(dists_risk.pass.tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3622,7 +3623,7 @@ dists_tech.pass.tier1_large_median <- ssd_fit_dists(tech.pass.tier1_large_median
 gof_tech.pass.tier1_large_median <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_large_median <- predict(dists_tech.pass.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3663,7 +3664,7 @@ dists_tech.pass.tier1_large_mean <- ssd_fit_dists(tech.pass.tier1_large_mean, le
 gof_tech.pass.tier1_large_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_large_mean <- predict(dists_tech.pass.tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3702,7 +3703,7 @@ dists_tech.pass.tier1_large_1q <- ssd_fit_dists(tech.pass.tier1_large_1q, left =
 gof_tech.pass.tier1_large_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_large_1q <- predict(dists_tech.pass.tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3740,7 +3741,7 @@ dists_tech.pass.tier1_large_min <- ssd_fit_dists(tech.pass.tier1_large_min, left
 gof_tech.pass.tier1_large_min <- as.data.frame(ssd_gof(dists_tech.pass.tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_large_min <- predict(dists_tech.pass.tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3781,7 +3782,7 @@ dists_tech.pass.tier1_small_median <- ssd_fit_dists(tech.pass.tier1_small_median
 gof_tech.pass.tier1_small_median <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_small_median <- predict(dists_tech.pass.tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3820,7 +3821,7 @@ dists_tech.pass.tier1_small_mean <- ssd_fit_dists(tech.pass.tier1_small_mean, le
 gof_tech.pass.tier1_small_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_small_mean <- predict(dists_tech.pass.tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3858,7 +3859,7 @@ dists_tech.pass.tier1_small_1q <- ssd_fit_dists(tech.pass.tier1_small_1q, left =
 gof_tech.pass.tier1_small_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_small_1q <- predict(dists_tech.pass.tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3897,7 +3898,7 @@ dists_tech.pass.tier1_small_min <- ssd_fit_dists(tech.pass.tier1_small_min, left
 gof_tech.pass.tier1_small_min <- as.data.frame(ssd_gof(dists_tech.pass.tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier1_small_min <- predict(dists_tech.pass.tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3939,7 +3940,7 @@ dists_tech.pass.tier2_large_median <- ssd_fit_dists(tech.pass.tier2_large_median
 gof_tech.pass.tier2_large_median <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_large_median <- predict(dists_tech.pass.tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -3980,7 +3981,7 @@ dists_tech.pass.tier2_large_mean <- ssd_fit_dists(tech.pass.tier2_large_mean, le
 gof_tech.pass.tier2_large_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_large_mean <- predict(dists_tech.pass.tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4019,7 +4020,7 @@ dists_tech.pass.tier2_large_1q <- ssd_fit_dists(tech.pass.tier2_large_1q, left =
 gof_tech.pass.tier2_large_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_large_1q <- predict(dists_tech.pass.tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4057,7 +4058,7 @@ dists_tech.pass.tier2_large_min <- ssd_fit_dists(tech.pass.tier2_large_min, left
 gof_tech.pass.tier2_large_min <- as.data.frame(ssd_gof(dists_tech.pass.tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_large_min <- predict(dists_tech.pass.tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4096,7 +4097,7 @@ dists_tech.pass.tier2_small_median <- ssd_fit_dists(tech.pass.tier2_small_median
 gof_tech.pass.tier2_small_median <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_small_median <- predict(dists_tech.pass.tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4135,7 +4136,7 @@ dists_tech.pass.tier2_small_mean <- ssd_fit_dists(tech.pass.tier2_small_mean, le
 gof_tech.pass.tier2_small_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_small_mean <- predict(dists_tech.pass.tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4173,7 +4174,7 @@ dists_tech.pass.tier2_small_1q <- ssd_fit_dists(tech.pass.tier2_small_1q, left =
 gof_tech.pass.tier2_small_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_small_1q <- predict(dists_tech.pass.tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4212,7 +4213,7 @@ dists_tech.pass.tier2_small_min <- ssd_fit_dists(tech.pass.tier2_small_min, left
 gof_tech.pass.tier2_small_min <- as.data.frame(ssd_gof(dists_tech.pass.tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier2_small_min <- predict(dists_tech.pass.tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4254,7 +4255,7 @@ dists_tech.pass.tier3.4_large_median <- ssd_fit_dists(tech.pass.tier3.4_large_me
 gof_tech.pass.tier3.4_large_median <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_large_median <- predict(dists_tech.pass.tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4297,7 +4298,7 @@ dists_tech.pass.tier3.4_large_mean <- ssd_fit_dists(tech.pass.tier3.4_large_mean
 gof_tech.pass.tier3.4_large_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_large_mean <- predict(dists_tech.pass.tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4339,7 +4340,7 @@ dists_tech.pass.tier3.4_large_1q <- ssd_fit_dists(tech.pass.tier3.4_large_1q, le
 gof_tech.pass.tier3.4_large_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_large_1q <- predict(dists_tech.pass.tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4379,7 +4380,7 @@ dists_tech.pass.tier3.4_large_min <- ssd_fit_dists(tech.pass.tier3.4_large_min, 
 gof_tech.pass.tier3.4_large_min <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_large_min <- predict(dists_tech.pass.tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4421,7 +4422,7 @@ dists_tech.pass.tier3.4_small_median <- ssd_fit_dists(tech.pass.tier3.4_small_me
 gof_tech.pass.tier3.4_small_median <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_small_median <- predict(dists_tech.pass.tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4463,7 +4464,7 @@ dists_tech.pass.tier3.4_small_mean <- ssd_fit_dists(tech.pass.tier3.4_small_mean
 gof_tech.pass.tier3.4_small_mean <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_small_mean <- predict(dists_tech.pass.tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4504,7 +4505,7 @@ dists_tech.pass.tier3.4_small_1q <- ssd_fit_dists(tech.pass.tier3.4_small_1q, le
 gof_tech.pass.tier3.4_small_1q <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_small_1q <- predict(dists_tech.pass.tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -4546,7 +4547,7 @@ dists_tech.pass.tier3.4_small_min <- ssd_fit_dists(tech.pass.tier3.4_small_min, 
 gof_tech.pass.tier3.4_small_min <- as.data.frame(ssd_gof(dists_tech.pass.tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_tech.pass.tier3.4_small_min <- predict(dists_tech.pass.tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5040,7 +5041,7 @@ dists_allFail.tier1_large_median <- ssd_fit_dists(allFail.tier1_large_median, le
 gof_allFail.tier1_large_median <- as.data.frame(ssd_gof(dists_allFail.tier1_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_large_median <- predict(dists_allFail.tier1_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5081,7 +5082,7 @@ dists_allFail.tier1_large_mean <- ssd_fit_dists(allFail.tier1_large_mean, left =
 gof_allFail.tier1_large_mean <- as.data.frame(ssd_gof(dists_allFail.tier1_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_large_mean <- predict(dists_allFail.tier1_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5120,7 +5121,7 @@ dists_allFail.tier1_large_1q <- ssd_fit_dists(allFail.tier1_large_1q, left = "Co
 gof_allFail.tier1_large_1q <- as.data.frame(ssd_gof(dists_allFail.tier1_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_large_1q <- predict(dists_allFail.tier1_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5158,7 +5159,7 @@ dists_allFail.tier1_large_min <- ssd_fit_dists(allFail.tier1_large_min, left = "
 gof_allFail.tier1_large_min <- as.data.frame(ssd_gof(dists_allFail.tier1_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_large_min <- predict(dists_allFail.tier1_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5199,7 +5200,7 @@ dists_allFail.tier1_small_median <- ssd_fit_dists(allFail.tier1_small_median, le
 gof_allFail.tier1_small_median <- as.data.frame(ssd_gof(dists_allFail.tier1_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_small_median <- predict(dists_allFail.tier1_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5238,7 +5239,7 @@ dists_allFail.tier1_small_mean <- ssd_fit_dists(allFail.tier1_small_mean, left =
 gof_allFail.tier1_small_mean <- as.data.frame(ssd_gof(dists_allFail.tier1_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_small_mean <- predict(dists_allFail.tier1_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5276,7 +5277,7 @@ dists_allFail.tier1_small_1q <- ssd_fit_dists(allFail.tier1_small_1q, left = "Co
 gof_allFail.tier1_small_1q <- as.data.frame(ssd_gof(dists_allFail.tier1_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_small_1q <- predict(dists_allFail.tier1_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5315,7 +5316,7 @@ dists_allFail.tier1_small_min <- ssd_fit_dists(allFail.tier1_small_min, left = "
 gof_allFail.tier1_small_min <- as.data.frame(ssd_gof(dists_allFail.tier1_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier1_small_min <- predict(dists_allFail.tier1_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5357,7 +5358,7 @@ dists_allFail.tier2_large_median <- ssd_fit_dists(allFail.tier2_large_median, le
 gof_allFail.tier2_large_median <- as.data.frame(ssd_gof(dists_allFail.tier2_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_large_median <- predict(dists_allFail.tier2_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5398,7 +5399,7 @@ dists_allFail.tier2_large_mean <- ssd_fit_dists(allFail.tier2_large_mean, left =
 gof_allFail.tier2_large_mean <- as.data.frame(ssd_gof(dists_allFail.tier2_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_large_mean <- predict(dists_allFail.tier2_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5437,7 +5438,7 @@ dists_allFail.tier2_large_1q <- ssd_fit_dists(allFail.tier2_large_1q, left = "Co
 gof_allFail.tier2_large_1q <- as.data.frame(ssd_gof(dists_allFail.tier2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_large_1q <- predict(dists_allFail.tier2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5475,7 +5476,7 @@ dists_allFail.tier2_large_min <- ssd_fit_dists(allFail.tier2_large_min, left = "
 gof_allFail.tier2_large_min <- as.data.frame(ssd_gof(dists_allFail.tier2_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_large_min <- predict(dists_allFail.tier2_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5514,7 +5515,7 @@ dists_allFail.tier2_small_median <- ssd_fit_dists(allFail.tier2_small_median, le
 gof_allFail.tier2_small_median <- as.data.frame(ssd_gof(dists_allFail.tier2_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_small_median <- predict(dists_allFail.tier2_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5553,7 +5554,7 @@ dists_allFail.tier2_small_mean <- ssd_fit_dists(allFail.tier2_small_mean, left =
 gof_allFail.tier2_small_mean <- as.data.frame(ssd_gof(dists_allFail.tier2_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_small_mean <- predict(dists_allFail.tier2_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5591,7 +5592,7 @@ dists_allFail.tier2_small_1q <- ssd_fit_dists(allFail.tier2_small_1q, left = "Co
 gof_allFail.tier2_small_1q <- as.data.frame(ssd_gof(dists_allFail.tier2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_small_1q <- predict(dists_allFail.tier2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5630,7 +5631,7 @@ dists_allFail.tier2_small_min <- ssd_fit_dists(allFail.tier2_small_min, left = "
 gof_allFail.tier2_small_min <- as.data.frame(ssd_gof(dists_allFail.tier2_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier2_small_min <- predict(dists_allFail.tier2_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5672,7 +5673,7 @@ dists_allFail.tier3.4_large_median <- ssd_fit_dists(allFail.tier3.4_large_median
 gof_allFail.tier3.4_large_median <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_large_median <- predict(dists_allFail.tier3.4_large_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5715,7 +5716,7 @@ dists_allFail.tier3.4_large_mean <- ssd_fit_dists(allFail.tier3.4_large_mean, le
 gof_allFail.tier3.4_large_mean <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_large_mean <- predict(dists_allFail.tier3.4_large_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5757,7 +5758,7 @@ dists_allFail.tier3.4_large_1q <- ssd_fit_dists(allFail.tier3.4_large_1q, left =
 gof_allFail.tier3.4_large_1q <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_large_1q <- predict(dists_allFail.tier3.4_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5797,7 +5798,7 @@ dists_allFail.tier3.4_large_min <- ssd_fit_dists(allFail.tier3.4_large_min, left
 gof_allFail.tier3.4_large_min <- as.data.frame(ssd_gof(dists_allFail.tier3.4_large_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_large_min <- predict(dists_allFail.tier3.4_large_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5839,7 +5840,7 @@ dists_allFail.tier3.4_small_median <- ssd_fit_dists(allFail.tier3.4_small_median
 gof_allFail.tier3.4_small_median <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_median)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_small_median <- predict(dists_allFail.tier3.4_small_median, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5881,7 +5882,7 @@ dists_allFail.tier3.4_small_mean <- ssd_fit_dists(allFail.tier3.4_small_mean, le
 gof_allFail.tier3.4_small_mean <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_mean)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_small_mean <- predict(dists_allFail.tier3.4_small_mean, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5922,7 +5923,7 @@ dists_allFail.tier3.4_small_1q <- ssd_fit_dists(allFail.tier3.4_small_1q, left =
 gof_allFail.tier3.4_small_1q <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_small_1q <- predict(dists_allFail.tier3.4_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
@@ -5964,7 +5965,7 @@ dists_allFail.tier3.4_small_min <- ssd_fit_dists(allFail.tier3.4_small_min, left
 gof_allFail.tier3.4_small_min <- as.data.frame(ssd_gof(dists_allFail.tier3.4_small_min)) %>% mutate_if(is.numeric, ~ signif(., 3))
 
 #### Prediction ####
-set.seed(99)
+set.seed(98)
 pred_allFail.tier3.4_small_min <- predict(dists_allFail.tier3.4_small_min, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
 #order data
