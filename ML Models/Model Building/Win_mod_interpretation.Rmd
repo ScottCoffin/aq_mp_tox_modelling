@@ -38,7 +38,7 @@ knitr::knit_hooks$set(time_it = local({
 
 ```{r message=FALSE, warning=FALSE, include=FALSE}
 # load required packages
-#library(rsample)
+library(rsample)
 library(dplyr)
 library(DALEX)
 library(tidyverse)
@@ -59,7 +59,7 @@ library(sidekicks)
 ```{r include=FALSE}
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
-source("Tox Data/RDA_Maker.R")
+#source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ```
@@ -92,29 +92,6 @@ skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
 
 ```
 
-#Look at mututal information between variables
-
-```{r include=F}
-#Mutual information
-discretized <- discretize(aoc_z)
-matrix <- discretized %>%
-  mutinformation() 
-df <- as.data.frame(as.table(matrix))
-
-#Correlation matrix
-aoc_no_logical <- aoc_z %>%
-  select(-c(skimmed_aoc_flag_shallow, 
-            skimmed_aoc_flag_deep, 
-            skimmed_aoc_flag_missing, 
-            skimmed_aoc_inadequate_n_char)) %>%
-  select_if(function(col) !is.logical(col)) %>%
-  mutate_if(is.factor, as.character) 
-
-cor_matrix <- cor2(aoc_no_logical)
-
-```
-
-
 
 # Data Selection
 
@@ -128,6 +105,8 @@ df <- aoc_z %>%
                   #exposure.duration.d, 
                   #lvl1_f, 
                   dose.um3.mL.master, 
+                  dose.mg.L.master,
+                  dose.particles.mL.master,
                   #dose.mg.L.master, 
                   #dose.particles.mL.master, 
                   #life.stage,
@@ -166,11 +145,255 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(effect, exposure.route, effect.metric))
+  dplyr::select(-c(effect, exposure.route, effect.metric)) %>%
+  mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
 
 #ensure completeness
 skim(df)
 ```
+
+#Look at mututal information between variables
+
+```{r include=F}
+library(tidyverse)
+library(rcompanion)
+
+
+# Calculate a pairwise association between all variables in a data-frame. In particular nominal vs nominal with Chi-square, numeric vs numeric with Pearson correlation, and nominal vs numeric with ANOVA.
+# Adopted from https://stackoverflow.com/a/52557631/590437
+mixed_assoc = function(df, cor_method="spearman", adjust_cramersv_bias=TRUE){
+    df_comb = expand.grid(names(df), names(df),  stringsAsFactors = F) %>% set_names("X1", "X2")
+
+    is_nominal = function(x) class(x) %in% c("factor", "character")
+    # https://community.rstudio.com/t/why-is-purr-is-numeric-deprecated/3559
+    # https://github.com/r-lib/rlang/issues/781
+    is_numeric <- function(x) { is.integer(x) || is_double(x)}
+
+    f = function(xName,yName) {
+        x =  pull(df, xName)
+        y =  pull(df, yName)
+
+        result = if(is_nominal(x) && is_nominal(y)){
+            # use bias corrected cramersV as described in https://rdrr.io/cran/rcompanion/man/cramerV.html
+            cv = cramerV(as.character(x), as.character(y), bias.correct = adjust_cramersv_bias)
+            data.frame(xName, yName, assoc=cv, type="cramersV")
+
+        }else if(is_numeric(x) && is_numeric(y)){
+            correlation = cor(x, y, method=cor_method, use="complete.obs")
+            data.frame(xName, yName, assoc=correlation, type="correlation")
+
+        }else if(is_numeric(x) && is_nominal(y)){
+            # from https://stats.stackexchange.com/questions/119835/correlation-between-a-nominal-iv-and-a-continuous-dv-variable/124618#124618
+            r_squared = summary(lm(x ~ y))$r.squared
+            data.frame(xName, yName, assoc=sqrt(r_squared), type="anova")
+
+        }else if(is_nominal(x) && is_numeric(y)){
+            r_squared = summary(lm(y ~x))$r.squared
+            data.frame(xName, yName, assoc=sqrt(r_squared), type="anova")
+
+        }else {
+            warning(paste("unmatched column type combination: ", class(x), class(y)))
+        }
+
+        # finally add complete obs number and ratio to table
+        result %>% mutate(complete_obs_pairs=sum(!is.na(x) & !is.na(y)), complete_obs_ratio=complete_obs_pairs/length(x)) %>% rename(x=xName, y=yName)
+    }
+
+    # apply function to each variable combination
+    map2_df(df_comb$X1, df_comb$X2, f)
+}
+
+
+#Mutual information
+discretized <- discretize(df)
+matrix <- discretized %>%
+  mutinformation() 
+dfmatrix <- as.data.frame(as.table(matrix))
+
+#Correlation matrix
+mixedassoc <- mixed_assoc(df)
+
+
+#Correlation matrix
+#aoc_no_logical <- aoc_z %>%
+#  select(-c(skimmed_aoc_flag_shallow, 
+#            skimmed_aoc_flag_deep, 
+#            skimmed_aoc_flag_missing, 
+#            skimmed_aoc_inadequate_n_char)) %>%
+#  select_if(function(col) !is.logical(col)) %>%
+#  mutate_if(is.factor, as.character) 
+
+#cor_matrix <- cor2(aoc_no_logical)
+
+```
+
+#Stepwise regression.
+
+```{r}
+library(MASS)
+training.samples <- df$effect_10 %>% 
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- df[training.samples, ]
+test.data <- df[-training.samples, ]
+
+# Fit the model
+model <- glm(effect_10 ~., data = train.data, family = binomial) %>%
+  stepAIC(trace = FALSE)
+# Summarize the final selected model
+summary(model)
+# Make predictions
+probabilities <- model %>% predict(test.data, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+# Model accuracy
+mean(predicted.classes==test.data$effect_10)
+
+library(mgcv)
+library(car)
+library(broom)
+
+meanmodel <- gam(effect_10 ~ 1, data = train.data, family = binomial)
+AIC(meanmodel)
+
+nodosemodel <- gam(effect_10 ~  organism.group + bio.org + lvl1_f, data = train.data, family = binomial)
+AIC(nodosemodel)
+
+dosemodel <- glm(effect_10 ~ dose.um3.mL.master + dose.surface.area.um2.mL.master + dose.particles.mL.master + dose.mg.L.master + sa_vol_ratio, data = train.data, family = binomial)
+AIC(dosemodel)
+summary(dosemodel)
+
+#looking into some of the model assumptions 
+#http://www.sthda.com/english/articles/36-classification-methods-essentials/148-logistic-regression-assumptions-and-diagnostics-in-r/
+probabilities <- predict(dosemodel, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+mydata <- train.data %>%
+  dplyr::select_if(is.numeric) 
+predictors <- colnames(mydata)
+# Bind the logit and tidying the data for plot
+#linearity
+mydata <- mydata %>%
+  mutate(logit = log(probabilities/(1-probabilities))) %>%
+  gather(key = "predictors", value = "predictor.value", -logit)
+
+ggplot(mydata, aes(logit, predictor.value))+
+  geom_point(size = 0.5, alpha = 0.5) +
+  geom_smooth(method = "loess") + 
+  theme_bw() + 
+  facet_wrap(~predictors, scales = "free_y")
+#not super linear, perhaps some outliers.
+
+#Influential values 
+plot(dosemodel, which = 4, id.n = 10)
+model.data <- augment(dosemodel) %>% 
+  mutate(index = 1:n()) 
+
+model.data %>% top_n(10, .cooksd)
+
+ggplot(model.data, aes(index, .std.resid)) + 
+  geom_point(aes(color = effect_10), alpha = .5) +
+  theme_bw()
+#No outliers that we can remove. Need to be above 3 std.residual abs
+
+#Multicollinearity, VIF above 5 or 10 is bad. Too much colinearity here. 
+car::vif(dosemodel)
+
+dosemodel1 <- glm(effect_10 ~ dose.um3.mL.master + dose.particles.mL.master + dose.mg.L.master + sa_vol_ratio, data = train.data, family = binomial)
+AIC(dosemodel1)
+summary(dosemodel1)
+car::vif(dosemodel1)
+
+
+full.model <- glm(effect_10 ~., data = train.data, family = binomial)
+coef(full.model)
+summary(full.model)
+AIC(full.model)
+
+full.model.smooth <- gam(effect_10 ~ organism.group + s(dose.um3.mL.master) + bio.org + s(dose.surface.area.um2.mL.master) + lvl1_f, data = train.data, family = binomial)
+AIC(full.model.smooth)
+
+full.model.smooth.by <- gam(effect_10 ~ s(dose.um3.mL.master, by = organism.group) + bio.org + s(dose.surface.area.um2.mL.master, by = organism.group) + lvl1_f, data = train.data, family = binomial)
+AIC(full.model.smooth.by)
+
+plot(full.model.smooth.by)
+plot(full.model.smooth)
+
+step.model <- full.model %>% stepAIC(direction = "both", trace = F)
+coef(step.model)
+
+# Make predictions
+#http://www.sthda.com/english/articles/36-classification-methods-essentials/148-logistic-regression-assumptions-and-diagnostics-in-r/
+probabilities <- full.model %>% predict(test.data, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+# Prediction accuracy
+observed.classes <- test.data$effect_10
+mean(predicted.classes == observed.classes)
+
+probabilities <- predict(step.model, test.data, type = "response")
+predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
+# Prediction accuracy
+observed.classes <- test.data$effect_10
+mean(predicted.classes == observed.classes)
+
+
+
+
+library(tidyr)
+
+```
+#Plot model results for every species-endpoint combo observed and all concentrations and types observed.
+```{r}
+#Should be able to make this a function somehow. 
+
+
+#read in models
+readRDS("ML Models/FinalModels/final_rf_model.rds")
+
+df_expand = df 
+
+org_endpoint_comb <- df %>%
+  dplyr::select(organism.group, bio.org, lvl1_f) %>%
+  distinct() 
+
+df_expand <- org_endpoint_comb %>%
+  expand_grid(dose.um3.mL.master = seq(min(df$dose.um3.mL.master), max(df$dose.um3.mL.master), length.out = 100), dose.surface.area.um2.mL.master = seq(min(df$dose.surface.area.um2.mL.master), max(df$dose.surface.area.um2.mL.master), length.out = 100))
+
+#Ran the code below too to see if the glm methods were the same. They are returning the same response. 
+df_expand$prob <- predict(full.model, df_expand, type = "response")
+
+for(row in 1:nrow(org_endpoint_comb)){
+  slice <- org_endpoint_comb[row,]
+  doses <- inner_join(df_expand, slice) %>%
+    dplyr::select(-organism.group, -bio.org, -lvl1_f) %>%
+    pivot_longer(cols = -prob, names_to = "type", values_to = "values")
+ plot <- ggplot(doses) + geom_point(aes(x = values, y = prob)) + facet_wrap(type~., scales = "free") + labs(title = paste0(as.character(unlist(slice)), collapse = "_"))
+  ggsave(plot = plot, filename = paste0(paste0(as.character(unlist(slice)), collapse = "_"), ".png"), path = "Tox Data/figures")
+  
+}  
+```
+#May want to reconsider the above approach. I originally set it up to only opperate within concentration domains which were observed for each enpoint organism combination. That might be more appropriate, or it may be ok to extrapolate to other organisms using informaiton from other organisms.
+
+#Test Martin's Model
+This really is just an accuracy test, we can run his 0's and 1's through the model and see if they are correct. If his data is formatted to demonstrate the entire model adn coefficients, we could also try to test for a difference between the model fits. I think the observations will likely be powerful enough. 
+
+
+
+
+#Species Sensitivity Distribution
+
+```{r}
+
+df_expand_sensitivity_distribution <- df_expand %>%
+  filter(prob > 0.5) %>%
+  group_by(organism.group, bio.org, lvl1_f) %>% #Can add other factors here if we want to flesh this out for each organism.
+  summarise(dose.um3.mL.master = min(dose.um3.mL.master), dose.surface.area.um2.mL.master = min(dose.surface.area.um2.mL.master)) %>%
+  ungroup()
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.surface.area.um2.mL.master))
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.um3.mL.master))
+
+
+```
+
 
 ```{r}
 # create train, validation, and test splits
@@ -215,6 +438,12 @@ ebm <- ebm_classify(train_x, #features
                             max_leaves = 3,
                             min_samples_leaf = 2,
                             random_state = 42)
+
+
+
+
+
+
 
 #####build additional models using caret package and expain using DALEX package #####
 classif_rf <- train(effect_10~., data = train, method = "rf", ntree = 100, tuneLength = 1)
@@ -267,6 +496,8 @@ explainer_classif_xgbTree <- DALEX::explain(classif_svm,  label = "eXtreme Gradi
 ```{r model performance, include=FALSE}
 ### EBM model ###
 proba_test <- ebm_predict_proba(ebm, test_x) #keeps giving NA's for some reason...
+
+ebm_show(ebm, name = "bio.org")
 
 #### Caret models ####
 mp_classif_rf <- model_performance(explainer_classif_rf)
