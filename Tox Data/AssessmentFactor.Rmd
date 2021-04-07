@@ -238,6 +238,7 @@ grouped <- aoc_z %>%
   #Create a new column for the average effect for each combination of the matrix
   summarise(meanEffect.particles = mean(dose.particles.mL.master),
             meanEffect.mass = mean(dose.mg.L.master),
+            meanEffect.volume = mean(dose.um3.mL.master),
             sdEffect.mass = sd(dose.mg.L.master),
             nstudies = n()) #%>% 
   #drop_na()
@@ -254,6 +255,7 @@ NOEC <- grouped %>%
   filter(effect.metric == "NOEC") %>% 
   mutate(effectNOEC.particles = meanEffect.particles,
          effectNOEC.mass = meanEffect.mass,
+         effectNOEC.volume = meanEffect.volume,
          sdNOEC.mass = sdEffect.mass) %>% 
   mutate(stderrorNOEC.mass = sdNOEC.mass / nstudies)
 
@@ -264,6 +266,7 @@ LOEC <- grouped %>%
   filter(effect.metric == "LOEC") %>% 
     mutate(effectLOEC.particles = meanEffect.particles,
          effectLOEC.mass = meanEffect.mass,
+         effectLOEC.volume = meanEffect.volume,
          sdLOEC.mass = sdEffect.mass) %>% 
   mutate(stderrorLOEC.mass = sdLOEC.mass / nstudies)
 
@@ -273,6 +276,8 @@ NOEC.LOEC <- full_join(NOEC, LOEC, by = "combo") %>%
            effectLOEC.particles, 
            effectNOEC.mass, 
            effectLOEC.mass, 
+           effectNOEC.volume,
+           effectLOEC.volume,
            size_f.x,
            size_f.y,
            nstudies.x, 
@@ -283,6 +288,7 @@ NOEC.LOEC <- full_join(NOEC, LOEC, by = "combo") %>%
            stderrorLOEC.mass)) %>% 
   mutate(LOEC.NOEC.ratio.mass = effectLOEC.mass / effectNOEC.mass) %>%
   mutate(LOEC.NOEC.ratio.particles = effectLOEC.particles / effectNOEC.particles) %>% 
+  mutate(LOEC.NOEC.ratio.volume = effectLOEC.volume / effectNOEC.volume) %>%
   filter(nstudies.y > 1) %>% 
   filter(nstudies.x > 1) %>% 
   #filter(LOEC.NOEC.ratio.mass > 1) %>%
@@ -291,9 +297,16 @@ NOEC.LOEC <- full_join(NOEC, LOEC, by = "combo") %>%
 
 NOEC.LOEC
 ```
+### Mass
 ```{r}
 noec.loec.lm <- summary(lm(effectLOEC.mass ~ effectNOEC.mass, data = NOEC.LOEC))
 noec.loec.lm
+```
+
+### Volume
+```{r}
+noec.loec.lm.volume <- summary(lm(effectLOEC.volume ~ effectNOEC.volume, data = NOEC.LOEC[-3,]))
+noec.loec.lm.volume
 ```
 
 ```{r}
@@ -337,6 +350,7 @@ NOEC <- grouped %>%
   filter(effect.metric == "NOEC") %>% 
   mutate(effectNOEC.particles = meanEffect.particles,
          effectNOEC.mass = meanEffect.mass,
+         effectNOEC.volume = meanEffect.volume,
          sdNOEC.mass = sdEffect.mass) %>% 
   mutate(stderrorNOEC.mass = sdNOEC.mass / nstudies)
 
@@ -347,6 +361,7 @@ HONEC <- grouped %>%
   filter(effect.metric == "HONEC") %>% 
     mutate(effectHONEC.particles = meanEffect.particles,
          effectHONEC.mass = meanEffect.mass,
+         effectHONEC.volume = meanEffect.volume,
          sdHONEC.mass = sdEffect.mass) %>% 
   mutate(stderrorHONEC.mass = sdHONEC.mass / nstudies)
 
@@ -356,6 +371,8 @@ NOEC.HONEC <- full_join(NOEC, HONEC, by = "combo") %>%
            effectHONEC.particles, 
            effectNOEC.mass, 
            effectHONEC.mass, 
+           effectNOEC.volume, 
+           effectHONEC.volume, 
            size_f.x,
            size_f.y,
            nstudies.x, 
@@ -366,6 +383,7 @@ NOEC.HONEC <- full_join(NOEC, HONEC, by = "combo") %>%
            stderrorHONEC.mass)) %>% 
   mutate(HONEC.NOEC.ratio.mass = effectHONEC.mass / effectNOEC.mass) %>%
   mutate(HONEC.NOEC.ratio.particles = effectHONEC.particles / effectNOEC.particles) %>% 
+  mutate(HONEC.NOEC.ratio.volume = effectHONEC.volume / effectNOEC.volume) %>% 
   filter(nstudies.y > 1) %>% 
   filter(nstudies.x > 1) %>% 
   #filter(HONEC.NOEC.ratio.mass > 1) %>%
@@ -374,9 +392,16 @@ NOEC.HONEC <- full_join(NOEC, HONEC, by = "combo") %>%
 
 NOEC.HONEC
 ```
+### Mass
+
 ```{r}
-honec.noec.lm <- summary(lm(effectHONEC.mass ~ effectNOEC.mass, data = NOEC.HONEC))
+honec.noec.lm <- summary(lm(effectHONEC.particles ~ effectNOEC.particles, data = NOEC.HONEC))
 honec.noec.lm
+```
+### Volume
+```{r}
+honec.noec.lm.volume <- summary(lm(effectHONEC.volume ~ effectNOEC.volume, data = NOEC.HONEC[-3:-4,]))
+honec.noec.lm.volume
 ```
 
 ```{r}
@@ -400,6 +425,105 @@ NOEC.HONEC %>%
        caption = "Data filtered for red criteria. Aquatic Tox database. 03-30-2021.") +
   xlab("Average NOEC (mg/L)") +
   ylab("Average HONEC (mg/L)") +
+  theme_minimal() +
+  theme(legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 14),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+## EC50/NOEC
+```{r}
+#create unique ID for each combo of interest for NOECs and HONECs
+NOEC <- grouped %>% 
+  mutate(combo = paste(org_f, acute.chronic_f, 
+                       size_f,
+                       lvl1_f)) %>% 
+  filter(effect.metric == "NOEC") %>% 
+  mutate(effectNOEC.particles = meanEffect.particles,
+         effectNOEC.mass = meanEffect.mass,
+         effectNOEC.volume = meanEffect.volume,
+         sdNOEC.mass = sdEffect.mass) %>% 
+  mutate(stderrorNOEC.mass = sdNOEC.mass / nstudies)
+
+EC50 <- grouped %>% 
+  mutate(combo = paste(org_f, acute.chronic_f,
+                       size_f,
+                       lvl1_f)) %>% 
+  filter(effect.metric %in% c("EC50",
+                              "EC10", 
+                              "EMT50" ,
+                              "LC50"
+                              )) %>% 
+    mutate(effectEC50.particles = meanEffect.particles,
+         effectEC50.mass = meanEffect.mass,
+         effectEC50.volume = meanEffect.volume,
+         sdEC50.mass = sdEffect.mass) %>% 
+  mutate(stderrorEC50.mass = sdEC50.mass / nstudies)
+
+# join NOEC and EC50 dataframes and compute EC50/NOEC ratio for each combo
+NOEC.EC50 <- full_join(NOEC, EC50, by = "combo") %>%
+  select(c(combo,effectNOEC.particles, 
+           effectEC50.particles, 
+           effectNOEC.mass, 
+           effectEC50.mass, 
+           effectNOEC.volume, 
+           effectEC50.volume, 
+           size_f.x,
+           size_f.y,
+           nstudies.x, 
+           nstudies.y,
+           sdEC50.mass,
+           sdNOEC.mass,
+           stderrorNOEC.mass,
+           stderrorEC50.mass)) %>% 
+  mutate(EC50.NOEC.ratio.mass = effectEC50.mass / effectNOEC.mass) %>%
+  mutate(EC50.NOEC.ratio.particles = effectEC50.particles / effectNOEC.particles) %>% 
+  mutate(EC50.NOEC.ratio.volume = effectEC50.volume / effectNOEC.volume) %>%
+  filter(nstudies.y > 1) %>% 
+  filter(nstudies.x > 1) %>% 
+  #filter(EC50.NOEC.ratio.mass > 1) %>%
+  #filter(EC50.NOEC.ratio.particles > 1) %>% 
+  drop_na()
+
+NOEC.EC50
+```
+### Mass
+```{r}
+EC50.noec.lm <- summary(lm(effectEC50.mass ~ effectNOEC.mass, data = NOEC.EC50))
+EC50.noec.lm
+```
+### Volume
+```{r}
+EC50.noec.lm.volume <- summary(lm(effectEC50.volume ~ effectNOEC.volume, data = NOEC.EC50))
+EC50.noec.lm.volume
+```
+
+
+```{r}
+NOEC.EC50 %>% 
+  ggplot(aes(x = effectNOEC.mass, y = effectEC50.mass)) +
+  geom_point() +
+  geom_errorbar(aes(ymin = effectEC50.mass - stderrorEC50.mass, ymax = effectEC50.mass + stderrorEC50.mass,
+                    xmin = effectNOEC.mass - stderrorNOEC.mass, xmax = effectNOEC.mass + stderrorNOEC.mass)) +
+  geom_smooth(method = "lm") +
+  stat_regline_equation(label.x = 1, label.y = 150) +
+  stat_cor(label.x = 1, label.y = 135) +
+  geom_text(x = 25, y= 155,color = "forestgreen",
+    label = paste("EC50/NOEC AF:",
+    round(EC50.noec.lm$coefficients[2,1],2), #coefficient
+            "+-",
+            round(EC50.noec.lm$coefficients[2,2],2), #std error
+    "(mean +- std.error)"))+
+  ggrepel::geom_text_repel(aes(label = combo), color = "red") +
+  labs(title = "EC50/NOEC Assessment Factor Derivation",
+       subtitle = "Grouped (averaged) by taxa, acute/chronic, particle size bin, level 1 effect",
+       caption = "Data filtered for red criteria. Aquatic Tox database. 03-30-2021.") +
+  xlab("Average NOEC (mg/L)") +
+  ylab("Average EC50 (mg/L)") +
   theme_minimal() +
   theme(legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 14),
