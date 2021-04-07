@@ -452,7 +452,7 @@ tech.pass.tier2 <- aoc_final %>%
 tech.pass.tier3.4 <- aoc_final %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed",
         # tier_zero_risk_f == "Red Criteria Passed",
-         lvl1_f == "Fitness",
+         # lvl1_f == "Fitness",
          bio_f %in% c("Organism","Population")) %>% 
   mutate(dose_new = dose.mg.L.master / (af.time * af.noec)) %>%  #convert acute to chronic and NOEC to LOEC
   drop_na(dose_new)
