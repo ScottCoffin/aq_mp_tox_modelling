@@ -41,11 +41,11 @@ library(gt)
 
 ```{r parameters, include=FALSE}
 # Paramaters
-x2D_set = 5000#100 #upper size range (microns)
-x1D_set = 100#1 #lower size range (microns)
+x2D_set = 5000 #100 #upper size range (microns)
+x1D_set = 100 #1 #lower size range (microns)
 particle_mass_check_ssd <- 'particles/L' #assign whether or not to use particles/L or ug/L (note that 1,000x correction occurs to conver mg/L to ug/L and particles/mL to particles/L)
 #dose_check <- "dose.mg.L.master" #assign whether to use particles/mL or mg/L #
-dose_check <- 'dose.particles.mL.master'
+dose_check <- as.vector('dose.particles.mL.master')
 ```
 
 ```{r Theme, include=FALSE}

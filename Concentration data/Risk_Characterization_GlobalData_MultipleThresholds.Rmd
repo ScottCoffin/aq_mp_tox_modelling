@@ -33,18 +33,54 @@ library(wesanderson)
 library(ggdark)
 library(broom)
 library(knitr)
+library(ggdark)
 ```
 
 # Hazard Concentration and Alignment Parameters
 ```{r}
-# Choose hazard concentration and confidence intervals
+###### Choose concentration alignment parameters####
+alpha = 2.65 #(use 1.6 or 2.5)
+x2D_set = 10 #100 #upper size range (microns)
+x1D_set = 1 #1 #lower size range (microns)
 
+#### Choose assessment factor ####
+AF = 5
+
+##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 1700 * 1000 #1,700
-Threshold2 = 2310 * 1000 #383000
-Threshold3 = 2280 * 1000 #391000
-Threshold4 = 4990 * 1000 #1e6
+Threshold1 = 4.4 / AF
+Threshold2 = 10.6 / AF
+Threshold3 = 85.9 / AF
+Threshold4 = 313 / AF
+```
 
+```{r Theme, include=FALSE}
+#Theme type
+     theme.type <- #theme_gray(base_size = 20)#,
+                       dark_theme_bw(base_size = 18)
+     #color selection
+     fill.type <-    scale_fill_viridis(discrete = TRUE)#,
+                         #scale_fill_brewer(palette = "Paired"),
+                         # scale_fill_tron(),
+                         # scale_fill_locuszoom(),
+                         # scale_fill_d3(),
+                         # scale_fill_npg(),
+                         # scale_fill_jama())
+     #color selection
+     color.type <- scale_color_viridis(discrete = TRUE)#,
+                         # scale_color_brewer(palette = "Paired"),
+                         # scale_color_tron(),
+                         # scale_color_locuszoom(),
+                         # scale_color_d3(),
+                         # scale_color_npg(),
+                         # scale_color_jama())
+
+```
+
+
+
+```{r}
+# print table
 kable(data.frame(
   Category = c("Hazard Concentrations (particles/L)"),
   "Threshold1" = Threshold1,
@@ -54,11 +90,7 @@ kable(data.frame(
 ```
 
 ```{r}
-# Choose concentration alignment parameters
-alpha = 2.5 #(use 1.6 or 2.5)
-x2D_set = 10 #100 #upper size range (microns)
-x1D_set = 1 #1 #lower size range (microns)
-
+#print table of sizes
 kable(data.frame(
   Category = c("Concentration Alignment Parameters"),
   alpha = alpha,
@@ -103,7 +135,7 @@ adam <- adam %>%
   filter(particle.L.master > 0) %>% 
   mutate(System = factor(System))
 ```
-#Plot
+# Global Data
 
 ```{r}
 # read in concentration data
@@ -119,7 +151,7 @@ sampleSimpleADAM <- samplesADAM %>%
 dfADAM <- rbind(sampleSimpleADAM)#,food.dilution.simple)
 ```
 
-## Exceedances
+### Exceedances
 ```{r}
 #calculate exceedance
 dfADAM_exceedance <- dfADAM %>% 
@@ -141,7 +173,7 @@ exceedance <- dfADAM_exceedance  %>%
 
 kable(exceedance)
 ```
-## Histogram
+### Histogram
 ```{r}
 #generate plot
 dfADAM_exceedance %>% 
@@ -155,10 +187,10 @@ dfADAM_exceedance %>%
   geom_vline(xintercept = Threshold2, linetype = 'dashed', color = 'tomato1', size = 1.3) +
   geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'mediumvioletred', size = 1.3) +
   geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	'gray33', size = 1.3) +
- # geom_text(label = "Threshold 1", color = 'goldenrod2', x = Threshold1, y = 0.055, size = 6)+
- #  geom_text(label = "Threshold 2", color = 'tomato1', x = Threshold2, y = 0.055, size = 6)+
- #  geom_text(label = "Threshold 3", color = 'mediumvioletred', x = Threshold3, y = 0.055, size = 6)+
- #  geom_text(label = "Threshold 4", color = 'gray33', x = Threshold4, y = 0.055, size = 6)+
+  #geom_text(label = "Threshold 1", color = 'goldenrod2', x = log10(Threshold1) - 0.8*log10(Threshold1), y = 0.055, size = 6)+
+#   geom_text(label = "Threshold 2", color = 'tomato1', x = log10(Threshold2) - 0.8*log10(Threshold2), y = 0.055, size = 6)+
+ #  geom_text(label = "Threshold 3", color = 'mediumvioletred', x = log10(Threshold3) - 0.8*log10(Threshold3), y = 0.055, size = 6)+
+  # geom_text(label = "Threshold 4", color = 'gray33', x = Threshold4 - 0.8*log10(Threshold4), y = 0.055, size = 6)+
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   #coord_cartesian(xlim = c(0,100000000)) +
@@ -173,7 +205,7 @@ dfADAM_exceedance %>%
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
        caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
-  theme_minimal() +
+  theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
@@ -182,7 +214,7 @@ dfADAM_exceedance %>%
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
-## ECDF
+### ECDF
 
 ```{r}
 #ECDF by System
@@ -206,8 +238,7 @@ filter(System != "") %>%
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
-  #theme_minimal() +
-  dark_theme_minimal(base_size = 15) +
+  theme.type +
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
        caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
@@ -217,7 +248,7 @@ filter(System != "") %>%
 ```
 
 
-# Modelling
+## Modelling
 
 ```{r}
 sample_dists_ADAM <- ssd_fit_dists(samplesADAM, #data frame
@@ -316,16 +347,14 @@ ECDF_model_occurrence_ADAM_white
 ```{r}
 #dark mode
 ECDF_model_occurrence_ADAM_dark <- ECDF_model_occurrence_ADAM +
-  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'red') +
-  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 'red') +
-  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = 	'red') +
-  geom_text(label = "95% LCL", color = 'red', x = Threshold3, y = 0, size = 5)+
-  geom_text(label = "5% HC", color = 'red', x = Threshold1, y = 0, size = 5)+
-  geom_text(label = "95% UCL", color = 'red', x = Threshold2, y = 0, size = 5)+
-  geom_text(x = Threshold1, y = 0.1, label = paste(Threshold1,"particles/L"), color = 'red', size =5) +  #label for hazard conc
+  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'goldenrod2', size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = 'tomato1', size = 1.3) +
+ geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'mediumvioletred', size = 1.3) +
+ geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	'gray33', size = 1.3) +
+  #geom_text(x = Threshold1, y = 0.1, label = paste(Threshold1,"particles/L"), color = 'red', size =5) +  #label for hazard conc
   #geom_hline(yintercept = 0.925, linetype = 'twodash', color = "yellow") +
   #geom_text(label = "92.5%", x = 3.0, y = 0.96, color = "yellow", size = 6) +
-  dark_theme_minimal() +
+  theme.type +
   theme(plot.title = element_text(hjust = 0.5, size = 18, face = "bold"),
         plot.subtitle = element_text(hjust = 0.5, size = 12),
         axis.title = element_text(size = 14),
@@ -335,6 +364,125 @@ ECDF_model_occurrence_ADAM_dark <- ECDF_model_occurrence_ADAM +
 ECDF_model_occurrence_ADAM_dark
 ```
 
+# SFEI Data
+```{r}
+# SFEI data
+sfei <- read.csv("Concentration data/Datasets/SFEI.csv", na.strings = "N.A.") %>% 
+  #filter(Below_LOD == "N") %>% 
+  # align data
+  mutate(x1M = 20,
+         x2M = 5000) %>% 
+  mutate(CF = CFfnx(x1M = x1M, x2M = x2M)) %>%  #create new column with correction factor 
+  mutate(particle.L.master = CF * Particles.L_uncorrected)
 
+# read in concentration data
+samplessfei <- sfei %>% 
+  mutate(Conc = particle.L.master)
+
+#make new dataframe to plot both histograms together
+sampleSimplesfei <- samplessfei %>%
+  dplyr::select(Conc, Sample.Type) %>% 
+  droplevels()
+
+#make new dataframe to plot both histograms together
+dfsfei <- rbind(sampleSimplesfei)#,food.dilution.simple)
+```
+
+
+## Exceedances
+```{r}
+#calculate exceedance
+dfsfei_exceedance <- dfsfei %>% 
+  mutate(aboveThreshold = factor(case_when(
+    Conc < Threshold1 ~ "below Threshold 1",
+    Conc >= Threshold1 & Conc < Threshold2 ~ "above Threshold 1",
+    Conc >= Threshold2 & Conc < Threshold3 ~ "above Threshold 2",
+    Conc >= Threshold3 & Conc < Threshold4 ~ "above Threshold 3",
+    Conc >= Threshold4 ~ "above Threshold 4"
+  )))
+
+#give summary stat for exceedance
+exceedance <- dfsfei_exceedance  %>%
+  filter(Sample.Type == "sample") %>% 
+  dplyr::select(c(Conc, aboveThreshold)) %>%
+  group_by(aboveThreshold) %>%
+  dplyr::summarize(n = n()) %>% 
+  mutate(rel.freq = paste0(round(100 * n/sum(n), 0), "%"))
+
+kable(exceedance)
+```
+## Histogram
+```{r}
+#generate plot
+dfsfei_exceedance %>% 
+  filter(Conc > 0) %>% 
+  filter(Sample.Type == "sample") %>% 
+  ggplot(aes(x = Conc, fill = aboveThreshold))+
+  geom_histogram(aes(y = ..count../sum(..count..)),bins =30, alpha = 0.9, position = "identity") +
+  #geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.045), label = paste(Threshold1,"particles/L"),  color = "goldenrod2") +
+  #geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.055), label = ("Threshold1"),  color = "goldenrod2") +
+  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'goldenrod2', size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = 'tomato1', size = 1.3) +
+  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'mediumvioletred', size = 1.3) +
+  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	'gray33', size = 1.3) +
+  #geom_text(label = "Threshold 1", color = 'goldenrod2', x = log10(Threshold1) - 0.8*log10(Threshold1), y = 0.055, size = 6)+
+#   geom_text(label = "Threshold 2", color = 'tomato1', x = log10(Threshold2) - 0.8*log10(Threshold2), y = 0.055, size = 6)+
+ #  geom_text(label = "Threshold 3", color = 'mediumvioletred', x = log10(Threshold3) - 0.8*log10(Threshold3), y = 0.055, size = 6)+
+  # geom_text(label = "Threshold 4", color = 'gray33', x = Threshold4 - 0.8*log10(Threshold4), y = 0.055, size = 6)+
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  #coord_cartesian(xlim = c(0,100000000)) +
+  #scale_x_continuous(labels = scales::scientific) +
+   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)")) +
+  scale_y_continuous(name = "Relative Density", labels = scales::percent)+
+  scale_fill_manual(values = c("below Threshold 1"= "cyan3", 
+                               "above Threshold 1" = "goldenrod2", 
+                               "above Threshold 2" = "tomato1",
+                               "above Threshold 3" = "violetred4", 
+                               "above Threshold 4" = "gray33")) +
+  labs(title = "SF Bay and Sanctuary Surface Water Marine Microplastics Concentrations",
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+       caption = paste("Concentration data from sfeis et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
+  theme.type +
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+## ECDF
+
+```{r}
+#ECDF by System
+sfei %>% 
+filter(System != "") %>% 
+  ggplot(aes(x = particle.L.master)) + #, color = System))+
+  stat_ecdf(geom = "point", size = 1, alpha = 0.7) +
+  stat_ecdf(geom = "step", linetype = 'solid', alpha = 0.3, size = 1.5, color = 'azure3') +
+  scale_color_manual(values = wes_palette("Darjeeling1"))+
+  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'green', size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = 'yellow', size = 1.3) +
+  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'orange', size = 1.3) +
+  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	'red', size = 1.3) +
+  geom_text(label = "Threshold 1", color = 'green', x = Threshold1, y = 0.15, size = 6)+
+  geom_text(label = "Threshold 2", color = 'yellow', x = Threshold2, y = 0.22, size = 6)+
+  geom_text(label = "Threshold 3", color = 'orange', x = Threshold3, y = 0.35, size = 6)+
+  geom_text(label = "Threshold 4", color = 'red', x = Threshold4, y = 0.45, size = 6)+
+  ylab("Cumulative Density") +
+  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+  scale_y_continuous(labels = scales::percent)+
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  theme.type +
+  labs(title = "Global Surface Water Marine Microplastics Concentrations",
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+       caption = paste("Concentration data from sfeis et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 18),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
 
 
