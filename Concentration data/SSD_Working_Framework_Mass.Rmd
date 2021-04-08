@@ -99,6 +99,7 @@ Green rows are from Wigger et al. 2020. Grey rows were agreed upon by the ambien
 
 Reference: Wigger et al. 2020 (doi: 10.1002/ieam.4214)
 
+Note: Values may be slightly different than those presented in the shiny app as concentrations are converted from mg/L to µg/L ahead of calculations.
 
 # Tiers 1 & 2
 
