@@ -89,7 +89,6 @@ skimmed_aoc_flag_shallow <- skim(aoc_z_characters) %>%
 skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
   filter(character.min < 3) %>%
   pull(skim_variable)
-
 ```
 
 
@@ -133,12 +132,12 @@ df <- aoc_z %>%
     effect.metric == "EC50" ~"EC50",
     effect.metric == "EC10" ~ "EC10"
   ))) %>% 
-  mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  #mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
   #filter(effect.metric != "not_available") %>% 
   filter(exposure.route == "water") %>% 
   mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
-mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+#mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
   mutate(effect_10 = case_when( #convert ordinal to numeric
       effect == "Y" ~ 1,
       effect == "N" ~ 0
