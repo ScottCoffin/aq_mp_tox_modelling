@@ -16,7 +16,6 @@ output:
     toc: yes
 ---
 
-aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
 
 #Setup
 ```{r setup, include=FALSE}
@@ -42,7 +41,8 @@ library(readxl)
 ```{r}
 # load tox data
 #aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
-source("Tox Data/RDA_Maker.R")
+#source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 #Get possible combinations of variables. \
 possible_variables <- aoc_z %>%
         dplyr::select(treatments,
@@ -56,6 +56,56 @@ possible_variables <- aoc_z %>%
                exposure.route,
                lvl2_f) %>%
         distinct()
+
+df <- aoc_z %>% 
+  filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(organism.group, 
+                  #exposure.duration.d, 
+                  #lvl1_f, 
+                  dose.um3.mL.master, 
+                  dose.mg.L.master,
+                  dose.particles.mL.master,
+                  #dose.mg.L.master, 
+                  #dose.particles.mL.master, 
+                  #life.stage,
+                  bio.org, 
+                  #polymer, 
+                  #shape,
+                  #size.length.um.used.for.conversions, 
+                  #treatments, 
+                  effect, 
+                  effect.metric,
+                  #particle.volume.um3,
+                  #density.mg.um.3,
+                  #environment,
+                  exposure.route,
+                  dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
+                  lvl1_f
+                  )) %>% 
+  mutate(effect.metric = as.character(effect.metric)) %>% 
+  mutate(effect.metric = (case_when(
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+  #mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  #filter(effect.metric != "not_available") %>% 
+  filter(exposure.route == "water") %>% 
+  mutate(effect.metric = as.factor(effect.metric)) %>% 
+  drop_na() %>%  #drop missing
+#mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(effect, exposure.route, effect.metric)) %>%
+  mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
 #pull in model from DALEX
 final_model <- readRDS("final_rf_model.rds")
 ```
@@ -101,6 +151,23 @@ $m = pV*\frac{1}{1e12}*1000$
 Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the length (um) of each particle, and additional conversion factors for mg to g (x1000) and cm^3 to um^3 (1e-12).
 ```{r, include=FALSE}
 
+#variables to set for funcions
+      xmin = 1 #UM
+      alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
+      
+      mu1 <- 0.08
+      mu2 <- 0.44
+      sd1 <- 0.03
+      sd2 <- 0.19
+      lambda1 <- 0.06
+      lambda2 <- 0.94
+        
+      d.alpha = 73.8 #tail heaviness
+      d.beta = 69.9  #asymmetry
+      d.mu = 0.840   #location
+      d.delta = 0.0972 #scale
+
+
 X.func <- function (X){
   success <- FALSE
   while (!success){
@@ -124,22 +191,7 @@ synthetic_data_builder <- function(count, volume_l, addedfactors){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
       set.seed(123)
-  
-      xmin = 1 #UM
-      alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-      
-      mu1 <- 0.08
-      mu2 <- 0.44
-      sd1 <- 0.03
-      sd2 <- 0.19
-      lambda1 <- 0.06
-      lambda2 <- 0.94
-        
-      d.alpha = 73.8 #tail heaviness
-      d.beta = 69.9  #asymmetry
-      d.mu = 0.840   #location
-      d.delta = 0.0972 #scale
-        
+
       Data <- data.frame(Size = numeric(0))
       
       for(i in 1:count){
@@ -227,7 +279,7 @@ add_prediction <- function(fun, ...){
 
 
 
-```{r}
+```{r, include=FALSE}
 ##++++++++++++++++++++++++++++++++++++++++
 ## Calculate Volume/Volume and estimate mass/volume
 ##++++++++++++++++++++++++++++++++++++++++
@@ -644,14 +696,6 @@ grid.arrange(p5, p6, p7, p8, p9, ncol = 2)
 summary(lm(ToxicityProbability ~ size.length.um.used.for.conversions * csf * particle.volume.um3, data = uniform_pred))
 ```
 
-
-
-
-
-
-
-
-
 HIGHLIGHT AREA UNDER THE CURVE
 If we go down to lower number, we would not adequately mimic distribution. Stick to creating 1E5 particles, then change volume. 
 Could capture variability for small bumbers by simulating small number of particles
@@ -679,7 +723,53 @@ Big assumption: all particle toxicities are ADDITIVE! Depends on effect mechanis
 
 # Dose-response curves
 
+```{r}
+#rea in models
+readRDS("ML Models/FinalModels/final_rf_model.rds")
+
+df_expand = df 
+
+org_endpoint_comb <- df %>%
+  dplyr::select(organism.group, bio.org, lvl1_f) %>%
+  distinct() 
+
+df_expand <- org_endpoint_comb %>%
+  expand_grid(dose.um3.mL.master = seq(min(df$dose.um3.mL.master), max(df$dose.um3.mL.master), length.out = 100), dose.surface.area.um2.mL.master = seq(min(df$dose.surface.area.um2.mL.master), max(df$dose.surface.area.um2.mL.master), length.out = 100))
+
+#Ran the code below too to see if the glm methods were the same. They are returning the same response. 
+df_expand$prob <- predict(full.model, df_expand, type = "response")
+
+for(row in 1:nrow(org_endpoint_comb)){
+  slice <- org_endpoint_comb[row,]
+  doses <- inner_join(df_expand, slice) %>%
+    dplyr::select(-organism.group, -bio.org, -lvl1_f) %>%
+    pivot_longer(cols = -prob, names_to = "type", values_to = "values")
+ plot <- ggplot(doses) + geom_point(aes(x = values, y = prob)) + facet_wrap(type~., scales = "free") + labs(title = paste0(as.character(unlist(slice)), collapse = "_"))
+  ggsave(plot = plot, filename = paste0(paste0(as.character(unlist(slice)), collapse = "_"), ".png"), path = "Tox Data/figures")
+  
+}  
+
+```
+
+
+
 # SSD
+
+```{r}
+
+df_expand_sensitivity_distribution <- df_expand %>%
+  filter(prob > 0.5) %>%
+  group_by(organism.group, bio.org, lvl1_f) %>% #Can add other factors here if we want to flesh this out for each organism.
+  summarise(dose.um3.mL.master = min(dose.um3.mL.master), dose.surface.area.um2.mL.master = min(dose.surface.area.um2.mL.master)) %>%
+  ungroup()
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.surface.area.um2.mL.master))
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.um3.mL.master))
+
+
+```
+
 
 # Sensitivity Analysis
 it would be great to use the full approach to find out which model parameters and MP subclasses the HC5 is most sensitive to.And also if that HC5 is sensitive to which of Merel’s compartment-specific MP parameterisations is used.
