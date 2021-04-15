@@ -343,16 +343,8 @@ for(row in 1:nrow(org_endpoint_comb)){
 
 ```{r}
 
-df_expand_sensitivity_distribution <- df_expand %>%
-  filter(.outcome > 0.5) %>%
-  group_by_if(function(col) is.character(col) | 
-                                   is.factor(col)) %>% #Can add other factors here if we want to flesh this out for each organism.
-  summarise_if(is.numeric, min) %>%
-  ungroup()
 
-ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.particles.mL.master))
 
-#Other Option with automated extraction from the dataset. 
 df_expand_sensitivity_distribution <- df_expand %>%
   filter(prob > 0.5) %>%
   group_by(organism.group, bio.org, lvl1_f) %>% #Can add other factors here if we want to flesh this out for each organism.
@@ -362,6 +354,17 @@ df_expand_sensitivity_distribution <- df_expand %>%
 ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.surface.area.um2.mL.master))
 
 ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.um3.mL.master))
+
+#Other Option with automated extraction from the dataset. 
+
+df_expand_sensitivity_distribution <- df_expand %>%
+  filter(.outcome > 0.5) %>%
+  group_by_if(function(col) is.character(col) | 
+                                   is.factor(col)) %>% #Can add other factors here if we want to flesh this out for each organism.
+  summarise_if(is.numeric, min) %>%
+  ungroup()
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.particles.mL.master))
 
 
 ```
