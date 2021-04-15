@@ -289,70 +289,11 @@ Test synthetic data.
 ##++++++++++++++++++++++++++++++++++++++++
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
-p1 <- ggplot(synthetic_data_builder(count = 10000, 
+skim(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = Size, fill = size.category)) + 
-      geom_histogram(bins = 50, alpha = 0.7) + 
-      scale_x_log10()
+                                    ))
 
-p2 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = Shape, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7)
-
-p3 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = Density, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7)
-
-p4 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ),
-             aes(x = polymer, fill = polymer)) + 
-      geom_histogram(stat = "count")
-
-p7 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ),
-             aes(x = dose.um3.mL.master, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7) + 
-      scale_x_log10()
-
-p8 <- synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ) %>% 
-                            group_by(size.category) %>% 
-                            summarize(particles.mL = sum(dose.particles.mL.master)) %>% 
-                            ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + 
-                            geom_col()
-
-p9 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = dose.mg.L.master, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7) + 
-      scale_x_log10()
-grid.arrange(p1,
-             p2,
-             p3,
-             p4,
-             #p5, 
-             #p6,
-             p7,
-             p8,
-             #p9,
-             top = "Simulated Microplastics Dataset (n = 1e5)",
-             ncol = 2)
 ```
 
 
@@ -360,26 +301,14 @@ grid.arrange(p1,
 
 It may be possible to visualize discrete relationships of toxicity by creating a uniform distribution of particles within the parameter space of the training dataset, then plotting the predicted toxicities for different predictors.
 
-```{r}
-###### determine bounds for training dataset #####
-##NOTE: WILL NOT WORK IN MARKDOWN UNLESS WE PULL IN CODE FOR AOC FROM OTHER SCRIPT ###
-
-#first extract 
-particleCharacteristics <- aoc_z %>% 
-  dplyr::select(c(mass.per.particle.mg, polymer, shape, density.mg.um.3, size.length.um.used.for.conversions,
-                  particle.volume.um3, csf))
-
-skim(particleCharacteristics)
-```
-
 #### Generate uniform particles
 ```{r}
 n = 1000
 #Create uniform characteristics for base particle characteristics (size, shape, density)
-csf <- runif(n, min = 0.01, 0.99)
+csf <- runif(n, min = min(aoc_z$csf, na.rm = T), max(aoc_z$csf, na.rm = T)) #Set this to parameter space 
 #mass.per.particle.mg <- runif(n, min = 0, max = 1.65e+1)
-density.mg.um.3 <- runif(n, min = 8.75e-10, max = 1.53e-9)
-size.length.um.used.for.conversions <- runif(n, min = 1, max = 1000)
+density.mg.um.3 <- runif(n, min = min(aoc_z$density.mg.um.3, na.rm = T), max = max(aoc_z$density.mg.um.3, na.rm = T))
+size.length.um.used.for.conversions <- runif(n, min = min(aoc_z$size.length.um.used.for.conversions, na.rm = T), max = max(aoc_z$size.length.um.used.for.conversions, na.rm = T))
 
 #create uniform distribution of polymer types
 #pols <- c("PE", "PP", "PS", "PVC", "PET")
@@ -401,53 +330,6 @@ unif_df <- data.frame(csf, density.mg.um.3, size.length.um.used.for.conversions)
 
 skim(unif_df)
 ```
-##### Predict toxicities on uniform distribution of particles
-```{r}
-#log transform numeric variables first
-
-org_endpoint_comb <- df %>%
-  dplyr::select(organism.group, bio.org, lvl1_f) %>%
-  distinct() 
-
-df_expand <- org_endpoint_comb %>%
-  expand_grid(unif_df)
-
-#predict tox
-unif_pred <- predict(model, df_expand, type = "response")
-
-uniform_pred <- cbind(df_expand, unif_df)
-
-#summary(glm(ToxicityProbability ~ Size * Shape * polymer * um3, data = df_640p_p_f))
-p1 <- uniform_pred %>% ggplot(aes(x = dose.particles.mL.master, y = ToxicityProbability, color = polymer)) + geom_jitter(alpha = 0.3)
-
-p2 <- uniform_pred %>% ggplot(aes(x = dose.mg.L.master, y = ToxicityProbability, color = polymer)) + geom_point()
-
-p3 <- uniform_pred %>% ggplot(aes(x = dose.um3.mL.master, y = ToxicityProbability, color = polymer)) + geom_point()
-
-p4 <- uniform_pred %>% ggplot(aes(x = ToxicityProbability, fill = polymer)) + geom_histogram()
-
-p5 <- uniform_pred %>%  ggplot(aes(x = size.length.um.used.for.conversions, y = ToxicityProbability, color = csf)) + geom_point()
-
-p6 <- uniform_pred %>%  ggplot(aes(x = csf, y = ToxicityProbability, color = size.length.um.used.for.conversions)) + geom_point()
-
-p7 <- uniform_pred %>%  ggplot(aes(x = particle.volume.um3, y = ToxicityProbability, color =
-                                     size.length.um.used.for.conversions)) + geom_point()
-
-p8 <- uniform_pred %>%  ggplot(aes(x = mass.per.particle.mg, y = ToxicityProbability, color =
-                                     size.length.um.used.for.conversions)) + geom_point()
-
-p9 <- uniform_pred %>%  ggplot(aes(x = density.mg.um.3, y = ToxicityProbability, color =
-                                     size.length.um.used.for.conversions)) + geom_point()
-
-grid.arrange(p1, p2, p3, p4, ncol = 2)
-```
-```{r}
-grid.arrange(p5, p6, p7, p8, p9, ncol = 2)
-```
-```{r}
-summary(lm(ToxicityProbability ~ size.length.um.used.for.conversions * csf * particle.volume.um3, data = uniform_pred))
-```
-
 HIGHLIGHT AREA UNDER THE CURVE
 If we go down to lower number, we would not adequately mimic distribution. Stick to creating 1E5 particles, then change volume. 
 Could capture variability for small bumbers by simulating small number of particles
@@ -497,8 +379,6 @@ for(row in 1:nrow(org_endpoint_comb)){
 }  
 
 ```
-
-
 
 # SSD
 
