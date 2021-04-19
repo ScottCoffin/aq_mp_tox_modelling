@@ -16,7 +16,6 @@ output:
     toc: yes
 ---
 
-aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
 
 #Setup
 ```{r setup, include=FALSE}
@@ -36,28 +35,21 @@ library(skimr)
 library(drc) #dose-response curves
 library(readr)
 library(readxl)
+library(MASS)
 ```
 
-
+#The idea here is we want to be able to just change the dataset and model here and then the entire code base will react to the update. The challenge is that making the right synthetic and uniform datasets will differ depending on the column types. Is it safe to assume that there will be no numeric variables in the model besides the concentrations which will be present in the development of the synthetic and uniform datasets?  
 ```{r}
-# load tox data
-#aoc_z <- readRDS(file = paste(getwd(), "/Tox Data/aoc_z.Rda", sep = ""))
-source("Tox Data/RDA_Maker.R")
-#Get possible combinations of variables. \
-possible_variables <- aoc_z %>%
-        dplyr::select(treatments,
-               organism.group,
-               exposure.duration.d,
-               lvl1_f,
-               life.stage,
-               bio.org,
-               effect.metric,
-               environment,
-               exposure.route,
-               lvl2_f) %>%
-        distinct()
-#pull in model from DALEX
+# load tox data (cleaned for only what need to go into the model) and model
+
 final_model <- readRDS("final_rf_model.rds")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>%
+  dplyr::select(names(final_model$trainingData)[-1], csf, density.mg.um.3, size.length.um.used.for.conversions)
+actual_model_data <- final_model$trainingData %>%
+  dplyr::mutate(.outcome = as.numeric(as.character(.outcome))) 
+
+
+
 ```
 
 
@@ -101,6 +93,23 @@ $m = pV*\frac{1}{1e12}*1000$
 Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the length (um) of each particle, and additional conversion factors for mg to g (x1000) and cm^3 to um^3 (1e-12).
 ```{r, include=FALSE}
 
+#variables to set for funcions
+      xmin = 1 #UM
+      alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
+      
+      mu1 <- 0.08
+      mu2 <- 0.44
+      sd1 <- 0.03
+      sd2 <- 0.19
+      lambda1 <- 0.06
+      lambda2 <- 0.94
+        
+      d.alpha = 73.8 #tail heaviness
+      d.beta = 69.9  #asymmetry
+      d.mu = 0.840   #location
+      d.delta = 0.0972 #scale
+
+
 X.func <- function (X){
   success <- FALSE
   while (!success){
@@ -120,26 +129,11 @@ D.func <- function (D){
 
 
 
-synthetic_data_builder <- function(count, volume_l, addedfactors){
+synthetic_distributed_data_builder <- function(count, volume_l, addedfactors){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
       set.seed(123)
-  
-      xmin = 1 #UM
-      alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
-      
-      mu1 <- 0.08
-      mu2 <- 0.44
-      sd1 <- 0.03
-      sd2 <- 0.19
-      lambda1 <- 0.06
-      lambda2 <- 0.94
-        
-      d.alpha = 73.8 #tail heaviness
-      d.beta = 69.9  #asymmetry
-      d.mu = 0.840   #location
-      d.delta = 0.0972 #scale
-        
+
       Data <- data.frame(Size = numeric(0))
       
       for(i in 1:count){
@@ -216,351 +210,53 @@ synthetic_data_builder <- function(count, volume_l, addedfactors){
         mutate(particles.total = factor(as.character(count)))
 }
 
-add_prediction <- function(fun, ...){
+add_prediction <- function(fun, model, ...){
         fun(...) %>%
         mutate_if(~is.numeric(.) && (.) > 0, log10) %>%
-        bind_cols(predict(final_model, newdata = ., type = "prob") %>% 
+        bind_cols(predict(model, newdata = ., type = "prob") %>% 
         rename("ToxicityProbability" = `1`))                  
 }
 
 ```
 
 
-
-```{r}
-##++++++++++++++++++++++++++++++++++++++++
-## Calculate Volume/Volume and estimate mass/volume
-##++++++++++++++++++++++++++++++++++++++++
-Data <- synthetic_data_builder(count = 10000, 
-                               volume_l = 1, 
-                               addedfactors = possible_variables[488,]
-                               )
-
-volumes <- c(1, 10, 100, 1000)
-list <- list()
-n = 0
-  
-for(loop in volumes){
-    n = n + 1
-    list[[n]] <- synthetic_data_builder(count = 10000, 
-                                        volume_l = loop, 
-                                        addedfactors = possible_variables[488,]) %>%
-                  group_by(size.category) %>% 
-                  summarize(particles.L = sum(dose.particles.mL.master) * 1000) %>% 
-                  mutate(volume.L = factor(as.character(loop)))
-}
-
-summary_df <- bind_rows(list)
-
-ggplot() +
-  geom_col(data = summary_df, aes(x = volume.L, y = particles.L, fill = volume.L)) +
-  labs(title = "Particles/L in Simulated Datasets",
-       subtitle = "n = 10,000 particles diluted in various liters") +
-  theme_minimal(base_size = 20)
-```
-
-Parameters:
-Shape, density, size, 
-why do 3 polymers? Leave polymer out for now. 
-For mechanistic point of view- polymer does not matter.
-
+Test synthetic data.
 
 ```{r}
 ##++++++++++++++++++++++++++++++++++++++++
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
-p1 <- ggplot(synthetic_data_builder(count = 10000, 
+skim(synthetic_data_builder(count = 10000, 
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = Size, fill = size.category)) + 
-      geom_histogram(bins = 50, alpha = 0.7) + 
-      scale_x_log10()
-
-p2 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = Shape, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7)
-
-p3 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = Density, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7)
-
-p4 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ),
-             aes(x = polymer, fill = polymer)) + 
-      geom_histogram(stat = "count")
-#p5 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = mass.mg, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7 )+ scale_x_log10()
-#p6 <- ggplot(add_volume(data = Data, volume_l = 1000), aes(x = um3, fill = polymer)) + geom_histogram(bins = 50, alpha = 0.7)+ scale_x_log10()
-p7 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ),
-             aes(x = dose.um3.mL.master, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7) + 
-      scale_x_log10()
-
-p8 <- synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ) %>% 
-                            group_by(size.category) %>% 
-                            summarize(particles.mL = sum(dose.particles.mL.master)) %>% 
-                            ggplot(aes(x = size.category, y = particles.mL, fill = size.category)) + 
-                            geom_col()
-
-p9 <- ggplot(synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000, 
-                                    addedfactors = possible_variables[488,]
-                                    ), 
-             aes(x = dose.mg.L.master, fill = polymer)) + 
-      geom_histogram(bins = 50, alpha = 0.7) + 
-      scale_x_log10()
-grid.arrange(p1,
-             p2,
-             p3,
-             p4,
-             #p5, 
-             #p6,
-             p7,
-             p8,
-             #p9,
-             top = "Simulated Microplastics Dataset (n = 1e5)",
-             ncol = 2)
-```
-
-
-#### Determine which variables are most available
-```{r}
-#determine which lvl2_f are most abundant for crustacea data
-crust <- aoc_z %>% 
-  dplyr::select(c(life.stage, bio.org, effect.metric, environment, exposure.route,
-                  lvl2_f, exposure.duration.d, treatments, lvl1_f, organism.group,
-                  dose.particles.mL.master, dose.mg.L.master, effect_f, #effect_10,
-                  size.length.um.used.for.conversions, density.mg.um.3, csf)) %>% 
- #filter(treatments == 4) %>% 
-  filter(organism.group == "Crustacea") %>% 
-  filter(exposure.duration.d == 14) %>% 
-  filter(lvl1_f == "Fitness") %>% 
-  #filter(life.stage == "Early") %>% 
-  filter(bio.org == "organism") %>% 
- # filter(effect.metric == "NOEC") %>% 
-  #filter(environment == "Marine") %>% 
-  filter(exposure.route == "water") %>% 
- filter(lvl2_f == "Mortality")
- 
-skim(crust)
-```
-```{r}
-crust2 <- crust %>% drop_na(effect_f) %>%  mutate_if(~is.numeric(.) && (.) > 0, log10)
-
-#skim(crust2)
-#summary(glm(data = crust2, effect_10 ~ dose.particles.mL.master + dose.mg.L.master + size.length.um.used.for.conversions, na.action = "na.exclude", family = "binomial"))
-```
-
-
-## Predict Toxicities
-```{r}
-
-#Change this to select the volumes you want to test.
-volumes <- c(1, 10, 100, 1000)
-
-list <- list()
-n = 0
-  
-for(loop in volumes){
-    n = n + 1
-    list[[n]] <- add_prediction(synthetic_data_builder, count = 10000, 
-                                        volume_l = loop, 
-                                        addedfactors = possible_variables[488,]
-                                )
-}
-
-df_pred <- bind_rows(list)
-
-prob_summ <- df_pred %>% 
-  mutate(volume.L = as.factor(vol.L)) %>%  
-  group_by(volume.L) %>% 
-  summarize(tox = sum(ToxicityProbability))
-
-prob_summ %>% 
-  ggplot(aes(x = volume.L, y = tox, fill = volume.L)) +
-  geom_col()
-
-df_pred %>% 
-  ggplot(aes(x = factor(vol.L), y = ToxicityProbability)) + 
-  stat_ecdf(geom = "point", size = 2, color = "blue")+
-  stat_ecdf(geom = "step", linetype = 'solid', alpha = 0.6, size = 1.5) +
-  scale_y_continuous(labels = scales::percent)+
-  labs(title = "Cumulative Toxicity Probability",
-       subtitle = "n = 1000 particles/L; Crustacea acute Mortality",
-       caption = "Predicted Toxicity from Random Forest")
-```
-
-
-# Volume Constant, Particles different
-## Generate Particles
-### Datasets with different numbers of particles in 1 ml
-```{r, include=FALSE}
-
-count = c(5,10,20,40,80,160,320,480,640,1000,1280)
-
-list <- list()
-n = 0
-  
-for(loop in count){
-    n = n + 1
-    list[[n]] <- add_prediction(synthetic_data_builder, count = loop, 
-                                        volume_l = 0.001, 
-                                        addedfactors = possible_variables[488,]
-                                )
-}
-
-df_pred <- bind_rows(list)
-
-prob_summ <- df_pred %>%
-  group_by(particles.total) %>% 
-  summarize(tox = sum(ToxicityProbability)) %>%
-  ####convert >1 prob to 1 ###
-  mutate(probability = case_when(tox < 1 ~ tox, tox >=1 ~ 1)) %>% 
-  mutate(particles = as.numeric(as.character(particles.total))) %>% 
-  mutate(log.particles = log(particles))
+                                    ))
 
 ```
 
-Parameters:
-Shape, density, size, 
-why do 3 polymers? Leave polymer out for now. 
-For mechanistic point of view- polymer does not matter.
 
-
-## Predict Toxicities
-```{r}
-
-#plot dose response relationship
-prob_summ %>% 
-  ggplot(aes(x = particles, y = probability)) +
-  geom_point() + 
-  stat_smooth(method = drm, method.args = list(fct = LL.4()), se = FALSE) + #logit-4 paramater curve
-  scale_x_log10(name = "Particles/mL (1-5,000 um)") +
-  scale_y_continuous(labels = scales::percent_format(),
-                     name = "Probability of NOEC") +
-  labs(title = "Model-Predicted Probability of Toxicity",
-       subtitle = "Crustacea; 14-d exp; Mortality; NOEC; Early; Marine",
-       caption = "Random Forest Model; Simulated particle distribution (alpha = 1.6)") +
-  theme_minimal(base_size = 14) +
-  theme(plot.title = element_text(hjust = 0.5),
-        plot.subtitle = element_text(hjust = 0.5))
-
-
-```
-
-```{r}
-dose_response <- drm(data = prob_summ, probability ~ log.particles, fct = LL.4())
-summary(dose_response)
-```
-
-
-```{r}
-
-df <- add_prediction(synthetic_data_builder, count = 640, 
-                                        volume_l = 0.001, 
-                                        addedfactors = possible_variables[488,]
-                                )
-
-summary(glm(ToxicityProbability ~ Size * Shape * polymer * um3, data = df))
-p1 <- df %>% ggplot(aes(x = 10^Size, y = ToxicityProbability, color = polymer)) + geom_point()
-
-p2 <- df %>% ggplot(aes(x = ToxicityProbability, fill = size.category)) + geom_histogram()
-grid.arrange(p1,p2)
-```
-
-
-
-
-```{r}
-#test toxicity prediction with a single row
-
-dataFrame <- data.frame(Doubles=double(),
-                 Ints=integer(),
-                 Factors=factor(),
-                 Logicals=logical(),
-                 Characters=character(),
-                 stringsAsFactors=FALSE)
-newrow =data.frame(dose.particles.mL.master = 1)
-# Compare with monodisperse prediction
-monoDisperse_100 <- newrow %>%  
-  mutate(dose.particles.mL.master = 120000000) %>%  #120 particles/mL is about EC50 for above
-  mutate(mass.mg = 0.2263657 * dose.particles.mL.master) %>% #average mass x  particles
-  mutate(um3 = 50) %>% 
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
-  mutate(vol.mL = 1) %>% 
-  mutate(vol.L = vol.mL / 1000) %>% 
-  mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-  mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
-  mutate(particles.total = factor("120p"))
-
-predict(final_model, newdata = monoDisperse_100, type = "prob")
-```
 ### Uniform Distribution
 
 It may be possible to visualize discrete relationships of toxicity by creating a uniform distribution of particles within the parameter space of the training dataset, then plotting the predicted toxicities for different predictors.
 
-```{r}
-###### determine bounds for training dataset #####
-##NOTE: WILL NOT WORK IN MARKDOWN UNLESS WE PULL IN CODE FOR AOC FROM OTHER SCRIPT ###
-
-#first extract 
-particleCharacteristics <- aoc_z %>% 
-  dplyr::select(c(mass.per.particle.mg, polymer, shape, density.mg.um.3, size.length.um.used.for.conversions,
-                  particle.volume.um3, csf))
-
-skim(particleCharacteristics)
-```
-
 #### Generate uniform particles
 ```{r}
+<<<<<<< HEAD
+=======
+n = 1000
+>>>>>>> 508e2335b27f94933f95cad8551f8a1b93876383
 #Create uniform characteristics for base particle characteristics (size, shape, density)
-csf <- runif(n, min = 0.01, 0.99)
+csf <- runif(n, min = min(aoc_z$csf, na.rm = T), max(aoc_z$csf, na.rm = T)) #Set this to parameter space 
 #mass.per.particle.mg <- runif(n, min = 0, max = 1.65e+1)
-density.mg.um.3 <- runif(n, min = 8.75e-10, max = 1.53e-9)
-size.length.um.used.for.conversions <- runif(n, min = 1, max = 1000)
+density.mg.um.3 <- runif(n, min = min(aoc_z$density.mg.um.3, na.rm = T), max = max(aoc_z$density.mg.um.3, na.rm = T))
+size.length.um.used.for.conversions <- runif(n, min = min(aoc_z$size.length.um.used.for.conversions, na.rm = T), max = max(aoc_z$size.length.um.used.for.conversions, na.rm = T))
 
 #create uniform distribution of polymer types
-pols <- c("PE", "PP", "PS", "PVC", "PET")
-rel.ab <- c(0.2, 0.2, 0.2, 0.2, 0.2)
-polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
+#pols <- c("PE", "PP", "PS", "PVC", "PET")
+#rel.ab <- c(0.2, 0.2, 0.2, 0.2, 0.2)
+#polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
 
 #create data frame with uniform distirbutions
-uniform <- data.frame(cbind(csf, density.mg.um.3, size.length.um.used.for.conversions)) %>%
-  mutate_all(funs(as.numeric(as.character(.))))
-#bind polymer and convert to factor
-uniform <- cbind(uniform, polymer) %>% mutate_if(is.character, as.factor)
-
-#calculate higher order parameters and assign organism traits
-unif_df <- uniform %>%  
-  #particle characteristics
-  mutate(size.category = factor(case_when(
-    size.length.um.used.for.conversions < 10 & size.length.um.used.for.conversions >= 1 ~ "1µm < 10µm",
-    size.length.um.used.for.conversions < 100 & size.length.um.used.for.conversions >= 10 ~ "10µm < 100µm",
-    size.length.um.used.for.conversions < 1000 & size.length.um.used.for.conversions >= 100 ~ "100µm < 1mm",
-    size.length.um.used.for.conversions < 5000 & size.length.um.used.for.conversions >= 1000 ~ "1mm < 5mm"))) %>% 
+unif_df <- data.frame(csf, density.mg.um.3, size.length.um.used.for.conversions) %>%
   mutate(mass.per.particle.mg = density.mg.um.3 * size.length.um.used.for.conversions ^ 3 * 1E-9) %>% 
   mutate(particle.volume.um3 = pi/6 * (size.length.um.used.for.conversions ^ 3) * csf ^2 ) %>% #equation 4
   #volume
@@ -570,86 +266,10 @@ unif_df <- uniform %>%
   mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
   mutate(dose.mg.L.master = mass.per.particle.mg / vol.L) %>% 
     #organism/test system characteristics
-  mutate(treatments = 4) %>% 
-  mutate(organism.group = "Crustacea") %>% 
-  mutate(exposure.duration.d = 14) %>% 
-  mutate(lvl1_f = "Fitness") %>% 
-  mutate(life.stage= "Early") %>% 
-  mutate(bio.org = "organism") %>% 
-  mutate(effect.metric = "NOEC") %>% 
-  mutate(environment = "Marine") %>% 
-  mutate(exposure.route = "water") %>% 
-  mutate(lvl2_f = "Mortality") %>% 
   mutate_if(is.character, as.factor)
 
 skim(unif_df)
 ```
-
-##### Inspect distributions of calculated parameters
-```{r}
-#create a 2 x 3 plotting matrix
-par(mfrow = c(3,3))
-#plot
-hist(unif_df$csf)
-hist(unif_df$size.length.um.used.for.conversions)
-hist(unif_df$density.mg.um.3)
-hist(unif_df$dose.mg.L.master)
-hist(unif_df$dose.particles.mL.master)
-hist(unif_df$dose.um3.mL.master)
-hist(unif_df$mass.per.particle.mg)
-hist(unif_df$particle.volume.um3)
-#ggplot(unif_df, aes(x = size.category, y =..count..)) + geom_histogram(stat = "count")
-```
-
-
-##### Predict toxicities on uniform distribution of particles
-```{r}
-#log transform numeric variables first
-unif_df <- unif_df %>%  mutate_if(~is.numeric(.) && (.) > 0, log10) #model has everything log-transformed
-
-#predict tox
-unif_pred <- predict(final_model, newdata = unif_df, type = "prob") %>%  rename("ToxicityProbability" = `1`)
-uniform_pred <- cbind(unif_pred, unif_df)
-
-#summary(glm(ToxicityProbability ~ Size * Shape * polymer * um3, data = df_640p_p_f))
-p1 <- uniform_pred %>% ggplot(aes(x = dose.particles.mL.master, y = ToxicityProbability, color = polymer)) + geom_jitter(alpha = 0.3)
-
-p2 <- uniform_pred %>% ggplot(aes(x = dose.mg.L.master, y = ToxicityProbability, color = polymer)) + geom_point()
-
-p3 <- uniform_pred %>% ggplot(aes(x = dose.um3.mL.master, y = ToxicityProbability, color = polymer)) + geom_point()
-
-p4 <- uniform_pred %>% ggplot(aes(x = ToxicityProbability, fill = polymer)) + geom_histogram()
-
-p5 <- uniform_pred %>%  ggplot(aes(x = size.length.um.used.for.conversions, y = ToxicityProbability, color = csf)) + geom_point()
-
-p6 <- uniform_pred %>%  ggplot(aes(x = csf, y = ToxicityProbability, color = size.length.um.used.for.conversions)) + geom_point()
-
-p7 <- uniform_pred %>%  ggplot(aes(x = particle.volume.um3, y = ToxicityProbability, color =
-                                     size.length.um.used.for.conversions)) + geom_point()
-
-p8 <- uniform_pred %>%  ggplot(aes(x = mass.per.particle.mg, y = ToxicityProbability, color =
-                                     size.length.um.used.for.conversions)) + geom_point()
-
-p9 <- uniform_pred %>%  ggplot(aes(x = density.mg.um.3, y = ToxicityProbability, color =
-                                     size.length.um.used.for.conversions)) + geom_point()
-
-grid.arrange(p1, p2, p3, p4, ncol = 2)
-```
-```{r}
-grid.arrange(p5, p6, p7, p8, p9, ncol = 2)
-```
-```{r}
-summary(lm(ToxicityProbability ~ size.length.um.used.for.conversions * csf * particle.volume.um3, data = uniform_pred))
-```
-
-
-
-
-
-
-
-
-
 HIGHLIGHT AREA UNDER THE CURVE
 If we go down to lower number, we would not adequately mimic distribution. Stick to creating 1E5 particles, then change volume. 
 Could capture variability for small bumbers by simulating small number of particles
@@ -676,8 +296,84 @@ Big assumption: all particle toxicities are ADDITIVE! Depends on effect mechanis
 
 
 # Dose-response curves
+#Part of me just wants to set the uniform distribution to the distinct version of the dataset. That way we can define uncertainty for each dose response curve and are not extrapolating within ranges (sometimes people just get data for the max and min in a distribution that doesn't mean that we know what the middle should be.)
+
+```{r}
+
+org_endpoint_comb <- aoc_z %>%
+  dplyr::select(organism.group, bio.org, lvl1_f) %>%
+  distinct() 
+
+df_expand <- org_endpoint_comb %>%
+  expand_grid(unif_df)
+
+#Ran the code below too to see if the glm methods were the same. They are returning the same response. 
+df_expand$prob <- predict(final_model, df_expand, type = "response")
+
+for(row in 1:nrow(org_endpoint_comb)){
+  slice <- org_endpoint_comb[row,]
+  doses <- inner_join(df_expand, slice) %>%
+    dplyr::select(-organism.group, -bio.org, -lvl1_f) %>%
+    pivot_longer(cols = -prob, names_to = "type", values_to = "values")
+ plot <- ggplot(doses) + geom_point(aes(x = values, y = prob)) + facet_wrap(type~., scales = "free") + labs(title = paste0(as.character(unlist(slice)), collapse = "_"))
+  ggsave(plot = plot, filename = paste0(paste0(as.character(unlist(slice)), collapse = "_"), ".png"), path = "Tox Data/figures")
+}  
+
+
+
+#Testing this out for actual data, not extrapolated uniform data using the training dataset.
+org_endpoint_comb <- actual_model_data %>%
+  dplyr::select_if(function(col) is.character(col) | 
+                                   is.factor(col)) %>%
+  distinct() 
+
+df_expand <- actual_model_data 
+
+for(row in 1:nrow(org_endpoint_comb)){
+  slice <- org_endpoint_comb[row,]
+  doses <- inner_join(df_expand, slice) %>%
+    dplyr::select_if(is.numeric) %>%
+    pivot_longer(cols = -.outcome, names_to = "type", values_to = "values")
+ plot <- ggplot(doses) + geom_point(aes(x = values, y = .outcome)) + facet_wrap(type~., scales = "free") + labs(title = paste0(as.character(unlist(slice)), collapse = "_"))
+  ggsave(plot = plot, filename = paste0(paste0(as.character(unlist(slice)), collapse = "_"), ".png"), path = "Tox Data/figures")
+}  
+
+
+
+```
 
 # SSD
+
+```{r}
+
+
+
+df_expand_sensitivity_distribution <- df_expand %>%
+  filter(prob > 0.5) %>%
+  group_by(organism.group, bio.org, lvl1_f) %>% #Can add other factors here if we want to flesh this out for each organism.
+  summarise(dose.um3.mL.master = min(dose.um3.mL.master), dose.surface.area.um2.mL.master = min(dose.surface.area.um2.mL.master)) %>%
+  ungroup()
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.surface.area.um2.mL.master))
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.um3.mL.master))
+
+#Other Option with automated extraction from the dataset. 
+
+df_expand_sensitivity_distribution <- df_expand %>%
+  filter(.outcome > 0.5) %>%
+  group_by_if(function(col) is.character(col) | 
+                                   is.factor(col)) %>% #Can add other factors here if we want to flesh this out for each organism.
+  summarise_if(is.numeric, min) %>%
+  ungroup()
+
+ggplot(df_expand_sensitivity_distribution) + stat_ecdf(aes(x = dose.particles.mL.master))
+
+
+```
+
+#Run Merels distribution through the model to predict the liklihood of risk in the environment for organism endpoint combinations. 
+
 
 
 
