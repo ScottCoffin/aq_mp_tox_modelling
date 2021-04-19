@@ -34,13 +34,14 @@ library(ggdark)
 library(broom)
 library(knitr)
 library(ggdark)
+library(viridis)
 ```
 
 # Hazard Concentration and Alignment Parameters
 ```{r}
 ###### Choose concentration alignment parameters####
-alpha = 2.65 #(use 1.6 or 2.5)
-x2D_set = 10 #100 #upper size range (microns)
+alpha = 2.07 #personal comm. with Bart suggests 2.07 for marine surface water #(use 1.6 or 2.5)
+x2D_set = 5000 #100 #upper size range (microns)
 x1D_set = 1 #1 #lower size range (microns)
 
 #### Choose assessment factor ####
@@ -101,12 +102,18 @@ kable(data.frame(
 ```{r}
 #data import
 # Adam et al (2019) data needs correcting
-adam <- read.csv("Concentration data/Datasets/adam2019.csv", na.strings = "N.A.") %>% 
+adam <- read.csv("Concentration Data/Datasets/adam2019.csv", na.strings = "N.A.", fileEncoding="UTF-8-BOM") %>% 
   mutate(x1M = Min.particle.size.um,
          x2M = Max.particle.size.um) %>% 
   mutate(Sample.Type = "sample")
-```
 
+#SF bay data from Zhu et al (2021)
+sfBay <- read.csv("Concentration Data/Datasets/SFBayData.csv", na.strings = "NA", fileEncoding="UTF-8-BOM", stringsAsFactors = TRUE) %>% 
+  rename(x1M = Min.particle.size.um,
+         x2M = Max.particle.size.um) %>% 
+  mutate(Sample.Type = "sample")
+
+```
 
 ```{r}
 # Align Data
@@ -133,18 +140,42 @@ adam <- adam %>%
   mutate(particles.m3.master = ifelse(is.na(particles.single.median.m3), particles.m3.corrected_mean, particles.single.median.m3)) %>% 
   mutate(particle.L.master = particles.m3.master/1000) %>% 
   filter(particle.L.master > 0) %>% 
-  mutate(System = factor(System))
+  mutate(System = factor(System)) %>% 
+  mutate(source = "Adam")
+
+# correct aquatic concentrations for SF Bay
+sfBay_sub <- sfBay %>% 
+  mutate(CF = CFfnx(x1M = x1M, x2M = x2M)) %>%  #create new column with correction factor 
+  mutate(particle.L.master = particles.L.blank.corrected * CF) %>% 
+  mutate(source = "SFEI") %>% 
+  mutate(Reference = "Zhu et. al 2021") %>% 
+  rename(Sampling.location = general.location) %>% 
+  select(-c(particles.L.blank.corrected, particles.kg.blank.corrected, particles.fish.blank.corrected))
+
+## join datasets ##
+#first ensure that both datasets share all columns
+adam_sub <- adam %>% 
+  select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, CF,particle.L.master, source, Reference)) %>% 
+  mutate(sampleID = NA,
+         specific.location = NA,
+         latitude = NA,
+         longitude = NA,
+         sample.matrix = NA,
+         sample.matrix.specific = NA
+         )
+
+#join data
+globalData <- rbind(adam_sub, sfBay_sub) %>% 
+  mutate(Conc = particle.L.master) %>% 
+  mutate_if(is.character, as.factor)
 ```
-# Global Data
+#Plot
 
 ```{r}
-# read in concentration data
-samplesADAM <- adam %>% 
-  mutate(Conc = particle.L.master)
-
 #make new dataframe to plot both histograms together
-sampleSimpleADAM <- samplesADAM %>%
-  dplyr::select(Conc, Sample.Type) %>% 
+sampleSimpleADAM <- globalData %>%
+  dplyr::select(Conc, Sample.Type) %>%  
+  drop_na() %>% 
   droplevels()
 
 #make new dataframe to plot both histograms together
@@ -173,7 +204,64 @@ exceedance <- dfADAM_exceedance  %>%
 
 kable(exceedance)
 ```
-### Histogram
+### Concentrations Histogram
+```{r}
+binwidth <- 0.25
+
+globalData %>% 
+  ggplot(aes(x = particle.L.master,
+             fill = source,
+            # color = source, 
+             binwidth = binwidth)) +
+  # geom_histogram(aes(y = ..count.. / (sum(..count..) * binwidth)), 
+  #                binwidth = binwidth,
+  #                alpha = 0.9,
+  #                position = "stack") +
+  geom_density( alpha = 0.6, lwd = 0.8, adjust = 0.6) +
+  scale_fill_manual(name = "Location", labels = c("San Francisco Bay", "Global (no CA data)"),
+                    values = c("#FF410DFF", "6EE2FF99")) +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  labs(title = "Global Surface Water Marine Microplastics Concentrations",
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+       caption = paste("n = 24 studies, 77 sampling locations, n_samples = 559; corrected for size, blanks. Alpha = ",alpha))+
+  theme.type +
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+### Concentrations boxplot
+```{r}
+binwidth <- 0.25
+
+globalData %>% 
+  ggplot(aes(x = particle.L.master,
+             fill = source,
+            # color = source, 
+             binwidth = binwidth)) +
+ geom_boxplot() +
+  scale_fill_manual(name = "Location", labels = c("Global (no CA data)", "San Francisco Bay"),
+                    values = c( "6EE2FF99","#FF410DFF")) +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  labs(title = "Global Surface Water Marine Microplastics Concentrations",
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+       caption = paste("n = 24 studies, 77 sampling locations, n_samples = 559; corrected for size, blanks. Alpha = ",alpha))+
+  theme.type +
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14))
+```
+
+### Risk Characterization Histogram
 ```{r}
 #generate plot
 dfADAM_exceedance %>% 
@@ -204,7 +292,7 @@ dfADAM_exceedance %>%
                                "above Threshold 4" = "gray33")) +
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
+       caption = paste("Concentration data from 24 studies, 77 sampling locations, n = 559; corrected for size, blanks. Alpha = ",alpha))+
   theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),

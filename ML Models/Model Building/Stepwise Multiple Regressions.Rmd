@@ -32,7 +32,7 @@ library(viridis)
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+aoc_setup <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
 
 This script runs multiple linear regressions and performs stepwise feature elimination.
@@ -176,7 +176,13 @@ aoc_setup_select <- aoc_setup %>%
   mutate(log.dose.mg.L.master = log10(dose.mg.L.master)) %>%
   mutate(log.dose.um3.mL.master = log10(dose.um3.mL.master)) %>%
   mutate(log.size.length.um.used.for.conversions = log10(size.length.um.used.for.conversions)) %>%
-  mutate(log.exposure.duration.d = log10(exposure.duration.d))
+  mutate(log.exposure.duration.d = log10(exposure.duration.d)) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10))
+
 
 ```
 
@@ -197,7 +203,7 @@ Full Model
 ```{r, echo = FALSE}
 
 #Select the columns that we want to feed into the model for simplicity
-aoc_setup_select_1 <- aoc_z %>%
+aoc_setup_select_1 <- aoc_setup_select  %>%
   filter(life_f != "Not Reported") %>% 
   filter(acute.chronic_f != "Unavailable") %>% 
   filter(size_f != "Not Reported") %>% 
@@ -220,8 +226,7 @@ aoc_setup_select_1 <- aoc_z %>%
     # charge_f,
     # zetapotential.mV,
     # particle_source_f,
-    effect_10)
-
+    effect_10) 
 #Check for single level factors
 debug_contr_error(aoc_setup_select_1)
 
@@ -593,5 +598,3 @@ plot(cumHaz, facet = TRUE, add.data = TRUE, colors = "flat")
 pr <- ggpredict(survival, c("logdose.mg.L.master", "size_f"), type = "surv")
 plot(pr, colors = "social")
 ```
-
-

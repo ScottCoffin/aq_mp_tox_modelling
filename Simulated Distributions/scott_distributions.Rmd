@@ -88,7 +88,7 @@ set.seed(123)
 ## SIZE DISTRIBUTION
 ##++++++++++++++++++++++++++++++++++++++++
 xmin = 1 #UM
-alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
+alpha = 2.7 #2.7 is preferred in unpublished Kooi et al.
 X.func <- function (X){
   success <- FALSE
   while (!success){

@@ -40,6 +40,7 @@ library(gt)
 ```
 
 ```{r parameters, include=FALSE}
+## Bart suggests using 1-30 um for SSD because it captures bioavailability fairly well
 # Paramaters
 x2D_set = 5000 #100 #upper size range (microns)
 x1D_set = 100 #1 #lower size range (microns)
