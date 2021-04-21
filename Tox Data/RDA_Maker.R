@@ -835,7 +835,11 @@ aoc_z <- aoc_setup %>% # start with Heili's altered dataset (no filtration for t
   mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
                                                    chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
                                                    chem.exp.typ.nominal == "sorbed" ~ "Chemical Transfer"))) %>% 
-  dplyr::filter(chem.exp.typ.nominal_f == "Particle Only")  
+  dplyr::filter(chem.exp.typ.nominal_f == "Particle Only")   %>% 
+  #calculate maximum ingestible size (if not already in database)
+  mutate(max.size.ingest.mm = ifelse(is.na(max.size.ingest.mm), 
+                                     10^(0.9341 * log10(body.length.cm - 1.1200)) * 10,  #(Jamm et al 2020 Nature paper)correction for cm to mm
+                                     max.size.ingest.mm)) # if already present, just use that
 
 # final cleanup and factoring  
 
