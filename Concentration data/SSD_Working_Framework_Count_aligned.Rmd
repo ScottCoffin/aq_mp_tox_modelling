@@ -78,13 +78,487 @@ large_tier_upper_size <- 5000 #um
 
 ```
 
-```{r import and conversions, include=FALSE}
+```{r import, include=FALSE}
 # Data Import
 #require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
 
+![Agreed-upon framework](www/treshhold_framework.png)
+
+The figure above displays the working threshold framework for the ambient threshold group for the Microplastics Health Effects Workshop. 
+
+The current framework for generating SSDs includes the following parameters:
+
+Data pertaining to only aquatic organisms are included (marine and freshwater).  
+
+All taxa are included with the exception of bacterium and plants.  
+
+HONEC (Highest Observed No Effect Concentration) are excluded.  
+
+Assessment factors are applied to convert all other effect metrics into NOECs:
+
+![](www/AF_EM.png)
+
+Reference: Wigger et al. 2020 (doi: 10.1002/ieam.4214)  
+
+Assessment factors are applied to convert acute data into chronic:  
+
+![](www/AF_chronic.png)
+
+Green rows are from Wigger et al. 2020. Grey rows were agreed upon by the ambient threshold working group.
+
+Reference: Wigger et al. 2020 (doi: 10.1002/ieam.4214)
+
+Note: Values may be slightly different than those presented in the shiny app as concentrations are converted from particles/mL to particles/L ahead of calculations.
+
+# Illustrative Example
+## Re-scaling effect concentrations according to Ecological Relevent Metrics (ERMs)
+### Particles
+A monodisperse effect concentration (e.g. 10 micron polyethylene fragments) may be re-scaled to a default size range (e.g. 1 - 5,000 microns) using methods described in Kooi et al (2021). Re-scaling to a default size range allows direct comparison to exposure concentrations for a default size range (which may also be re-scaled). 
+
+The effect concentration must first be corrected for bioavailability. If the suspected effect mechanism depends on ingestion of the particle, particles that are too large to be ingested by the organism of interest should be considered to not be bioavailable. Further, if toxicity depends on tissue translocation, particles too large to be translocated will be considered to be unavailable.
+
+
+
+For an example, the tox database is queried to determine a real-world example. Studies in the database are filtered for all 'red' criteria, and only organismal and population-level biological organizations are considered, then default assessment metrics are applied.
+```{r}
+EC_mono <- aoc_z %>% 
+  filter(species == "magna") %>% 
+  filter(effect.metric == "NOEC") %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  summarize(min.NOEC.particles.L = min(dose_new)) %>% 
+  as.numeric()
+```
+
+The resulting real-life example of a *monodisperse* effect concentration is for a of a 40 um PE fragment for *C. Daphnia*. The minimum NOEC for acute mortality endpoints from these studies is:
+
+```{r}
+paste("40 um PE fragment Monodisperse Effect Concentration (C. Daphnia, acute mortality):", EC_mono, "(particles/L)")
+```
+
+In order to convert the *monodisperse* effect concentration to a *polydisperse* mixture of microplastic particles, a correction must occur which takes into consideration the ecologically relevant metric (ERM) [(Koelmans et al 2017)](https://europepmc.org/article/med/28971682). For a given ERM, the threshold may be related to both mono- or polydisperse particles interchangeably so long as the total magnitude of ERM remains the same (Koelmans et al, 2020). 
+
+$EC_{poly} * \mu_{x,poly} = EC_{mono} * \mu_{x,mono}$
+
+In this example of a monodisperse effect concentration for *C.Daphnia*, $EC_{mono}$ is in particle count per volume (i.e. 1e+05 particles/L), and $\mu_{x,mono}$ is the mean value of the ERM of interest in this study, which in the case of particle count, is 1. 
+```{r}
+mu_x.mono = 1
+```
+
+Particles follow a power law regime in the marine environment, so $\mu_{x,poly}$ may be calculated using the following equation (equation 4, Kooi et al 2021):
+
+$\mu_{x,poly} = \frac{1 - a_{x}}{2 - a_{x}}  \frac{X^{2-a_x}_{UL} - X^{2-a_x}_{LL}}{X^{1-a_x}_{UL} - X^{1-a_x}_{LL}}$
+
+Where $a_x$ relates to the power law distribution of microplastic particles in the marine environment (i.e. particle length; 2.07; Kooi et al 2021), and UL and LL are the upper and lower limits of bioavailability for this species/life stage/effect metric, respectively.
+
+In this example, the organism of interest is *Cerodaphnia magna*, which has an average body length of 0.5 cm, and an estimated maximum ingestible size range of 115 um particles, $L_{UL,m}$ would be equivalent to 115 um, and $L_{LL,m}$ would be the lower size range of the bin for which the SSD is built- in this example, 1 um as a lower limit.
+
+$\mu_{x,poly}$ for particles for the 1-115 um fraction in the marine environment is then calculated:
+```{r}
+###### if alpha does not equal 2 #####
+mux.polyfnx = function(a.x, 
+                       x_UL, 
+                       x_LL){
+  mux.poly = ((1-a.x)/(2-a.x)) * ((x_UL^(2-a.x) - x_LL^(2-a.x))/(x_UL^(1-a.x) - x_LL^(1-a.x)))
+  return(mux.poly)}
+
+#define parameters for C.daphnia
+upper.ingestible.length.um = 115
+lower.ingestible.length.um = 1
+
+# marine surface water alpha for length
+alpha = 2.07
+
+#compute
+mu_x.poly <- mux.polyfnx(a.x = alpha, 
+                         x_UL = upper.ingestible.length.um,
+                         x_LL = lower.ingestible.length.um)
+#report
+paste("mu_x_poly:", round(mu_x.poly,2))
+```
+Now that $\mu_{x,poly}$, $\mu_{x,mono}$, and $EC_{mono}$ are known for this example, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ may then be calculated using the equation:
+
+$EC_{poly} = \frac{EC_{mono} * \mu_{x,mono}}{\mu_{x,poly}}$
+
+```{r}
+EC_poly <- (EC_mono * mu_x.mono)/mu_x.poly
+paste("EC_poly:",signif(EC_poly,5), "particles/L")
+```
+Now that the *bioavailable*, *polydisperse* effect concentration is known for this example, in order to relate this threshold effect concentration to an *environmentally relevant* (e.g. 1 - 5,000 um) range of particles ($EC_{env}$; particles/L) a further correction must occur using the following equation (equation 2; Kooi et al 2021):
+
+$EC_{env} = EC_{poly} * CF_{bio}$
+
+Where $CF_{bio}$ is a dimensionless correction factor for the bioavailable effect concentration. This equation  rescales the bioavailable effect concentration (particles/L) to an environmentally relevant concentration for the microplastics default (D) size range (e.g. 1 to 5,000 um) according to the power law distribution for length (L) with slope $\alpha_L$ in Table S4 of Kooi et al (2021). $CF_{bio}$ is calculated as follows (Kooi et al 2021):
+
+$CF_{bio} = \frac{L^{1-a}_{UL,D} - L^{1-a}_{LL,D}}{L^{1-a}_{UL,B} - L^{1-a}_{LL,B}}$
+
+In this example, the organism of interest is *Cerodaphnia magna*, which has an average body length of 0.5 cm, and an estimated maximum ingestible size range of 115 um particles, $L_{UL,B}$ would be equivalent to 115 um, and $L_{LL,B}$ would be the lower size range of the bin for which the SSD is built- in this example, 1 um as a lower limit. Further, the upper limit (UL,D) and lower limit (LL,D) of the default size range are 5,000 and 1 um, respectively.
+```{r}
+#function to derive correction factor (CF) from Koelmans et al (equation 2)
+CFfnx = function(a, #default alpha from Koelmans et al (2020)
+                 x2D, #set detault values to convert ranges to (1-5,000 um) #5mm is upper defuault 
+                 x1D, #1 um is lower default size
+                 x2M, x1M){
+  
+  CF = (x2D^(1-a)-x1D^(1-a))/(x2M^(1-a)-x1M^(1-a))
+  
+  return(CF)
+}
+### Define params for ###
+alpha = alpha #table s4 for freshwater surface water
+x2D_set = 5000
+x1D_set = 1
+x2M = 115
+x1M = 1
+
+# calculate CF_bio
+CF_bio <- CFfnx(a = alpha, 
+                x2D = x2D_set,
+                x1D = x1D_set,
+                x1M = x1M, 
+                x2M = x2M)
+paste("CF_bio = ",signif(CF_bio,4), "(unitless)")
+```
+Finally, the $EC_{env}$ is calculated for particles/L as an ERM:
+
+```{r}
+EC_env <- EC_poly * CF_bio
+paste("EC_env = ",signif(EC_env,4), "Particles/L (1-5,000 um; marine surface water )")
+```
+
+
+
+### Volume
+
+In the case of an ERM of interest being volume, $\mu_{x,mono}$ is equivalent to the average volume of a the monodisperse particle (i.e. $\mu_{v,mono}$), calculated as follows:
+
+$\mu_{v,mono} = V_{i} = \frac{4}{3}\pi abc$
+
+Where $V_i$ is the volume for a given particle *i*, and a, b, and c are radii along the principal axes, corresponding to one-half times the length, width, and height of an ellipsoid. Upper and lower limits of bioavailability for volume correspond to the maximum ingestible size of particles and the lower limit of the size range to be aligned to (typically 1 micron).
+
+![Ellipsoid Volume](www/ellipsoid_volume.JPG)
+Image source: Wikipedia.com
+
+The above equation can be applied to fragments, thin films, microbeads, spheres, or fibers given a known length to width ratios for such shapes, with the height assumed to be equivalent to 0.67 x width (Kooi et al 2021). Width to length ratios differ for microplastics differ by compartment, with averages ranging from 0.67 to 0.77 (Kooi et al 2021; Table S3). Averaged values may be used to estimate the volume of polydisperse environmental mixtures of microplastics.
+
+Substituting $R_i$ for the length to width ratio of a particles, the formula simplifies to:
+
+$V_i = 0.111667*pi*R_i^2*L_i^3$
+
+Where $L_i$ is the length of the particle (um) and $R_i$ is the width:length ratio of the particle (unitless). 
+
+For the example of a 10 um PE fragment, the length was reported ($L_i = 10 \mu m$), however the width was not reported by the authors, so a default value of 0.77 is used, which is the average for marine surface water ($R_i = 0.77$). 
+
+$\mu_{v,mono}$ is calculated:
+```{r}
+volumefnx = function(R, L){
+  volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+  return(volume)}
+
+mu_v.mono = volumefnx(R = 0.77,
+                      L = 10)
+paste("mu_v.mono = ", signif(mu_v.mono,3), "um^3")
+```
+
+$\mu_{v,poly}$ is then calculated using the volume of particles that are bioaccessible (based on mouth opening and particle length), the volume of particles for the lower limit of the size range of interest.
+
+As discussed above, for the example of an organism of interest of *Cerodaphnia magna*, the estimated maximum ingestible size range is 115 um particles, $L_{UL,m}$ would be equivalent to 115 um, and $L_{LL,m}$ would be the lower size range of the bin for which the SSD is built- in this example, 1 um as a lower limit. Volumetric limits are calculated:
+
+```{r}
+R.ave = 0.77
+
+x_LL_v = volumefnx(R = R.ave,
+                      L = lower.ingestible.length.um)
+x_UL_v = volumefnx(R = R.ave,
+                      L = upper.ingestible.length.um)
+
+paste("x_UL_v = ",signif(x_UL_v,3), "um^3",
+      ";x_LL_v = ", signif(x_LL_v,3), "um^3")
+```
+$\mu_{v,poly}$ may now be calculated given these limits, using an alpha value of 1.48 for volume in the marine surface water environment (Kooi et al 2021):
+```{r}
+a.v = 1.48
+#compute
+mu_v.poly <- mux.polyfnx(a.x = a.v, 
+                         x_UL = x_UL_v,
+                         x_LL = x_LL_v)
+#report
+paste("mu_v_poly:", round(mu_v.poly,2), "um^3")
+```
+Now that $\mu_{v,poly}$, $\mu_{v,mono}$, and $EC_{mono}$ are known for this example for volume, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the volume ERM may then be calculated:
+
+```{r}
+EC_poly_v <- (EC_mono * mu_v.mono)/mu_v.poly
+paste("EC_poly_v:",signif(EC_poly_v,5), "particles/L")
+```
+Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly,v}$) to an environmentally relevant *polydisperse* mixture of particles for the volume ERM, an additional correction must be applied to rescale the threshold to the size range of interest (e.g. 1-5,000 um) using $CF_{bio}$, identical as for particles. 
+
+```{r}
+EC_env_v <- EC_poly_v * CF_bio
+paste("EC_env_v = ",signif(EC_env_v,4), "Particles/L (1-5,000 um; marine surface water )")
+```
+
+###  Surface Area
+For surface area as an ERM, $\mu_{sa,mono}$ is equivalent to the average surface area ($SA$) of the *monodisperse* particle for the effect threshold, calculated as follows:
+
+$\mu_{sa,mono} = SA = 4 \pi (\frac{(ab)^{1.6} + (ac)^{1.6} + (bc)^{1.6}}{3})^{1/1.6}$
+
+With a, b, c being equal to 0.5x length, 0.5x width, and 0.5x height, respectively. 
+
+For the example of a 10 um PE fragment, the length was reported ($a = 0.5* 10 \mu m$), however the width was not reported by the authors, so a default value of 0.77 is used ($b = 0.5 * 0.77 * 10 \mu m$), which is the average for marine surface water, and height is assumed to be 0.67 times the width ($c = 0.5 * 0.77 * 0.67 * 10 \mu m$) (Kooi et al 2021). Surface area is calculated:
+```{r}
+#surface area equation
+SAfnx = function(a,
+                 b,
+                 c){
+  SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
+    return(SA)}
+#calculate for 10 um fragment
+mu_sa.mono = SAfnx(a = 0.5 * 10,
+                   b = 0.5 * 0.77 * 10,
+                   c = 0.5 * 0.77 * 0.67 * 10)
+
+paste("mu_sa.mono = ", signif(mu_sa.mono,3), "um^2")
+```
+
+Since the probability distribution of ERM $sa$ (surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{sa,poly}$, can be calculated. For surface area of environmentally disperse particles, UL and LL are calculated using the equation for the surface area of an ellipsoid (above).
+
+```{r}
+# calculate lower
+x_LL_sa = SAfnx(a = 0.5 * lower.ingestible.length.um, 
+                b = 0.5 * 0.77 * lower.ingestible.length.um, 
+                c = 0.5 * 0.77 * 0.67 *lower.ingestible.length.um)
+
+# calculate lower
+x_UL_sa = SAfnx(a = 0.5 * upper.ingestible.length.um, 
+                b = 0.5 * 0.77 * upper.ingestible.length.um, 
+                c = 0.5 * 0.77 * 0.67 *upper.ingestible.length.um)
+
+paste("x_UL = ",round(x_UL_sa,2), "um^2",
+      ";x_LL = ", round(x_LL_sa,2), "um^2")
+```
+$\mu_{sa,poly}$ may now be calculated given these limits, using an alpha value of 1.98 for surface area in the marine surface water environment (Kooi et al 2021):
+```{r}
+a.sa = 1.5
+#compute
+mu_sa.poly <- mux.polyfnx(a.x = a.sa, 
+                         x_UL = x_UL_sa,
+                         x_LL = x_LL_sa)
+#report
+paste("mu_sa_poly:", round(mu_sa.poly,2), "um^2")
+```
+Now that $\mu_{v,poly}$, $\mu_{v,mono}$, and $EC_{mono}$ are known for this example for surface area, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the surface area ERM may then be calculated:
+
+```{r}
+EC_poly_sa <- (EC_mono * mu_sa.mono)/mu_sa.poly
+paste("EC_poly_sa:",signif(EC_poly_sa,5), "particles/L")
+```
+Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly,sa}$) to an environmentally relevant *polydisperse* mixture of particles for the surface area ERM, an additional correction must be applied to rescale the threshold to the size range of interest (e.g. 1-5,000 um) using $CF_{bio}$, identical as for particles. 
+
+```{r}
+EC_env_sa <- EC_poly_sa * CF_bio
+paste("EC_env_sa = ",signif(EC_env_sa,4), "Particles/L (1-5,000 um; marine surface water )")
+```
+
+### Mass
+In the case of an ERM of interest being total mass, $\mu_{x,mono}$ is equivalent to the average mass of a the monodisperse particle (i.e. $\mu_{m,mono}$), calculated as follows:
+
+$\mu_{m,mono} = m = pV*\frac{1}{1e12}*1e6$
+
+Where *m* is the mass (ug), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the radius of each particle (i.e. 1/2 * length, or 2.5 um), and additional conversion factors for g to ug (1e6) and cm^3 to um^3 (1e-12).
+
+For the example of a 10 um polyethylene fragment, the volume was calculated above (~ $207 um^3$), and the density of polyethylene was is estimated to be 0.935 g/cm^3. $\mu_{x,mono}$ is calculated:
+
+```{r}
+massfnx = function(R, L, p){
+  mass = p * #density (g/cm^3)
+    0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+    1/1e12 * 1e6 #correction factor
+  return(mass)}
+
+mu_m.mono <- massfnx(R = 0.77,  L = 10, p = 0.935)
+paste("mu_m,mono:", signif(mu_m.mono,3),"ug")
+```
+Since the probability distribution of ERM $m$ (mass) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{m,poly}$, can be calculated by first calculating the lower and upper ingestible masses of particles based on the length of the ingestible particle. The UL and LL are respectively defined as the upper and lower limit in ERM $m$ (mass) for which the mean is calculated, and $a_m$ is the power law exponent of mass. In the case of marine surface water,an $a_m$ of 1.32 is utilized (Kooi et al 2021; Table S4).
+
+For mass, UL and LL are mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate mass-based limits based on size, the volume of bioaccessible particles is first calculated using the equation for the volume of an ellipsoid, then multipied by the average density of particles in the 1-5,000 um distribution in the environmental compartment of interest (e.g.surface marine water: 1.10 g/cm^3) (Kooi et al 2021; table S3).
+
+```{r}
+p.ave = 1.1
+
+#lower limit
+x_LL_m = massfnx(R = R.ave, #width to length ratio
+               L = lower.ingestible.length.um, #lower bioaccessible length
+               p = p.ave) #average density
+#upper limit
+x_UL_m = massfnx(R = R.ave, #width to length ratio
+               L = upper.ingestible.length.um, #upper bioaccessible length
+               p = p.ave) #average density
+
+paste("x_UL = ",signif(x_UL_m,2), "ug",
+      ";x_LL = ", signif(x_LL_m,2), "ug")
+```
+
+$\mu_{m,poly}$ may now be calculated given these limits, using an alpha value of $a_m$ of 1.32 for the marine surface water environment (Kooi et al 2021):
+```{r}
+a.m = 1.32
+#compute
+mu_m.poly <- mux.polyfnx(a.x = a.m, 
+                         x_UL = x_UL_m,
+                         x_LL = x_LL_m)
+#report
+paste("mu_m_poly:", signif(mu_m.poly,2), "ug")
+```
+
+Now that $\mu_{m,poly}$, $\mu_{m,mono}$, and $EC_{mono}$ are known for this example for mass, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the mass ERM may then be calculated:
+
+```{r}
+EC_poly_m <- (EC_mono * mu_m.mono)/mu_m.poly
+paste("EC_poly_m:",signif(EC_poly_m,5), "particles/L")
+```
+Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly,sa}$) to an environmentally relevant *polydisperse* mixture of particles for the mass ERM, an additional correction must be applied to rescale the threshold to the size range of interest (e.g. 1-5,000 um) using $CF_{bio}$, identical as for particles. 
+
+```{r}
+EC_env_m <- EC_poly_m * CF_bio
+paste("EC_env_m = ",signif(EC_env_m,4), "Particles/L (1-5,000 um; marine surface water)")
+```
+
+### Specific Surface Area
+
+In the case of an ERM of interest being specific surface area, $\mu_{ssa,mono}$ is equivalent to the surface area of a 5 um PS sphere (i.e. $\mu_{sa,mono}$) divided by the mass (i.e. $\mu_{m,mono}$), calculated as follows:
+
+$\mu_{sa,mono} = SSA = \frac{SA}{m}$
+
+Where *SA* is the surface area (um^2) of the particle, and *m* is the mass (ug).
+
+```{r}
+mu_ssa.mono = mu_sa.mono/mu_m.mono
+paste("mu_ssa,mono:", formatC(mu_ssa.mono,format = "e", digits = 2),"um^2/ug")
+```
+
+Since the probability distribution of ERM $ssa$ (specific surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{ssa,poly}$, can be calculated, where UL and LL are respectively defined as the upper and lower limit in ERM $ssa$ (ssa) for which the mean is calculated, and $a_ssa$ is the power law exponent of specific surface area. For example, marine surface water has an $a_ssa$ of 1.98 (Kooi et al 2021; Table S4). For specific surface area, UL and LL are area/mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate area/mass-based limits based on size, the volume of bioaccessible particles  is first calculated using the equation for the surface area of an ellipsoid, then divided by the lower and upper bioavailable  mass of particles in the 1-5,000 um distribution in surface marine water, as calculated above.
+
+```{r}
+#max ingestible specific surface area
+SSAfnx = function(sa,
+                  m){
+  SSA = sa/m
+    return(SSA)}
+
+#calculate
+x_LL_ssa = SSAfnx(sa = x_LL_sa, m = x_LL_m)
+x_UL_ssa = SSAfnx(sa = x_UL_sa, m = x_UL_m)
+
+#report
+paste("x_UL_ssa = ", signif(x_UL_ssa,3), "um^2/ug",
+      ";x_LL_ssa = ", signif(x_LL_ssa,3), "um^2/ug")
+```
+
+$\mu_{m,poly}$ may now be calculated given these limits, using an alpha value of $a_ssa$ of 1.98 for the marine surface water environment (Kooi et al 2021):
+```{r}
+a.ssa = 1.98 # A_SSA for marine surface water
+  
+mu_ssa.poly <- mux.polyfnx(a.x = a.ssa, 
+            x_UL = x_UL_ssa,
+            x_LL = x_LL_ssa) 
+
+paste("mu_ssa,poly =",signif(mu_ssa.poly,3), "um^2/ug")
+```
+
+Now that $\mu_{ssa,poly}$, $\mu_{ssa,mono}$, and $EC_{mono}$ are known for this example for specific surface area, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the specific surface area ERM may then be calculated:
+
+```{r}
+EC_poly_ssa <- (EC_mono * mu_ssa.mono)/mu_ssa.poly
+paste("EC_poly_ssa:",signif(EC_poly_ssa,5), "particles/L")
+```
+Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly,ssa}$) to an environmentally relevant *polydisperse* mixture of particles for the specific surface area ERM, an additional correction must be applied to rescale the threshold to the size range of interest (e.g. 1-5,000 um) using $CF_{bio}$, identical as for particles. 
+
+```{r}
+EC_env_ssa <- EC_poly_ssa * CF_bio
+paste("EC_env_ssa = ",signif(EC_env_ssa,4), "Particles/L (1-5,000 um; marine surface water)")
+```
+
+## Aligning Occurence Data for Risk Characterization
+Given an upper limit (UL) and lower limit (LL) of the measured (M) and default size range (D), a dimensionless correction factor ($CF_{meas}$) for measured environmental concentrations may be calculated, which rescales the measured (M) number concentrations for a certain size range to the number concentration for the microplastics default (D) size range (e.g. 1 to 5,000 um) according to the power law distribution for length (L) with slope $\alpha_L$ in Table S4 of Kooi et al (2021). 
+
+The following equation for $CF_{meas}$ is identical for effect concentration ($CF_{Bio}$) except the bioavailable fraction of particles is denoted as UL,B and LL,B on the denominator (Koelmans et al., 2020; Kooi et al., 2021).
+
+$CF_{Meas} = \frac{L^{1-a}_{UL,D} - L^{1-a}_{LL,D}}{L^{1-a}_{UL,M} - L^{1-a}_{LL,M}}$
+
+For example, a marine surface water concentration of 10 particles/L for 300 - 5,000 um is used.
+```{r}
+C_meas = 10
+paste("C_meas =",C_meas, "particles/L (300 - 5,000 um; marine surface water)")
+```
+To compare this concentration to the environmentally relevant (1 - 5,000 um) effect threshold (EC_env) in particles/L (calculated above), $CF_{meas}$ is first calculated.
+
+```{r}
+### Define params for ###
+alpha = alpha #table s4 for freshwater surface water
+x2D_set = 5000
+x1D_set = 1
+x2M = 5000
+x1M = 300
+
+# calculate CF_bio
+CF_meas <- CFfnx(a = alpha, 
+                x2D = x2D_set,
+                x1D = x1D_set,
+                x1M = x1M, 
+                x2M = x2M)
+paste("CF_meas = ",signif(CF_meas,4), "(unitless)")
+```
+
+The resulting correction factor ($CF_{meas}$ (unitless) is then multiplied by the measured concentration ($C_{Meas}$) to obtain a rescaled exposure number concentration $C_{Env} =  CF_{meas} x C_{meas}$.
+```{r}
+C_env <- CF_meas * C_meas
+paste("C_env =",signif(C_env,4), "particles/L (1 - 5,000 um; marine surface water)")
+```
+This measured rescaled environmental concentration $C_{env}$ may then be directly compared to the rescaled effect thresholds for various ERM $EC_{env,x}$ to determine if risk is present using the traditional PNEC/PEC formula:
+
+```{r}
+risk <- tibble('ERM' = c("Particles", "Volume", "Surface Area", "Mass", "Specific Surface Area"),
+               'EC_env' = c(EC_env, EC_env_v, EC_env_sa, EC_env_m, EC_env_ssa)) %>% 
+  mutate('PNEC/PEC' = EC_env / C_env)
+
+# build gt table
+full_val_range_1 <- risk %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+
+gt(risk) %>% 
+  tab_header(title = "1-5,000 um Thresholds (Aligned) Compared to Environmental Concentration
+             (4,703 particles/L)", 
+             subtitle = "Thresholds presented in particles/L") %>% 
+  fmt_number(columns = vars(EC_env, 'PNEC/PEC'),
+             n_sigfig = 2,
+             use_seps = TRUE) %>% 
+    data_color(
+    columns = names(risk)[2:3],
+    colors = scales::col_numeric(
+      palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
+      domain = full_val_range_1),
+    alpha = 0.75) %>% 
+    tab_options(column_labels.hidden = FALSE) #%>% 
+    #as_raw_html() # return as htmlk 
+```
+In this case, the environmental concentration is nearly 5x lower than the effect threshold for particles, so exceedance of a NOEC for this particular endpoint/species (i.e. mortality,*C.Daphnia*) would not be expected to occur for that ERM. However, in the case of specific surface area as an ERM, risk is exceeded by a factor of 1.32.
+
+The above approach used for particles as an ecologically relevent metric may be applied for any other ecologically relevent metric for which particle distributions are characterized in the environmental compartment of interest. Below are proofs for additional ERM, including surface area, volume, mass, and specific surface area.
+
+# ERM/SSD Calculations
+The following script utilizes the above equations to calculate *a priori* effect thresholds for each of the ERM of interest for each species in the database, then calculates species sensitivity distributions using each ERM.
+
+```{r}
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
   filter(!environment %in% c("Terrestrial", "Not Reported"),
@@ -116,9 +590,9 @@ mux.polyfnx.2 = function(x_UL,x_LL){
 
 ### Calculating max ingestible parameters ###
 ## function to calcualte min and max ingestible surface area ##
-SAfnx = function(a = a, # a = 0.5 * length
-                 b = b, # b = 0.5 * width
-                 c = c # c = 0.5 * height (note that hieght is 0.67 * width)
+SAfnx = function(a, # a = 0.5 * length
+                 b, # b = 0.5 * width
+                 c # c = 0.5 * height (note that hieght is 0.67 * width)
 ){
   SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
   return(SA)}
@@ -137,13 +611,10 @@ massfnx = function(R, L, p){
   return(mass)}
 
 #max ingestible specific surface area
-SSAfnx = function(a, # a = 0.5 * length
-                  b,# b = 0.5 * width
-                  c,# c = 0.5 * height (note that hieght is 0.67 * width)
-                  m #mass (ug)
-){
-  SSA = (4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6))/m
-  return(SSA)}
+SSAfnx = function(sa, #surface area, calcaulted elsewhere
+                  m){ #mass, calculated elsewhere
+  SSA = sa/m
+    return(SSA)}
 
 ## parametrization ##
 # Define params for correction #
@@ -164,230 +635,194 @@ p.ave = 1.10 #average density in marine surface water
 x2D_set = small_tier_upper_size #upper size range (default)
 x1D_set = small_tier_lower_size #lower size range (default)
 x1M_set = small_tier_lower_size #lower size range for measured
+
 # calculate ERM for each species
 aoc_final_small <- aoc_intermediate  %>% 
+  # define upper size length for ingestion
   mutate(x2M = max.size.ingest.mm * 1000) %>% #max size ingest in um
-  mutate(CF_bio = CFfnx(x1M = x1M_set, x2M = x2M, x1D = x1D_set, x2D = x2D_set, a = alpha)) %>%  #calculate CF_bio
-  mutate(EC_env_p.particles.mL = dose.particles.mL.master * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
-  ## Surface area ERM
+ # calculate effect threshold for particles
+  mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
+  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
+  mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
+                                 x_UL= x2M, #upper ingestible size limit
+                                 x_LL = x1M_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
+                        x2M = x2M, #upper ingestible
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default
+                        a = alpha)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### Surface area ERM ####
   mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  mutate(x_LL_sa = SAfnx(a = x1D_set/2, b = x1D_set/2, c = (2/3)*(x1D_set/2))) %>%  #calculate lower ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = x2M/2, b = x2M/2, c = (2/3)*(x2M/2))) %>%  #calculate upper ingestible surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% #calculate mu_x_poly for surface area
-  mutate(EC_poly_sa.particles.mL = (EC_env_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  #calculate polydisperse effect concentration for surface area (particles/mL)
-  ## volume ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% #define mu_x_mono for alignment to ERM
-  mutate(x_LL_v = volumefnx(R = R.ave, L = x1D_set)) %>%  #calculate lower ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave, L = x2M)) %>%  #calculate maximum ingestible volume 
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% #calculate mu_x_poly for volume
-  mutate(EC_poly_v.particles.mL = (EC_env_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  #calculate polydisperse effect concentration for volume (particles/mL)
-  ## mass ERM
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% #define mu_x_mono for alignment to ERM (ug)
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  #calculate lower ingestible mas
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  #calculate upper ingestible mass
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% #calculate mu_x_poly for mass
-  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%  #calculate polydisperse effect concentration for volume (particles/mL)
-  ## specific surface area ERM
+  #calculate lower ingestible surface area
+  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
+                         b = 0.5 * R.ave * x1D_set, 
+                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+  #calculate upper ingestible surface area
+  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
+                         b = 0.5 * R.ave *x2M, 
+                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
+  #calculate mu_x_poly for surface area
+  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
+  #calculate polydisperse effect concentration for surface area (particles/mL)
+  mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
+  
+  #### volume ERM ####
+#define mu_x_mono for alignment to ERM
+  mutate(mu.v.mono = particle.volume.um3) %>% 
+  #calculate lower ingestible volume 
+  mutate(x_LL_v = volumefnx(R = R.ave,
+                            L = x1D_set)) %>%
+  #calculate maximum ingestible volume 
+  mutate(x_UL_v = volumefnx(R = R.ave,
+                            L = x2M)) %>%  
+  # calculate mu.v.poly
+  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
+    #calculate environmentally realistic effect threshold
+  mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
+  
+  #### mass ERM ###
+  #define mu_x_mono for alignment to ERM (ug)
+  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
+  #calculate lower ingestible mass
+  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
+  #calculate upper ingestible mass
+  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
+  # calculate mu.m.poly
+  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
+  
+  ##### specific surface area ERM ####
   mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  mutate(x_LL_ssa = SSAfnx(a = x1D_set/2, b = x1D_set/2, c = (2/3)*(x1D_set/2), m = x_LL_m)) %>%  #calculate lower ingestible SSA
-  mutate(x_UL_ssa = SSAfnx(a = x2M/2, b = x2M/2, c = (2/3)*(x2M/2), m = x_UL_m)) %>%  #calculate upper ingestible SSA  (um^2/ug)
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% #calculate mu_x_poly for specific surface area
-  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) #calculate polydisperse effect concentration for specific surface area (particles/mL)
+  #calculate lower ingestible SSA
+  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
+                           m = x_LL_m) #mass
+         ) %>% 
+  #calculate upper ingestible SSA  (um^2/ug)
+  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
+                           m = x_UL_m) #mass
+         ) %>% 
+  #calculate mu_x_poly for specific surface area
+  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  #calculate polydisperse effect concentration for specific surface area (particles/mL)
+  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
+```
 
+
+```{r}
 ##### SMALL TIER DATA ####
 ### Set size limits for tier
 x2D_set = large_tier_upper_size #upper size range (default)
 x1D_set = large_tier_lower_size #lower size range (default)
 x1M_set = large_tier_lower_size #lower size range for measured
 # calculate ERM for each species
+
 aoc_final_large <- aoc_intermediate  %>% 
+  # define upper size length for ingestion
   mutate(x2M = max.size.ingest.mm * 1000) %>% #max size ingest in um
-  mutate(CF_bio = CFfnx(x1M = x1M_set, x2M = x2M, x1D = x1D_set, x2D = x2D_set, a = alpha)) %>%  #calculate CF_bio
-  mutate(EC_env_p.particles.mL = dose.particles.mL.master * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
-  ## Surface area ERM
+ # calculate effect threshold for particles
+  mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
+  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
+  mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
+                                 x_UL= x2M, #upper ingestible size limit
+                                 x_LL = x1M_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
+                        x2M = x2M, #upper ingestible
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default
+                        a = alpha)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### Surface area ERM ####
   mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  mutate(x_LL_sa = SAfnx(a = x1D_set/2, b = x1D_set/2, c = (2/3)*(x1D_set/2))) %>%  #calculate lower ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = x2M/2, b = x2M/2, c = (2/3)*(x2M/2))) %>%  #calculate upper ingestible surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% #calculate mu_x_poly for surface area
-  mutate(EC_poly_sa.particles.mL = (EC_env_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  #calculate polydisperse effect concentration for surface area (particles/mL)
-  ## volume ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% #define mu_x_mono for alignment to ERM
-  mutate(x_LL_v = volumefnx(R = R.ave, L = x1D_set)) %>%  #calculate lower ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave, L = x2M)) %>%  #calculate maximum ingestible volume 
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% #calculate mu_x_poly for volume
-  mutate(EC_poly_v.particles.mL = (EC_env_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  #calculate polydisperse effect concentration for volume (particles/mL)
-  ## mass ERM
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% #define mu_x_mono for alignment to ERM (ug)
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  #calculate lower ingestible mas
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  #calculate upper ingestible mass
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% #calculate mu_x_poly for mass
-  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%  #calculate polydisperse effect concentration for volume (particles/mL)
-  ## specific surface area ERM
+  #calculate lower ingestible surface area
+  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
+                         b = 0.5 * R.ave * x1D_set, 
+                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+  #calculate upper ingestible surface area
+  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
+                         b = 0.5 * R.ave *x2M, 
+                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
+  #calculate mu_x_poly for surface area
+  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
+  #calculate polydisperse effect concentration for surface area (particles/mL)
+  mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
+  
+  #### volume ERM ####
+#define mu_x_mono for alignment to ERM
+  mutate(mu.v.mono = particle.volume.um3) %>% 
+  #calculate lower ingestible volume 
+  mutate(x_LL_v = volumefnx(R = R.ave,
+                            L = x1D_set)) %>%
+  #calculate maximum ingestible volume 
+  mutate(x_UL_v = volumefnx(R = R.ave,
+                            L = x2M)) %>%  
+  # calculate mu.v.poly
+  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
+    #calculate environmentally realistic effect threshold
+  mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
+  
+  #### mass ERM ###
+  #define mu_x_mono for alignment to ERM (ug)
+  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
+  #calculate lower ingestible mass
+  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
+  #calculate upper ingestible mass
+  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
+  # calculate mu.m.poly
+  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
+  
+  ##### specific surface area ERM ####
   mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  mutate(x_LL_ssa = SSAfnx(a = x1D_set/2, b = x1D_set/2, c = (2/3)*(x1D_set/2), m = x_LL_m)) %>%  #calculate lower ingestible SSA
-  mutate(x_UL_ssa = SSAfnx(a = x2M/2, b = x2M/2, c = (2/3)*(x2M/2), m = x_UL_m)) %>%  #calculate upper ingestible SSA  (um^2/ug)
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% #calculate mu_x_poly for specific surface area
-  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) #calculate polydisperse effect concentration for specific surface area (particles/mL)
+  #calculate lower ingestible SSA
+  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
+                           m = x_LL_m) #mass
+         ) %>% 
+  #calculate upper ingestible SSA  (um^2/ug)
+  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
+                           m = x_UL_m) #mass
+         ) %>% 
+  #calculate mu_x_poly for specific surface area
+  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  #calculate polydisperse effect concentration for specific surface area (particles/mL)
+  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
 
-![Agreed-upon framework](www/treshhold_framework.png)
 
-The figure above displays the working threshold framework for the ambient threshold group for the Microplastics Health Effects Workshop. 
-
-The current framework for generating SSDs includes the following parameters:
-
-Data pertaining to only aquatic organisms are included (marine and freshwater).  
-
-All taxa are included with the exception of bacterium and plants.  
-
-HONEC (Highest Observed No Effect Concentration) are excluded.  
-
-Assessment factors are applied to convert all other effect metrics into NOECs:
-
-![](www/AF_EM.png)
-
-Reference: Wigger et al. 2020 (doi: 10.1002/ieam.4214)  
-
-Assessment factors are applied to convert acute data into chronic:  
-
-![](www/AF_chronic.png)
-
-Green rows are from Wigger et al. 2020. Grey rows were agreed upon by the ambient threshold working group.
-
-Reference: Wigger et al. 2020 (doi: 10.1002/ieam.4214)
-
-Note: Values may be slightly different than those presented in the shiny app as concentrations are converted from particles/mL to particles/L ahead of calculations.
-
-# Re-scaling effect concentrations according to Ecological Relevent Metrics (ERMs)
-## Particles
-A monodisperse effect concentration (e.g. 5 micron spheres) may be re-scaled to a default size range (e.g. 1 - 5,000 microns) using methods described in Kooi et al (2021). Re-scaling to a default size range allows direct comparison to exposure concentrations for a default size range (which may also be re-scaled). 
-
-The effect concentration must first be corrected for bioavailability. If the suspected effect mechanism depends on ingestion of the particle, particles that are too large to be ingested by the organism of interest should be considered to not be bioavailable. Further, if toxicity depends on tissue translocation, particles too large to be translocated will be considered to be unavailable.
-
-Given an upper limit (UL) and lower limit (LL) of the measured and default size range, a dimensionless correction factor ($CF_{meas}$) for measured environmental concentrations or ($CF_{bio}$) for bioavailable effect concentrations may be calculated, which rescales the measured (M) or bioavailable (B) number concentrations for a certain size range to the number concentration for the microplastics default (D) size range (e.g. 1 to 5,000 um) according to the power law distribution for length (L) with slope $\alpha_L$ in Table S4 of Kooi et al (2021). 
-
-The following equation for $CF_{meas}$ is identical for effect concentration ($CF_{Bio}$) except the bioavailable fraction of particles is denoted as UL,B and LL,B on the denominator.
-
-$CF_{Meas} = \frac{L^{1-a}_{UL,D} - L^{1-a}_{LL,D}}{L^{1-a}_{UL,M} - L^{1-a}_{LL,M}}$
-
-The resulting correction factor ($CF_{meas}$, unitless is then multiplied by the measured concentration ($C_{Meas}$) to obtain a rescaled exposure number concentration $C_{Env} =  CF_{meas} x C_{meas}$.
-
-The monodisperse effect concentration in particles/L is corrected to an environmental polydisperse distribution of 1-5,000 um microplastics by first calculating $CF_{Bio}$ using the following equation:
-
-$CF_{Bio} = \frac{L^{1-a}_{5,000} - L^{1-a}_{1}}{L^{1-a}_{10} - L^{1-a}_{1}}$
-
-The threshold effect concentration for the bioavailable size fraction of particles ($EC_{poly}$; particles/L) can be related to the threshold effect concentration for the environmentally relevant (1 to 5,000 um) range of particles ($EC_{env}$; particles/L) with the following equation:
-
-$EC_{env} = EC_{poly} * CF_{bio}$
-
-In order to convert the monodisperse microplastic particle effect concentration a second correction must occur, which takes into consideration the ecologically relevant metric (ERM) [(Koelmans et al 2017)](https://europepmc.org/article/med/28971682). For a given ERM, the threshold may be related to both mono- or polydisperse particles interchangeably so long as the total magnitude of ERM remains the same (Koelmans et al, 2020). 
-
-##  Surface Area
-In the case of reactive oxygen species formation (ROS) as a key initiating event for toxicity (*REF NEEDED*), specific surface area (SSA) is hypothesized to be the ERM *(Koelmans et al, unpublished)*. Kooi et al (2021) provide an equation which preserves the ERM of interest (i.e. SSA) between mono- and polydisperse particles for a given threshold effect level:
-
-$EC_{poly} * \mu_{x,poly} = EC_{mono} * \mu_{x,mono}$
-
-Where $EC_{mono}$ (particles/L) is the effect number concentration for monodisperse particles and $\mu_{sa,mono}$ is the mean value for the ERM of interest (i.e. SA) for the monodisperse particles. The above equation may be used to convert both monodisperse and polydisperse distributions with any level of polydispersity. 
-
-For surface area as an ERM, $\mu_{sa,mono}$ is equivalent to the average surface area of a the particle, calculated as follows:
-
-$SA = 4*\pi*r^2$
-
-Where r = 0.5 x D, where D = 5 um (length).
-
-Since the probability distribution of ERM $sa$ (surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{sa,poly}$, can be calculated as:
-
-$\mu_{sa,poly} = \frac{1 - a_{sa}}{2 - a_{sa}}  \frac{X^{2-a_x}_{UL} - X^{2-a_x}_{LL}}{X^{1-a_x}_{UL} - X^{1-a_x}_{LL}}$
-
-Where UL and LL are respectively defined as the upper and lower limit in ERM $sa$ for which the mean is calculated, and $a_sa$ is the power law exponent of ERM $sa$. In the case of $a$ = 2 (the $a_{sa}$  for the area of microplastics in surface freshwater), an alternative equation must be used (Kooi et al 2021):
-
-$\mu_{sa,poly} =  \frac{ln(\frac{X_{UL}}{X_{LL}})} {X^{-1}_{LL} - X^{-1}_{UL}}$
-
-For surface area, UL and LL are calculated using the equation for the surface area of an ellipsoid:
-
-$S = 4 \pi (\frac{(ab)^{1.6} + (ac)^{1.6} + (bc)^{1.6}}{3})^{1/1.6}$
-
-With a, b, c being equal to 0.5 x length, 0.5 x width, and 0.5x height, respectively. The same minimum and maximum bioavailable values for length and width are used, while for a height a value of 0.67 x width is used. 
-
-## Volume
-
-In the case of an ERM of interest being total volume, $\mu_{x,mono}$ is equivalent to the average volume of a the monodisperse particle (i.e. $\mu_{v,mono}$), calculated as follows:
-
-$V = \frac{4}{3}{\pi}r^3$
-
-Where r = radius (length/2; 2.5 um).
-
-Since the probability distribution of ERM $v$ (volume) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{V,poly}$, can be calculated as:
-
-$\mu_{v,poly} = \frac{1 - a}{2 - a}  \frac{X^{2-a_{v}}_{UL} - X^{2-a_{v} }_{LL}}{X^{1-a_{v}}_{UL} - X^{1-a_{v}}_{LL}}$
-
-Where UL and LL are respectively defined as the upper and lower limit in ERM $v$ (volume) for which the mean is calculated, and $a_v$ is the power law exponent of mass. In the case of marine surface water,an $a_v$ of 1.48 is utilized (Kooi et al 2021; Table S4).
-
-For volume as a ERM, UL and LL are volume-based upper and lower limits, respectively of bioaccessibility based on the length of particles. To estimate volume-based limits based on particle length, the volume of bioaccessible particles is first calculated as follows:
-
-$V_{i} = \frac{4}{3}\pi abc$
-
-Where $V_i$ is the volume for a given particle *i*, and a, b, and c are radii along the principal axes, corresponding to one-half times the length, width, and height of an ellipsoid. Upper and lower limits of bioavailability for volume correspond to the maximum ingestible size of particles and the lower limit of the size range to be aligned to (typically 1 micron).
-
-![Ellipsoid Volume](Exposure Modelling/in-line_figures/ellipsoid_volume.JPG)
-
-
-The above equation can be applied to fragments, thin films, microbeads, spheres, or fibers given a known length to width ratios for such shapes, with the height assumed to be equivalent to 0.67 x width (Kooi et al 2021). Width to length ratios differ for microplastics differ by compartment, with averages ranging from 0.67 to 0.77 (Kooi et al 2021; Table S3). Averaged values may be used to estimate the volume of polydisperse environmental mixtures of microplastics.
-
-Substituting $R_i$ for the length to width ratio of a particles, the formula simplifies to:
-
-$V_i = 0.111667*pi*R_i^2*L_i^3$
-
-Where $L_i$ is the length of the particle.
-
-## Mass
-
-In the case of an ERM of interest being total mass, $\mu_{x,mono}$ is equivalent to the average mass of a the monodisperse particle (i.e. $\mu_{m,mono}$), calculated as follows:
-
-$m = pV*\frac{1}{1e12}*1e6$
-
-Where *m* is the mass (ug), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the radius of each particle (i.e. 1/2 * length, or 2.5 um), and additional conversion factors for g to ug (1e6) and cm^3 to um^3 (1e-12).
-
-Since the probability distribution of ERM $m$ (mass) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{m,poly}$, can be calculated as:
-
-$\mu_{m,poly} = \frac{1 - a}{2 - a}  \frac{X^{2-a_{m}}_{UL} - X^{2-a_{m} }_{LL}}{X^{1-a_{m}}_{UL} - X^{1-a_{m}}_{LL}}$
-
-Where UL and LL are respectively defined as the upper and lower limit in ERM $m$ (mass) for which the mean is calculated, and $a_m$ is the power law exponent of mass. In the case of marine surface water,an $a_m$ of 1.32 is utilized (Kooi et al 2021; Table S4).
-
-For mass, UL and LL are mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate mass-based limits based on size, the volume of bioaccessible particles is first calculated using the equation for the volume of an ellipsoid, then multipied by the average density of particles in the 1-5,000 um distribution in the environmental compartment of interest (e.g.surface marine water: 1.10 g/cm^3) (Kooi et al 2021; table S3).
-
-$X_{LL/UL} = pV*\frac{1}{1e12}*1e6$
-
-Where $X_{LL/UL}$ is the lower/upper limit of bioacccessible mass (ug), *p* is density (g/cm^3), *V* is volume (um^3), and additional conversion factors for mg to g (x1000) and cm^3 to um^3 (1e-12).
-
-## Specific Surface Area
-
-In the case of an ERM of interest being specific surface area, $\mu_{ssa,mono}$ is equivalent to the surface area of a 5 um PS sphere (i.e. $\mu_{sa,mono}$) divided by the mass (i.e. $\mu_{m,mono}$), calculated as follows:
-
-$SSA = \frac{SA}{m}$
-
-Where *SA* is the surface area (um^2) of the particle (5 um PS sphere), and *m* is the mass (ug).
-
-
-Since the probability distribution of ERM $ssa$ (specific surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{ssa,poly}$, can be calculated as:
-
-$\mu_{ssa,poly} = \frac{1 - a_{ssa}}{2 - a_{ssa}}  \frac{X^{2-a_{m}}_{UL} - X^{2-a_{m} }_{LL}}{X^{1-a_{m}}_{UL} - X^{1-a_{m}}_{LL}}$
-
-Where UL and LL are respectively defined as the upper and lower limit in ERM $ssa$ (ssa) for which the mean is calculated, and $a_ssa$ is the power law exponent of specific surface area. For example, marine surface water has an $a_ssa$ of 1.98 (Kooi et al 2021; Table S4).
-
-For specific surface area, UL and LL are area/mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate area/mass-based limits based on size, the volume of bioaccessible particles  is first calculated using the equation for the surface area of an ellipsoid, then divided by the lower and upper bioavailable  mass of particles in the 1-8-5,000 um distribution in surface marine water, as calculated above.
-
-$SSA = \frac{4 \pi (\frac{(ab)^{1.6} + (ac)^{1.6} + (bc)^{1.6}}{3})^{1/1.6}}{m}$
-
-With a, b, c being equal to 0.5 x length, 0.5 x width, and 0.5x height, respectively. The same minimum and maximum bioavailable values for length and width are used, while for a height a value of 0.67 x width is used. 
-
-
-# ERM = Particles
+## ERM = Particles
 ```{r}
-ERM <- "Particles"
+ERM <- "Unaligned"
 ```
 
-## Tiers 1 & 2
+### Tiers 1 & 2
 
 Tier 1 and 2 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -401,13 +836,13 @@ HC Metric = 95% CI (Tier 1); Mean (Tier 2)
 
 Data Quality = Pass Technical Quality Red Criteria
 
-### Data Filtering
+#### Data Filtering
 
-```{r size category selection, include=FALSE}
+```{r size category selection, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
@@ -426,7 +861,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier1_2_small <- aoc_final_small %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("1µm < 10µm", "10µm < 100µm")) 
@@ -484,9 +919,9 @@ endpoints_tier1_2_small <- tier1_2_small %>%
 
 plot(endpoints_tier1_2_small)
 ```
-### SSD Build
-#### Data Collapse
-```{r data collapse, include=FALSE}
+#### SSD Build
+##### Data Collapse
+```{r data collapse, include=TRUE}
 
 #First quartile large particles
 tier1_2_large_1q <- tier1_2_large %>% 
@@ -507,7 +942,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -521,13 +956,13 @@ gof_tier1_2_large_1q <- as.data.frame(ssd_gof(dists_tier1_2_large_1q)) %>% mutat
 set.seed(99)
 pred_tier1_2_large_1q <- predict(dists_tier1_2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 
-#add unique ID for multiplot
-pred_tier1_2_large_1q_particles <- pred_tier1_2_large_1q
-SSD_tier1_2_large_1q_particles <- SSD_tier1_2_large_1q
-
 #order data
 SSD_tier1_2_large_1q <- tier1_2_large_1q[order(tier1_2_large_1q$Conc), ]
 SSD_tier1_2_large_1q$frac <- ppoints(tier1_2_large_1q$Conc, 0.5)
+
+#add unique ID for multiplot
+pred_tier1_2_large_1q_unaligned <- pred_tier1_2_large_1q
+SSD_tier1_2_large_1q_unaligned <- SSD_tier1_2_large_1q
 
 tier1_2_large_1q_lcl <- c(pred_tier1_2_large_1q$lcl[5]) #CI95
 tier1_2_large_1q_hc5 <- c(pred_tier1_2_large_1q$est[5]) #HC5
@@ -553,7 +988,7 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 plot(tier1_2_large_1q_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 # ###### --modelling ####
 # dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -591,7 +1026,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -633,7 +1068,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
 plot(tier1_2_small_1q_ggplot)
 ```
 
-### Tier 1 & 2 Summary Table
+#### Tier 1 & 2 Summary Table
 
 Hazard Confidence Level = HC5  
 
@@ -697,7 +1132,323 @@ gt(smallsdf) %>%
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
 
-## Tiers 3 & 4
+
+## ERM = Particles
+```{r}
+ERM <- "Particles"
+```
+
+### Tiers 1 & 2
+
+Tier 1 and 2 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
+
+Hazard Confidence Level = HC5  
+
+Endpoints = All  
+
+Levels of Biological Organization = All  
+
+HC Metric = 95% CI (Tier 1); Mean (Tier 2)  
+
+Data Quality = Pass Technical Quality Red Criteria
+
+#### Data Filtering
+
+```{r size category selection2, include=TRUE}
+tier1_2_large <- aoc_final_large %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
+  #choose ERM
+         mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
+
+# Count observations and studies
+tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
+
+# ### 10 - 100 um
+# tier1_2_medium <- tier1_2 %>% 
+#   filter(size_f %in% c("10µm < 100µm")) 
+#   
+# # Count observations and studies
+# tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
+
+### 1 - 100 um
+tier1_2_small <- aoc_final_small %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
+  #choose ERM
+         mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(size_f %in% c("1µm < 10µm", "10µm < 100µm")) 
+  
+# Count observations and studies
+tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
+```
+
+```{r endpoint plots2, message=FALSE}
+#large
+endpoints_tier1_2_large <- tier1_2_large %>% 
+  group_by(lvl1_f, bio_f) %>% 
+  mutate(lvl1_count = n()) %>% 
+  group_by(lvl1_f, lvl1_count, bio_f) %>% 
+  summarise() %>%  
+  ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "100µm - 5mm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  theme_test() +
+  scale_x_discrete(labels = wrap_format(10)) 
+        
+
+# plot(endpoints_tier1_2_large)
+
+#medium
+# endpoints_tier1_2_medium <- tier1_2_medium %>% 
+#   group_by(lvl1_f, bio_f) %>% 
+#   mutate(lvl1_count = n()) %>% 
+#   group_by(lvl1_f, lvl1_count, bio_f) %>% 
+#   summarise() %>%  
+#   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
+#   geom_bar(stat = "identity") +
+#   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
+#   labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "10µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+#   theme_test() +
+#   scale_x_discrete(labels = wrap_format(10)) 
+#         
+# 
+# plot(endpoints_tier1_2_medium)
+
+#small
+endpoints_tier1_2_small <- tier1_2_small %>% 
+  group_by(lvl1_f, bio_f) %>% 
+  mutate(lvl1_count = n()) %>% 
+  group_by(lvl1_f, lvl1_count, bio_f) %>% 
+  summarise() %>%  
+  ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
+  geom_bar(stat = "identity") +
+  scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  theme_test() +
+  scale_x_discrete(labels = wrap_format(10)) 
+        
+
+# plot(endpoints_tier1_2_small)
+```
+#### SSD Build
+##### Data Collapse
+```{r data collapse2, include=TRUE}
+
+#First quartile large particles
+tier1_2_large_1q <- tier1_2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+#First quartile medium particles
+# tier1_2_medium_1q <- tier1_2_medium %>% 
+#   group_by(Species, Group) %>% 
+#   summarize(Conc = quantile(dose_new, 0.25))
+
+#First quartile small particles
+tier1_2_small_1q <- tier1_2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+```
+
+
+
+##### Large (10 - 5000 um) 
+
+```{r include=TRUE, warning=FALSE}
+###### --modelling ####
+dists_tier1_2_large_1q <- ssd_fit_dists(tier1_2_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_2_large_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_2_large_1q <- as.data.frame(ssd_gof(dists_tier1_2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_2_large_1q <- predict(dists_tier1_2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_2_large_1q <- tier1_2_large_1q[order(tier1_2_large_1q$Conc), ]
+SSD_tier1_2_large_1q$frac <- ppoints(tier1_2_large_1q$Conc, 0.5)
+
+#add unique ID for multiplot
+pred_tier1_2_large_1q_particles <- pred_tier1_2_large_1q
+SSD_tier1_2_large_1q_particles <- SSD_tier1_2_large_1q
+
+tier1_2_large_1q_lcl <- c(pred_tier1_2_large_1q$lcl[5]) #CI95
+tier1_2_large_1q_hc5 <- c(pred_tier1_2_large_1q$est[5]) #HC5
+pred_tier1_2_large_1q$est_format <-format(pred_tier1_2_large_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_2_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Microplastics Species Sensitivity Distribution",
+             subtitle = paste("(ERM = ",ERM,")")) +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "Tier 1/2, 100-5000 µm", x = "particles/L") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+plot(tier1_2_large_1q_ggplot)
+```
+
+```{r include=TRUE, warning=FALSE}
+# ###### --modelling ####
+# dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+# 
+# #autoplot(dists_tier1_2_medium_1q) #plots the distribution in ggplotier2
+# #### Goodness of fit ####
+# gof_tier1_2_medium_1q <- as.data.frame(ssd_gof(dists_tier1_2_medium_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+# 
+# #### Prediction ####
+# set.seed(99)
+# pred_tier1_2_medium_1q <- predict(dists_tier1_2_medium_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+# 
+# #order data
+# SSD_tier1_2_medium_1q <- tier1_2_medium_1q[order(tier1_2_medium_1q$Conc), ]
+# SSD_tier1_2_medium_1q$frac <- ppoints(tier1_2_medium_1q$Conc, 0.5)
+# 
+# tier1_2_medium_1q_lcl <- c(pred_tier1_2_medium_1q$lcl[5]) #CI95
+# tier1_2_medium_1q_hc5 <- c(pred_tier1_2_medium_1q$est[5]) #HC5
+# pred_tier1_2_medium_1q$est_format <-format(pred_tier1_2_medium_1q$est, digits = 3, scientific = TRUE)
+# 
+# #ggplot
+# tier1_2_medium_1q_ggplot <- ggplot(pred_tier1_2_medium_1q,aes_string(x = "est")) +
+#       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+#       geom_line(aes_string(y = "percent/100"), color = "gray") +
+#       geom_point(data = SSD_tier1_2_medium_1q,aes(x = Conc, y =frac, color = Group)) + 
+#       geom_text_repel(data = SSD_tier1_2_medium_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+#       scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+#       coord_trans(x = "log10") +
+#       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+#                          labels = trans_format("log10", scales::math_format(10^.x))) + 
+#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#       fill.type + #user-selected
+#       color.type + #user-selected
+#       theme.type #user theme
+# 
+# plot(tier1_2_medium_1q_ggplot)
+```
+
+##### Small (1 - 100 um) 
+
+```{r include=TRUE, warning=FALSE}
+###### --modelling ####
+dists_tier1_2_small_1q <- ssd_fit_dists(tier1_2_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_2_small_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_2_small_1q <- as.data.frame(ssd_gof(dists_tier1_2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_2_small_1q <- predict(dists_tier1_2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_2_small_1q <- tier1_2_small_1q[order(tier1_2_small_1q$Conc), ]
+SSD_tier1_2_small_1q$frac <- ppoints(tier1_2_small_1q$Conc, 0.5)
+
+tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
+tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
+pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
+
+#ggplot
+tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_line(aes_string(y = "percent/100"), color = "gray") +
+      geom_point(data = SSD_tier1_2_small_1q,aes(x = Conc, y =frac, color = Group)) + 
+      geom_text_repel(data = SSD_tier1_2_small_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Microplastics Species Sensitivity Distribution",
+             subtitle = paste("(ERM = ",ERM,")")) +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "Tier 1/2, 1-100 µm", x = "particles/L") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+plot(tier1_2_small_1q_ggplot)
+```
+
+#### Tier 1 & 2 Summary Table
+
+Hazard Confidence Level = HC5  
+
+Endpoints = All  
+
+Levels of Biological Organization = All  
+
+HC Metric = 95% CI (Tier 1); Mean (Tier 2)  
+
+Data Quality = Pass Technical Quality Red Criteria
+
+```{r}
+#save unique ID for ERM
+tier1_large_p <- tier1_2_large_1q_lcl
+tier2_large_p <- tier1_2_large_1q_hc5
+tier1_small_p <- tier1_2_small_1q_lcl
+tier2_small_p <- tier1_2_small_1q_hc5
+
+larges <- list(tier1_2_large_1q_lcl, tier1_2_large_1q_hc5,
+              tier1_2_large.obs[[1,1]], #n.obs
+              tier1_2_large.obs[[1,2]], #n.studies
+              tier1_2_large.obs[[1,3]], #n.taxa
+              tier1_2_large.obs[[1,4]]) #n.species
+
+# mediums <- list(tier1_2_medium_1q_lcl, tier1_2_medium_1q_hc5,
+#               tier1_2_medium.obs[[1,1]], #n.obs
+#               tier1_2_medium.obs[[1,2]], #n.studies
+#               tier1_2_medium.obs[[1,3]], #n.taxa
+#               tier1_2_medium.obs[[1,4]]) #n.species
+
+smalls <- list(tier1_2_small_1q_lcl, tier1_2_small_1q_hc5,
+              tier1_2_small.obs[[1,1]], #n.obs
+              tier1_2_small.obs[[1,2]], #n.studies
+              tier1_2_small.obs[[1,3]], #n.taxa
+              tier1_2_small.obs[[1,4]]) #n.species
+
+# Convert to data frames
+largesdf <- data.frame(matrix(unlist(larges), ncol = 6))
+# mediumsdf <- data.frame(matrix(unlist(mediums), ncol = 6))
+smallsdf <- data.frame(matrix(unlist(smalls), ncol = 6))
+
+# Rename columns
+colnames(largesdf) <- c("Tier_1", "Tier_2", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+# colnames(mediumsdf) <- c("Tier_1", "Tier_2", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+colnames(smallsdf) <- c("Tier_1", "Tier_2", "N_Obs.", "N_Doi", "N_Taxa", "N_Species")
+
+# Make tables
+
+gt(largesdf) %>% 
+  tab_header(title = "Tier 1/2, 100-5000 um", paste("Thresholds presented in particles/L; ERM = ",ERM)) %>% 
+  fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE) 
+
+             
+# gt(mediumsdf) %>% 
+#   tab_header(title = "Tier 1/2, 10-100 um", subtitle = "Thresholds presented in particles/L") %>% 
+#   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
+
+gt(smallsdf) %>% 
+  tab_header(title = "Tier 1/2, 1-100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+             ) %>% 
+  fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
+```
+
+### Tiers 3 & 4
 
 Tier 3 and 4 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -711,9 +1462,9 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-### Data Collapsing
+#### Data Collapsing
 
-```{r size category selection - tiers 3/4, include=FALSE}
+```{r size category selection3 - tiers 3/4, include=TRUE}
 
 #### Size filters ####
 
@@ -751,7 +1502,7 @@ tier3_4_small <- aoc_final_small %>%
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots - tiers 3/4, message=FALSE}
+```{r endpoint plots3 - tiers 3/4, message=FALSE}
 #large
 endpoints_tier3_4_large <- tier3_4_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -801,7 +1552,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
-```{r data collapse - tiers 3/4, include=FALSE}
+```{r data collapse3 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
 tier3_4_large_median <- tier3_4_large %>% 
@@ -820,9 +1571,9 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-### SSD Build
+#### SSD Build
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -864,7 +1615,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
 # dists_tier3_4_medium_median <- ssd_fit_dists(tier3_4_medium_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -902,7 +1653,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -944,7 +1695,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
 plot(tier3_4_small_median_ggplot)
 ```
 
-#### Tier 3 & 4 Summary Table
+##### Tier 3 & 4 Summary Table
 
 Hazard Confidence Level = HC5(Tier3)/HC10(Tier4)  
 
@@ -1007,12 +1758,12 @@ gt(smallsdf) %>%
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
-# ERM = Volume
+## ERM = Volume
 ```{r}
 ERM <- "Volume"
 ```
 
-## Tiers 1 & 2
+### Tiers 1 & 2
 
 Tier 1 and 2 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -1026,13 +1777,13 @@ HC Metric = 95% CI (Tier 1); Mean (Tier 2)
 
 Data Quality = Pass Technical Quality Red Criteria
 
-### Data Filtering
+#### Data Filtering
 
-```{r size category selection, include=FALSE}
+```{r size category selection4, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
@@ -1051,7 +1802,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier1_2_small <- aoc_final_small %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("1µm < 10µm", "10µm < 100µm")) 
@@ -1060,7 +1811,7 @@ tier1_2_small <- aoc_final_small %>%
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots, message=FALSE}
+```{r endpoint plots4, message=FALSE}
 #large
 endpoints_tier1_2_large <- tier1_2_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -1075,7 +1826,7 @@ endpoints_tier1_2_large <- tier1_2_large %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_large)
+# plot(endpoints_tier1_2_large)
 
 #medium
 # endpoints_tier1_2_medium <- tier1_2_medium %>% 
@@ -1107,11 +1858,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_small)
+# plot(endpoints_tier1_2_small)
 ```
-### SSD Build
-#### Data Collapse
-```{r data collapse, include=FALSE}
+#### SSD Build
+##### Data Collapse
+```{r data collapse4, include=TRUE}
 
 #First quartile large particles
 tier1_2_large_1q <- tier1_2_large %>% 
@@ -1132,7 +1883,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1179,7 +1930,7 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 plot(tier1_2_large_1q_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 # ###### --modelling ####
 # dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -1217,7 +1968,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1259,7 +2010,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
 plot(tier1_2_small_1q_ggplot)
 ```
 
-### Tier 1 & 2 Summary Table
+#### Tier 1 & 2 Summary Table
 
 Hazard Confidence Level = HC5  
 
@@ -1324,7 +2075,7 @@ gt(smallsdf) %>%
 
 ```
 
-## Tiers 3 & 4
+### Tiers 3 & 4
 
 Tier 3 and 4 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -1338,8 +2089,8 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-### Data Collapsing
-```{r size category selection - tiers 3/4, include=FALSE}
+#### Data Collapsing
+```{r size category selection5 - tiers 3/4, include=TRUE}
 
 #### Size filters ####
 
@@ -1377,7 +2128,7 @@ tier3_4_small <- aoc_final_small %>%
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots - tiers 3/4, message=FALSE}
+```{r endpoint plots5 - tiers 3/4, message=FALSE}
 #large
 endpoints_tier3_4_large <- tier3_4_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -1427,7 +2178,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
-```{r data collapse - tiers 3/4, include=FALSE}
+```{r data collapse5 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
 tier3_4_large_median <- tier3_4_large %>% 
@@ -1446,9 +2197,9 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-### SSD Build
+#### SSD Build
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1490,7 +2241,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
 # dists_tier3_4_medium_median <- ssd_fit_dists(tier3_4_medium_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -1528,7 +2279,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1570,7 +2321,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
 plot(tier3_4_small_median_ggplot)
 ```
 
-#### Tier 3 & 4 Summary Table
+##### Tier 3 & 4 Summary Table
 
 Hazard Confidence Level = HC5(Tier3)/HC10(Tier4)  
 
@@ -1634,12 +2385,12 @@ gt(smallsdf) %>%
 
 ```
 
-# ERM = Surface Area
+## ERM = Surface Area
 ```{r}
 ERM <- "Surface Area"
 ```
 
-## Tiers 1 & 2
+### Tiers 1 & 2
 
 Tier 1 and 2 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -1653,13 +2404,13 @@ HC Metric = 95% CI (Tier 1); Mean (Tier 2)
 
 Data Quality = Pass Technical Quality Red Criteria
 
-### Data Filtering
+#### Data Filtering
 
-```{r size category selection, include=FALSE}
+```{r size category selection6, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
@@ -1678,7 +2429,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier1_2_small <- aoc_final_small %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("1µm < 10µm", "10µm < 100µm")) 
@@ -1687,7 +2438,7 @@ tier1_2_small <- aoc_final_small %>%
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots, message=FALSE}
+```{r endpoint plots6, message=FALSE}
 #large
 endpoints_tier1_2_large <- tier1_2_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -1702,7 +2453,7 @@ endpoints_tier1_2_large <- tier1_2_large %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_large)
+# plot(endpoints_tier1_2_large)
 
 #medium
 # endpoints_tier1_2_medium <- tier1_2_medium %>% 
@@ -1734,11 +2485,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_small)
+# plot(endpoints_tier1_2_small)
 ```
-### SSD Build
-#### Data Collapse
-```{r data collapse, include=FALSE}
+#### SSD Build
+##### Data Collapse
+```{r data collapse6, include=TRUE}
 
 #First quartile large particles
 tier1_2_large_1q <- tier1_2_large %>% 
@@ -1759,7 +2510,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1805,7 +2556,7 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 plot(tier1_2_large_1q_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 # ###### --modelling ####
 # dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -1843,7 +2594,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1885,7 +2636,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
 plot(tier1_2_small_1q_ggplot)
 ```
 
-### Tier 1 & 2 Summary Table
+#### Tier 1 & 2 Summary Table
 
 Hazard Confidence Level = HC5  
 
@@ -1950,7 +2701,7 @@ gt(smallsdf) %>%
 
 ```
 
-## Tiers 3 & 4
+### Tiers 3 & 4
 
 Tier 3 and 4 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -1964,9 +2715,9 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-### Data Collapsing
+#### Data Collapsing
 
-```{r size category selection - tiers 3/4, include=FALSE}
+```{r size category selection7 - tiers 3/4, include=TRUE}
 
 #### Size filters ####
 
@@ -2004,7 +2755,7 @@ tier3_4_small <- aoc_final_small %>%
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots - tiers 3/4, message=FALSE}
+```{r endpoint plots7 - tiers 3/4, message=FALSE}
 #large
 endpoints_tier3_4_large <- tier3_4_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -2054,7 +2805,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
-```{r data collapse - tiers 3/4, include=FALSE}
+```{r data collapse7 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
 tier3_4_large_median <- tier3_4_large %>% 
@@ -2073,9 +2824,9 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-### SSD Build
+#### SSD Build
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2117,7 +2868,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
 # dists_tier3_4_medium_median <- ssd_fit_dists(tier3_4_medium_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -2155,7 +2906,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2197,7 +2948,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
 plot(tier3_4_small_median_ggplot)
 ```
 
-#### Tier 3 & 4 Summary Table
+##### Tier 3 & 4 Summary Table
 
 Hazard Confidence Level = HC5(Tier3)/HC10(Tier4)  
 
@@ -2261,12 +3012,12 @@ gt(smallsdf) %>%
 
 ```
 
-# ERM = Mass
+## ERM = Mass
 ```{r}
 ERM <- "Mass"
 ```
 
-## Tiers 1 & 2
+### Tiers 1 & 2
 
 Tier 1 and 2 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -2280,13 +3031,13 @@ HC Metric = 95% CI (Tier 1); Mean (Tier 2)
 
 Data Quality = Pass Technical Quality Red Criteria
 
-### Data Filtering
+#### Data Filtering
 
-```{r size category selection, include=FALSE}
+```{r size category selection8, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
@@ -2305,7 +3056,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier1_2_small <- aoc_final_small %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("1µm < 10µm", "10µm < 100µm")) 
@@ -2314,7 +3065,7 @@ tier1_2_small <- aoc_final_small %>%
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots, message=FALSE}
+```{r endpoint plots8, message=FALSE}
 #large
 endpoints_tier1_2_large <- tier1_2_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -2329,7 +3080,7 @@ endpoints_tier1_2_large <- tier1_2_large %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_large)
+# plot(endpoints_tier1_2_large)
 
 #medium
 # endpoints_tier1_2_medium <- tier1_2_medium %>% 
@@ -2361,11 +3112,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_small)
+# plot(endpoints_tier1_2_small)
 ```
-### SSD Build
-#### Data Collapse
-```{r data collapse, include=FALSE}
+#### SSD Build
+##### Data Collapse
+```{r data collapse8, include=TRUE}
 
 #First quartile large particles
 tier1_2_large_1q <- tier1_2_large %>% 
@@ -2386,7 +3137,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2432,7 +3183,7 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 plot(tier1_2_large_1q_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 # ###### --modelling ####
 # dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -2470,7 +3221,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2512,7 +3263,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
 plot(tier1_2_small_1q_ggplot)
 ```
 
-### Tier 1 & 2 Summary Table
+#### Tier 1 & 2 Summary Table
 
 Hazard Confidence Level = HC5  
 
@@ -2577,7 +3328,7 @@ gt(smallsdf) %>%
 
 ```
 
-## Tiers 3 & 4
+### Tiers 3 & 4
 
 Tier 3 and 4 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -2591,9 +3342,9 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-### Data Collapsing
+#### Data Collapsing
 
-```{r size category selection - tiers 3/4, include=FALSE}
+```{r size category selection9 - tiers 3/4, include=TRUE}
 
 #### Size filters ####
 
@@ -2631,7 +3382,7 @@ tier3_4_small <- aoc_final_small %>%
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots - tiers 3/4, message=FALSE}
+```{r endpoint plots9 - tiers 3/4, message=FALSE}
 #large
 endpoints_tier3_4_large <- tier3_4_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -2681,7 +3432,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
-```{r data collapse - tiers 3/4, include=FALSE}
+```{r data collapse9 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
 tier3_4_large_median <- tier3_4_large %>% 
@@ -2700,9 +3451,9 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-### SSD Build
+#### SSD Build
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2744,7 +3495,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
 # dists_tier3_4_medium_median <- ssd_fit_dists(tier3_4_medium_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -2782,7 +3533,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2824,7 +3575,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
 plot(tier3_4_small_median_ggplot)
 ```
 
-#### Tier 3 & 4 Summary Table
+##### Tier 3 & 4 Summary Table
 
 Hazard Confidence Level = HC5(Tier3)/HC10(Tier4)  
 
@@ -2888,12 +3639,12 @@ gt(smallsdf) %>%
 
 ```
 
-# ERM = Specific Surface Area
+## ERM = Specific Surface Area
 ```{r}
 ERM <- "Specific Surface Area"
 ```
 
-## Tiers 1 & 2
+### Tiers 1 & 2
 
 Tier 1 and 2 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -2907,13 +3658,13 @@ HC Metric = 95% CI (Tier 1); Mean (Tier 2)
 
 Data Quality = Pass Technical Quality Red Criteria
 
-### Data Filtering
+#### Data Filtering
 
-```{r size category selection, include=FALSE}
+```{r size category selection10, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
@@ -2932,7 +3683,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier1_2_small <- aoc_final_small %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
   #choose ERM
-         mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(size_f %in% c("1µm < 10µm", "10µm < 100µm")) 
@@ -2941,7 +3692,7 @@ tier1_2_small <- aoc_final_small %>%
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots, message=FALSE}
+```{r endpoint plots10, message=FALSE}
 #large
 endpoints_tier1_2_large <- tier1_2_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -2956,7 +3707,7 @@ endpoints_tier1_2_large <- tier1_2_large %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_large)
+# plot(endpoints_tier1_2_large)
 
 #medium
 # endpoints_tier1_2_medium <- tier1_2_medium %>% 
@@ -2988,11 +3739,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   scale_x_discrete(labels = wrap_format(10)) 
         
 
-plot(endpoints_tier1_2_small)
+# plot(endpoints_tier1_2_small)
 ```
-### SSD Build
-#### Data Collapse
-```{r data collapse, include=FALSE}
+#### SSD Build
+##### Data Collapse
+```{r data collapse10, include=TRUE}
 
 #First quartile large particles
 tier1_2_large_1q <- tier1_2_large %>% 
@@ -3013,7 +3764,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3055,7 +3806,7 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 plot(tier1_2_large_1q_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 # ###### --modelling ####
 # dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -3093,7 +3844,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3135,7 +3886,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
 plot(tier1_2_small_1q_ggplot)
 ```
 
-### Tier 1 & 2 Summary Table
+#### Tier 1 & 2 Summary Table
 
 Hazard Confidence Level = HC5  
 
@@ -3200,7 +3951,7 @@ gt(smallsdf) %>%
 
 ```
 
-## Tiers 3 & 4
+### Tiers 3 & 4
 
 Tier 3 and 4 are the same SSD. A different HC metric is selected to differentiate between the tiers. Specifically, Tier 1 uses the 95% CI whereas Tier 2 uses the Mean. See below for more details of specific parameters. 
 
@@ -3214,9 +3965,9 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-### Data Collapsing
+#### Data Collapsing
 
-```{r size category selection - tiers 3/4, include=FALSE}
+```{r size category selection11 - tiers 3/4, include=TRUE}
 
 #### Size filters ####
 
@@ -3254,7 +4005,7 @@ tier3_4_small <- aoc_final_small %>%
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
 
-```{r endpoint plots - tiers 3/4, message=FALSE}
+```{r endpoint plots11 - tiers 3/4, message=FALSE}
 #large
 endpoints_tier3_4_large <- tier3_4_large %>% 
   group_by(lvl1_f, bio_f) %>% 
@@ -3304,7 +4055,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
-```{r data collapse - tiers 3/4, include=FALSE}
+```{r data collapse11 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
 tier3_4_large_median <- tier3_4_large %>% 
@@ -3323,9 +4074,9 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-### SSD Build
+#### SSD Build
 
-#### Large (10 - 5000 um) 
+##### Large (10 - 5000 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3367,7 +4118,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-```{r include=FALSE, warning=FALSE}
+```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
 # dists_tier3_4_medium_median <- ssd_fit_dists(tier3_4_medium_median, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 # 
@@ -3405,7 +4156,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-#### Small (1 - 100 um) 
+##### Small (1 - 100 um) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3447,7 +4198,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
 plot(tier3_4_small_median_ggplot)
 ```
 
-#### Tier 3 & 4 Summary Table
+##### Tier 3 & 4 Summary Table
 
 Hazard Confidence Level = HC5(Tier3)/HC10(Tier4)  
 
@@ -3512,24 +4263,75 @@ gt(smallsdf) %>%
 ```
 
 
-# Multi plots
+## Multi plots
+
+### Simple aligned vs unaligned
 ```{r}
 ## Particles, Mass, Volume for Tier 1
 ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, fill = "green", color = "green") +
-      geom_line(aes_string(y = "percent/100"), color = "gray") +
-     # geom_point(data = SSD_tier1_2_large_1q_particles,aes(x = Conc, y =frac, color = Group)) + 
+      geom_line(aes_string(y = "percent/100"), color = "green") +
+      geom_point(data = SSD_tier1_2_large_1q_particles,aes(x = Conc, y =frac), color = "green") + 
+     
+  # Unailgned
+  geom_xribbon(data =pred_tier1_2_large_1q_unaligned, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "red", fill = "red") +
+  geom_line(data = pred_tier1_2_large_1q_unaligned,aes_string(y = "percent/100"), color = "red") +
+  geom_point(data = SSD_tier1_2_large_1q_unaligned,aes(x = Conc, y =frac), color = "red") + 
   
-      #geom_text_repel(data = SSD_tier1_2_large_1q, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   #Volume
  # geom_point(data = SSD_tier1_2_large_1q_volume,aes(x = Conc, y =frac, color = Group)) + 
-  geom_xribbon(data =pred_tier1_2_large_1q_volume, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "red", fill = "red") +
+  #geom_xribbon(data =pred_tier1_2_large_1q_volume, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "red", fill = "red") +
   #Mass
  # geom_point(data = SSD_tier1_2_large_1q_mass,aes(x = Conc, y =frac, color = Group)) + 
-  geom_xribbon(data =pred_tier1_2_large_1q_mass, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "blue") +
+  #geom_xribbon(data =pred_tier1_2_large_1q_mass, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "blue") +
   #surface area
  # geom_point(data = SSD_tier1_2_large_1q_surfacearea,aes(x = Conc, y =frac, color = Group)) + 
+  #geom_xribbon(data =pred_tier1_2_large_1q_surfacearea, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "yellow", fill = "yellow") +
+  #aesthetics
+  # scale_color_manual(name = "ERM",
+  #                      breaks = c("green", "red", "blue", "yellow"),
+  #                      labels = c("particles","volume", "mass", "surface area"),
+  #                      guide = "legend")+
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Microplastics Species Sensitivity Distribution",
+             subtitle = "Red = Unaligned, Green = Particles") +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+  labs(title = "Tier 1/2, 100-5000 µm", x = "particles/L") +
+      fill.type + #user-selected
+      color.type + #user-selected
+      theme.type #user theme
+
+```
+### all ERMs
+```{r}
+## Particles, Mass, Volume for Tier 1
+ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, fill = "green", color = "green") +
+      geom_line(aes_string(y = "percent/100"), color = "green") +
+      geom_point(data = SSD_tier1_2_large_1q_particles,aes(x = Conc, y =frac), color = "green") + 
+  
+  #unalighed
+  geom_point(data = SSD_tier1_2_large_1q_unaligned,aes(x = Conc, y =frac), color = "white") + 
+  geom_line(data = pred_tier1_2_large_1q_unaligned, aes_string(y = "percent/100"), color = "white") +
+  geom_xribbon(data = pred_tier1_2_large_1q_unaligned, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "white") +
+  
+  #Volume
+  geom_point(data = SSD_tier1_2_large_1q_volume,aes(x = Conc, y =frac), color = "red") + 
+   geom_line(data = pred_tier1_2_large_1q_volume, aes_string(y = "percent/100"), color = "red") +
+  geom_xribbon(data =pred_tier1_2_large_1q_volume, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "red", fill = "red") +
+  
+  #Mass
+  geom_point(data = SSD_tier1_2_large_1q_mass,aes(x = Conc, y =frac), color = "blue") + 
+  geom_line(data = pred_tier1_2_large_1q_mass, aes_string(y = "percent/100"), color = "blue") +
+  geom_xribbon(data =pred_tier1_2_large_1q_mass, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "blue") +
+  
+  #surface area
+  geom_point(data = SSD_tier1_2_large_1q_surfacearea,aes(x = Conc, y =frac), color = "yellow") + 
+  geom_line(data = pred_tier1_2_large_1q_surfacearea, aes_string(y = "percent/100"), color = "yellow") +
   geom_xribbon(data =pred_tier1_2_large_1q_surfacearea, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "yellow", fill = "yellow") +
+  
   #aesthetics
   scale_color_manual(name = "ERM",
                        breaks = c("green", "red", "blue", "yellow"),
@@ -3537,7 +4339,7 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
                        guide = "legend")+
       scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Microplastics Species Sensitivity Distribution",
-             subtitle = "Green = Particles, Red = Volume, Blue = Mass, Yellow = surface area") +
+             subtitle = "White = Unaligned, Green = Particles, Red = Volume, Yellow = surface area, blue = mass") +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
@@ -3549,20 +4351,17 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
 ```
 
 
-# Grand Summary
+## Grand Summary
 ```{r}
 ERM_small <- tibble(
   "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
   "Particle" = c(tier1_small_p, tier2_small_p, tier3_small_p, tier4_small_p), 
   "Volume" = c(tier1_small_v, tier2_small_v, tier3_small_v, tier4_small_v), 
   "Surface Area" = c(tier1_small_sa, tier2_small_sa, tier3_small_sa, tier4_small_sa),
-  "Mass" = c(tier1_small_m, tier2_small_m, tier3_small_m, tier4_small_m)#,
-  #"Specific Surface Area" = c(tier1_small_ssa, tier2_small_ssa, tier3_small_ssa, tier4_small_ssa)
+  "Mass" = c(tier1_small_m, tier2_small_m, tier3_small_m, tier4_small_m),
+  "Specific Surface Area" = c(tier1_small_ssa, tier2_small_ssa, tier3_small_ssa, tier4_small_ssa)
                     )
 
-### Not sure why mass estimates are SO small. For now, just multiplying by 1e16...
-#ERM_small <- ERM_small %>% 
- # mutate(Mass = Mass * 1E16)
 
 # build gt table
 full_val_range <- ERM_small %>% 
@@ -3572,11 +4371,11 @@ full_val_range <- ERM_small %>%
 
 gt(ERM_small) %>% 
   tab_header(title = "1-100 um Thresholds (Aligned)", subtitle = "Thresholds presented in particles/L") %>% 
-  fmt_number(columns = vars(Particle, Volume,'Surface Area', Mass),#, 'Specific Surface Area'), 
+  fmt_number(columns = vars(Particle, Volume,'Surface Area', Mass, 'Specific Surface Area'), 
              n_sigfig = 2,
              use_seps = TRUE) %>% 
     data_color(
-    columns = names(ERM_small)[2:5],
+    columns = names(ERM_small)[2:6],
     colors = scales::col_numeric(
       palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
       domain = full_val_range),
@@ -3593,12 +4392,9 @@ ERM_large <- tibble(
   "Particle" = c(tier1_large_p, tier2_large_p, tier3_large_p, tier4_large_p), 
   "Volume" = c(tier1_large_v, tier2_large_v, tier3_large_v, tier4_large_v), 
   "Surface Area" = c(tier1_large_sa, tier2_large_sa, tier3_large_sa, tier4_large_sa),
-  "Mass" = c(tier1_large_m, tier2_large_m, tier3_large_m, tier4_large_m)#,
-  #"Specific Surface Area" = c(tier1_large_ssa, tier2_large_ssa, tier3_large_ssa, tier4_large_ssa)
+  "Mass" = c(tier1_large_m, tier2_large_m, tier3_large_m, tier4_large_m),
+  "Specific Surface Area" = c(tier1_large_ssa, tier2_large_ssa, tier3_large_ssa, tier4_large_ssa)
                     )
-### Not sure why mass estimates are SO small. For now, just multiplying by 1e16...
-#ERM_large <- ERM_large %>% 
- # mutate(Mass = Mass * 1E16)
 
 full_val_range <- ERM_large %>% 
     ungroup %>% 
@@ -3607,11 +4403,11 @@ full_val_range <- ERM_large %>%
 
 gt(ERM_large) %>% 
   tab_header(title = "10-5,000 um Thresholds (Aligned)", subtitle = "Thresholds presented in particles/L") %>% 
-  fmt_number(columns = vars(Particle, Volume,'Surface Area', Mass),#, 'Specific Surface Area'), 
+  fmt_number(columns = vars(Particle, Volume,'Surface Area', Mass, 'Specific Surface Area'), 
              n_sigfig = 2,
              use_seps = TRUE) %>% 
     data_color(
-    columns = names(ERM_large)[2:5],
+    columns = names(ERM_large)[2:6],
     colors = scales::col_numeric(
       palette = paletteer::paletteer_d(palette = "ggsci::teal_material") %>% as.character(),
       domain = full_val_range),
