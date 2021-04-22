@@ -554,6 +554,7 @@ The above approach used for particles as an ecologically relevent metric may be 
 # ERM/SSD Calculations
 The following script utilizes the above equations to calculate *a priori* effect thresholds for each of the ERM of interest for each species in the database, then calculates species sensitivity distributions using each ERM.
 
+*Data Filtering by Quality*
 ```{r}
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
@@ -566,6 +567,76 @@ aoc_intermediate <- aoc_z %>%
          risk.13 != 0) #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
 #### Ecologically Relevant Metric calculations ####
 
+#examine available data as histogram
+Group_size <- aoc_intermediate %>% 
+  ggplot(aes(x = size.length.um.used.for.conversions, fill = Group)) +
+  geom_histogram(bins = 25) +
+  scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 9)) +
+  labs(title = "Filtered Data by Group") +
+  ylab("# of observations")+
+  xlab("Length (um)") +
+  theme.type +
+  scale_x_log10()
+
+endpoint_size <- aoc_intermediate %>% 
+  ggplot(aes(x = size.length.um.used.for.conversions, fill = lvl1_f)) +
+  geom_histogram(bins = 25) +
+   scale_fill_manual(name = "general endpoint", values = cal_palette(name = "superbloom3", type = "continuous", n = 9)) +
+  xlab("Length (um)") +
+  ylab("# of observations")+
+  labs(title = "Filtered Data by General Endpoint") +
+  theme.type +
+  scale_x_log10()
+
+#arrange histograms
+grid.arrange(Group_size, endpoint_size)
+```
+```{r}
+#examine available data as bar plots
+species_size_f <- aoc_intermediate %>% 
+  distinct(Species, size_f) %>% 
+  ggplot(aes(x = size_f, fill = Species)) +
+  geom_bar() +
+  scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 34)) +
+  labs(title = "Filtered Data by Species") +
+  xlab("Length (um)") +
+  ylab("# of Species")+
+  theme.type 
+  
+
+endpoint_size_f <- aoc_intermediate %>% 
+   distinct(lvl1_f, size_f) %>% 
+  ggplot(aes(x = size_f, fill = lvl1_f)) +
+  geom_bar() +
+  scale_fill_manual(values = cal_palette(name = "superbloom3", type = "continuous", n = 6)) +
+  labs(title = "Filtered Data by General Endpoint") +
+  ylab("# of Endpoints")+
+  xlab("Length (um)") +
+  theme.type 
+
+#arrange histograms
+grid.arrange(species_size_f, endpoint_size_f)
+```
+Do these size bins make sense for the endpoints of interest? I.e.food dilution and ROS.
+```{r}
+# determine if ROS is shown for any studies (no filtering)
+ROS_size <- aoc_intermediate %>% 
+  filter(lvl2_f %in% "Oxidative Stress") %>% 
+  ggplot(aes(x = size.length.um.used.for.conversions, fill = lvl2_f)) +
+  geom_histogram(bins = 25) +
+   scale_fill_manual(name = "endpoint", values = cal_palette(name = "superbloom3", type = "continuous", n = 9)) +
+  xlab("Length (um)") +
+  ylab("# of observations")+
+  labs(title = "Filtered Data by General Endpoint") +
+  theme.type +
+  scale_x_log10()
+
+ROS_size
+```
+
+
+*Data Alignments*
+```{r}
 ###function to derive correction factor (CF) from Koelmans et al (equation 2)
 CFfnx = function(a, #default alpha from Koelmans et al (2020)
                  x2D, #set detault values to convert ranges to (1-5,000 um) #5mm is upper defuault 
