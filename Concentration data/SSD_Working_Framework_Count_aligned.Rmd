@@ -1,7 +1,7 @@
 ---
 title: "SSD Working Framework: Particles/L"
-author: "Leah Thornton Hampton"
-date: "4/7/2021"
+author: "Scott Coffin & Leah Thornton Hampton"
+date: "4/21/2021"
 output:   
   html_document:
     code_folding: hide
@@ -54,7 +54,6 @@ large_tier_lower_size <- 10 #um
 large_tier_upper_size <- 5000 #um
 ```
 
-
 ```{r Theme, include=FALSE}
 #Theme type
      theme.type<- #theme_gray(base_size = 14)#,
@@ -86,7 +85,7 @@ large_tier_upper_size <- 5000 #um
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
 
-![Agreed-upon framework](www/treshhold_framework.png)
+![Agreed-upon framework](www/treshhold_framework_42121.png)
 
 The figure above displays the working threshold framework for the ambient threshold group for the Microplastics Health Effects Workshop. 
 
@@ -120,8 +119,6 @@ Note: Values may be slightly different than those presented in the shiny app as 
 A monodisperse effect concentration (e.g. 10 micron polyethylene fragments) may be re-scaled to a default size range (e.g. 1 - 5,000 microns) using methods described in Kooi et al (2021). Re-scaling to a default size range allows direct comparison to exposure concentrations for a default size range (which may also be re-scaled). 
 
 The effect concentration must first be corrected for bioavailability. If the suspected effect mechanism depends on ingestion of the particle, particles that are too large to be ingested by the organism of interest should be considered to not be bioavailable. Further, if toxicity depends on tissue translocation, particles too large to be translocated will be considered to be unavailable.
-
-
 
 For an example, the tox database is queried to determine a real-world example. Studies in the database are filtered for all 'red' criteria, and only organismal and population-level biological organizations are considered, then default assessment metrics are applied.
 ```{r}
@@ -233,8 +230,6 @@ Finally, the $EC_{env}$ is calculated for particles/L as an ERM:
 EC_env <- EC_poly * CF_bio
 paste("EC_env = ",signif(EC_env,4), "Particles/L (1-5,000 um; marine surface water )")
 ```
-
-
 
 ### Volume
 
@@ -551,6 +546,7 @@ gt(risk) %>%
     tab_options(column_labels.hidden = FALSE) #%>% 
     #as_raw_html() # return as htmlk 
 ```
+
 In this case, the environmental concentration is nearly 5x lower than the effect threshold for particles, so exceedance of a NOEC for this particular endpoint/species (i.e. mortality,*C.Daphnia*) would not be expected to occur for that ERM. However, in the case of specific surface area as an ERM, risk is exceeded by a factor of 1.32.
 
 The above approach used for particles as an ecologically relevent metric may be applied for any other ecologically relevent metric for which particle distributions are characterized in the environmental compartment of interest. Below are proofs for additional ERM, including surface area, volume, mass, and specific surface area.
@@ -564,7 +560,10 @@ aoc_intermediate <- aoc_z %>%
   filter(!environment %in% c("Terrestrial", "Not Reported"),
          org_f != "Bacterium",
          org_f != "Plant",
-         effect.metric != "HONEC")   
+         effect.metric != "HONEC",
+         tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
+         risk.13 != 0) #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
 #### Ecologically Relevant Metric calculations ####
 
 ###function to derive correction factor (CF) from Koelmans et al (equation 2)
@@ -722,7 +721,6 @@ aoc_final_small <- aoc_intermediate  %>%
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
 
-
 ```{r}
 ##### SMALL TIER DATA ####
 ### Set size limits for tier
@@ -816,7 +814,6 @@ aoc_final_large <- aoc_intermediate  %>%
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
 
-
 ## ERM = Particles
 ```{r}
 ERM <- "Unaligned"
@@ -840,8 +837,6 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -859,8 +854,6 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -869,6 +862,8 @@ tier1_2_small <- aoc_final_small %>%
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots, message=FALSE}
 #large
@@ -940,9 +935,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-
-
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1026,7 +1019,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1060,7 +1053,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1-100 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 100 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1127,11 +1120,10 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
-
 
 ## ERM = Particles
 ```{r}
@@ -1156,8 +1148,6 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection2, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -1175,8 +1165,6 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -1185,6 +1173,8 @@ tier1_2_small <- aoc_final_small %>%
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots2, message=FALSE}
 #large
@@ -1256,9 +1246,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-
-
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1342,7 +1330,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1376,7 +1364,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1-100 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 100 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1443,7 +1431,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
@@ -1462,7 +1450,7 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-#### Data Collapsing
+#### Data Filtering
 
 ```{r size category selection3 - tiers 3/4, include=TRUE}
 
@@ -1470,13 +1458,12 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 
 ### 100 - 5000 um
 tier3_4_large <-  aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
-         bio_f %in% c("Organism", "Population")) %>% 
+  filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
+         bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size_f %in% c("10µm < 100µm", "100µm < 1mm", "1mm < 5mm")) 
+  filter(size_f %in% c("100µm < 1mm", "1mm < 5mm")) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1488,11 +1475,10 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 10 um
+### 1 - 100 um
 tier3_4_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
-         bio_f %in% c("Organism", "Population")) %>% 
+  filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
+         bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
@@ -1501,6 +1487,8 @@ tier3_4_small <- aoc_final_small %>%
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots3 - tiers 3/4, message=FALSE}
 #large
@@ -1512,7 +1500,7 @@ endpoints_tier3_4_large <- tier3_4_large %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "10µm - 5mm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "100µm - 5mm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1552,6 +1540,10 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
+#### SSD Build
+
+##### Data Collapse
+
 ```{r data collapse3 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
@@ -1571,9 +1563,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-#### SSD Build
-
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1653,7 +1643,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1687,7 +1677,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1-100 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 100 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1758,7 +1748,9 @@ gt(smallsdf) %>%
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
+
 ## ERM = Volume
+
 ```{r}
 ERM <- "Volume"
 ```
@@ -1781,8 +1773,6 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection4, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -1800,8 +1790,6 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -1810,6 +1798,8 @@ tier1_2_small <- aoc_final_small %>%
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots4, message=FALSE}
 #large
@@ -1860,8 +1850,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
 
 # plot(endpoints_tier1_2_small)
 ```
+
 #### SSD Build
+
 ##### Data Collapse
+
 ```{r data collapse4, include=TRUE}
 
 #First quartile large particles
@@ -1881,9 +1874,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-
-
-##### Large (10 - 5000 um) 
+##### Large (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1968,7 +1959,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2089,15 +2080,15 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-#### Data Collapsing
+#### Data Filtering
+
 ```{r size category selection5 - tiers 3/4, include=TRUE}
 
 #### Size filters ####
 
 ### 100 - 5000 um
 tier3_4_large <-  aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -2116,8 +2107,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 10 um
 tier3_4_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -2127,6 +2117,8 @@ tier3_4_small <- aoc_final_small %>%
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots5 - tiers 3/4, message=FALSE}
 #large
@@ -2178,6 +2170,10 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
+#### SSD Build
+
+##### Data Collapse
+
 ```{r data collapse5 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
@@ -2197,9 +2193,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-#### SSD Build
-
-##### Large (10 - 5000 um) 
+##### Large (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2279,7 +2273,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2408,8 +2402,6 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection6, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -2427,8 +2419,6 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -2437,6 +2427,8 @@ tier1_2_small <- aoc_final_small %>%
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots6, message=FALSE}
 #large
@@ -2487,8 +2479,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
 
 # plot(endpoints_tier1_2_small)
 ```
+
 #### SSD Build
+
 ##### Data Collapse
+
 ```{r data collapse6, include=TRUE}
 
 #First quartile large particles
@@ -2508,9 +2503,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-
-
-##### Large (10 - 5000 um) 
+##### Large (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2594,7 +2587,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2715,7 +2708,7 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-#### Data Collapsing
+#### Data Filtering
 
 ```{r size category selection7 - tiers 3/4, include=TRUE}
 
@@ -2723,8 +2716,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 
 ### 100 - 5000 um
 tier3_4_large <-  aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -2743,8 +2735,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 10 um
 tier3_4_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -2754,6 +2745,8 @@ tier3_4_small <- aoc_final_small %>%
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots7 - tiers 3/4, message=FALSE}
 #large
@@ -2805,6 +2798,8 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
+#### Data Collapse
+
 ```{r data collapse7 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
@@ -2826,7 +2821,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 #### SSD Build
 
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2906,7 +2901,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3035,8 +3030,6 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection8, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -3054,8 +3047,6 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -3064,6 +3055,8 @@ tier1_2_small <- aoc_final_small %>%
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots8, message=FALSE}
 #large
@@ -3114,7 +3107,9 @@ endpoints_tier1_2_small <- tier1_2_small %>%
 
 # plot(endpoints_tier1_2_small)
 ```
+
 #### SSD Build
+
 ##### Data Collapse
 ```{r data collapse8, include=TRUE}
 
@@ -3135,9 +3130,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-
-
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3221,7 +3214,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3342,7 +3335,7 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-#### Data Collapsing
+#### Data Filtering
 
 ```{r size category selection9 - tiers 3/4, include=TRUE}
 
@@ -3350,8 +3343,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 
 ### 100 - 5000 um
 tier3_4_large <-  aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -3368,10 +3360,9 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 10 um
+### 1 - 100 um
 tier3_4_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -3381,6 +3372,8 @@ tier3_4_small <- aoc_final_small %>%
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots9 - tiers 3/4, message=FALSE}
 #large
@@ -3432,6 +3425,10 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
+#### SSD Build
+
+##### Data Collapse
+
 ```{r data collapse9 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
@@ -3451,9 +3448,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-#### SSD Build
-
-##### Large (10 - 5000 um) 
+##### Large (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3533,7 +3528,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3662,8 +3657,6 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection10, include=TRUE}
 tier1_2_large <- aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -3681,8 +3674,6 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed") %>% 
-  #choose ERM
          mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -3691,6 +3682,8 @@ tier1_2_small <- aoc_final_small %>%
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots10, message=FALSE}
 #large
@@ -3741,8 +3734,11 @@ endpoints_tier1_2_small <- tier1_2_small %>%
 
 # plot(endpoints_tier1_2_small)
 ```
+
 #### SSD Build
+
 ##### Data Collapse
+
 ```{r data collapse10, include=TRUE}
 
 #First quartile large particles
@@ -3762,9 +3758,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-
-
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3844,7 +3838,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3965,7 +3959,7 @@ HC Metric = Mean
 
 Data Quality = Pass Technical & Risk Quality Red Criteria
 
-#### Data Collapsing
+#### Data Filtering
 
 ```{r size category selection11 - tiers 3/4, include=TRUE}
 
@@ -3973,8 +3967,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 
 ### 100 - 5000 um
 tier3_4_large <-  aoc_final_large %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -3993,8 +3986,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 ### 1 - 10 um
 tier3_4_small <- aoc_final_small %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -4004,6 +3996,8 @@ tier3_4_small <- aoc_final_small %>%
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 ```
+
+#### Endpoint Representation
 
 ```{r endpoint plots11 - tiers 3/4, message=FALSE}
 #large
@@ -4055,6 +4049,10 @@ endpoints_tier3_4_small <- tier3_4_small %>%
 plot(endpoints_tier3_4_small)
 ```
 
+#### SSD Build
+
+##### Data Collapse
+
 ```{r data collapse11 - tiers 3/4, include=TRUE}
 
 #First quartile large particles
@@ -4074,9 +4072,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-#### SSD Build
-
-##### Large (10 - 5000 um) 
+##### Large (100 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4156,7 +4152,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 um) 
+##### Small (1 - 100 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4261,7 +4257,6 @@ gt(smallsdf) %>%
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
-
 
 ## Multi plots
 
