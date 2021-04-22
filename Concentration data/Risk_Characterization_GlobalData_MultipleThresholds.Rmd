@@ -45,14 +45,14 @@ x2D_set = 5000 #100 #upper size range (microns)
 x1D_set = 1 #1 #lower size range (microns)
 
 #### Choose assessment factor ####
-AF = 5
+AF = 1#5
 
 ##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 4.4 / AF
-Threshold2 = 10.6 / AF
-Threshold3 = 85.9 / AF
-Threshold4 = 313 / AF
+Threshold1 = 0.89 / AF
+Threshold2 = 18 / AF
+Threshold3 = 30 / AF
+Threshold4 = 140 / AF
 ```
 
 ```{r Theme, include=FALSE}
@@ -349,7 +349,7 @@ dfSFEI_exceedance %>%
  # filter(Conc > 0) %>% 
   filter(Sample.Type == "sample") %>% 
   ggplot(aes(x = Conc, fill = aboveThreshold))+
-  geom_histogram(aes(y = ..count../sum(..count..)),bins = 20, alpha = 0.9, position = "identity") +
+  geom_histogram(aes(y = ..count../sum(..count..)),bins = 40, alpha = 0.9, position = "identity") +
   #geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.045), label = paste(Threshold1,"particles/L"),  color = "goldenrod2") +
   #geom_text(aes(x = Threshold1- 0.5*Threshold1, y = 0.055), label = ("Threshold1"),  color = "goldenrod2") +
   geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'goldenrod2', size = 1.3) +
