@@ -36,21 +36,12 @@ library(ggsci)
 ```
 
 ```{r ERM}
-# align by particles (report in particles/mL)
- 'EC_env_p.particles.mL'
-# # align by surface area (report in particles/mL)
-'EC_poly_sa.particles.mL'
-# # align by volume (report in particles/mL)
-'EC_poly_v.particles.mL'
-# # align by mass (report in particles/mL)
-'EC_poly_m.particles.mL'
-# # align by specific surface area (report in particles/mL)
-'EC_poly_ssa.particles.mL'
-
-#define sizes for filtering and alignment
+###define sizes for filtering and alignment##
+# smaller size bin
 small_tier_lower_size <- 1 #um
-small_tier_upper_size <- 100 #um
-large_tier_lower_size <- 10 #um
+small_tier_upper_size <- 5000 #um
+# larger size bin
+large_tier_lower_size <- 1 #um
 large_tier_upper_size <- 5000 #um
 ```
 
@@ -250,7 +241,7 @@ $V_i = 0.111667*pi*R_i^2*L_i^3$
 
 Where $L_i$ is the length of the particle (um) and $R_i$ is the width:length ratio of the particle (unitless). 
 
-For the example of a 10 um PE fragment, the length was reported ($L_i = 10 \mu m$), however the width was not reported by the authors, so a default value of 0.77 is used, which is the average for marine surface water ($R_i = 0.77$). 
+For the example of a 40 um PE fragment, the length was reported ($L_i = 40 \mu m$), however the width was not reported by the authors, so a default value of 0.77 is used, which is the average for marine surface water ($R_i = 0.77$). 
 
 $\mu_{v,mono}$ is calculated:
 ```{r}
@@ -308,7 +299,7 @@ $\mu_{sa,mono} = SA = 4 \pi (\frac{(ab)^{1.6} + (ac)^{1.6} + (bc)^{1.6}}{3})^{1/
 
 With a, b, c being equal to 0.5x length, 0.5x width, and 0.5x height, respectively. 
 
-For the example of a 10 um PE fragment, the length was reported ($a = 0.5* 10 \mu m$), however the width was not reported by the authors, so a default value of 0.77 is used ($b = 0.5 * 0.77 * 10 \mu m$), which is the average for marine surface water, and height is assumed to be 0.67 times the width ($c = 0.5 * 0.77 * 0.67 * 10 \mu m$) (Kooi et al 2021). Surface area is calculated:
+For the example of a 40 um PE fragment, the length was reported ($a = 0.5* 40 \mu m$), however the width was not reported by the authors, so a default value of 0.77 is used ($b = 0.5 * 0.77 * 40 \mu m$), which is the average for marine surface water, and height is assumed to be 0.67 times the width ($c = 0.5 * 0.77 * 0.67 * 40 \mu m$) (Kooi et al 2021). Surface area is calculated:
 ```{r}
 #surface area equation
 SAfnx = function(a,
@@ -317,9 +308,9 @@ SAfnx = function(a,
   SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
     return(SA)}
 #calculate for 10 um fragment
-mu_sa.mono = SAfnx(a = 0.5 * 10,
-                   b = 0.5 * 0.77 * 10,
-                   c = 0.5 * 0.77 * 0.67 * 10)
+mu_sa.mono = SAfnx(a = 0.5 * 40,
+                   b = 0.5 * 0.77 * 40,
+                   c = 0.5 * 0.77 * 0.67 * 40)
 
 paste("mu_sa.mono = ", signif(mu_sa.mono,3), "um^2")
 ```
@@ -370,7 +361,7 @@ $\mu_{m,mono} = m = pV*\frac{1}{1e12}*1e6$
 
 Where *m* is the mass (ug), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the radius of each particle (i.e. 1/2 * length, or 2.5 um), and additional conversion factors for g to ug (1e6) and cm^3 to um^3 (1e-12).
 
-For the example of a 10 um polyethylene fragment, the volume was calculated above (~ $207 um^3$), and the density of polyethylene was is estimated to be 0.935 g/cm^3. $\mu_{x,mono}$ is calculated:
+For the example of a 40 um polyethylene fragment, the volume was calculated above (~ $207 um^3$), and the density of polyethylene was is estimated to be 0.935 g/cm^3. $\mu_{x,mono}$ is calculated:
 
 ```{r}
 massfnx = function(R, L, p){
@@ -379,7 +370,7 @@ massfnx = function(R, L, p){
     1/1e12 * 1e6 #correction factor
   return(mass)}
 
-mu_m.mono <- massfnx(R = 0.77,  L = 10, p = 0.935)
+mu_m.mono <- massfnx(R = 0.77,  L = 40, p = 0.935)
 paste("mu_m,mono:", signif(mu_m.mono,3),"ug")
 ```
 Since the probability distribution of ERM $m$ (mass) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{m,poly}$, can be calculated by first calculating the lower and upper ingestible masses of particles based on the length of the ingestible particle. The UL and LL are respectively defined as the upper and lower limit in ERM $m$ (mass) for which the mean is calculated, and $a_m$ is the power law exponent of mass. In the case of marine surface water,an $a_m$ of 1.32 is utilized (Kooi et al 2021; Table S4).
@@ -564,7 +555,8 @@ aoc_intermediate <- aoc_z %>%
          effect.metric != "HONEC",
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
-         risk.13 != 0) #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+         risk.13 != 0) %>% #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
 #### Ecologically Relevant Metric calculations ####
 
 #examine available data as histogram
@@ -676,8 +668,7 @@ volumefnx = function(R, L){
 massfnx = function(R, L, p){
   mass = p * #density (g/cm^3)
     0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
-    1/1e12 ### NOT SURE IF THIS IS CORREC
-   1e6 #correction factor
+    1/1e12 * 1e6 #correction factors
   return(mass)}
 
 #max ingestible specific surface area
@@ -709,7 +700,11 @@ x1M_set = small_tier_lower_size #lower size range for measured
 # calculate ERM for each species
 aoc_final_small <- aoc_intermediate  %>% 
   # define upper size length for ingestion
-  mutate(x2M = 10) %>% #set to 10um for upper limit
+   # define upper size length for ingestion
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ 10,
+                         max.size.ingest.um < 10 ~ max.size.ingest.um,
+                         max.size.ingest.um > 10 ~ 10
+                         )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
@@ -795,14 +790,17 @@ aoc_final_small <- aoc_intermediate  %>%
 ```{r}
 ##### SMALL TIER DATA ####
 ### Set size limits for tier
-x2D_set = large_tier_upper_size #upper size range (default)
-x1D_set = large_tier_lower_size #lower size range (default)
-x1M_set = large_tier_lower_size #lower size range for measured
+x2D_set <- large_tier_upper_size #upper size range (default)
+x1D_set <- large_tier_lower_size #lower size range (default)
+x1M_set <- large_tier_lower_size #lower size range for measured
 # calculate ERM for each species
 
 aoc_final_large <- aoc_intermediate  %>% 
   # define upper size length for ingestion
-  mutate(x2M = max.size.ingest.mm * 1000) %>% #max size ingest in um
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ 5000,
+                         max.size.ingest.um < 5000 ~ max.size.ingest.um,
+                         max.size.ingest.um > 5000 ~ 5000
+                         )) %>% 
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
@@ -2163,7 +2161,7 @@ tier3_4_large <-  aoc_final_large %>%
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new*1000) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
   filter(size.length.um.used.for.conversions %in% (1:5000)) 
 
 # Count observations and studies
@@ -2182,7 +2180,7 @@ tier3_4_small <- aoc_final_small %>%
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new*1000) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
   filter(size.length.um.used.for.conversions %in% (1:10)) 
   
 # Count observations and studies
@@ -4436,7 +4434,7 @@ full_val_range <- ERM_small %>%
     range
 
 gt(ERM_small) %>% 
-  tab_header(title = "1-10 µm Thresholds (Aligned)", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "1-10 µm Thresholds (Aligned to 1 - 5000 µm)", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Particle, Volume,'Surface Area', Mass, 'Specific Surface Area'), 
              n_sigfig = 2,
              use_seps = TRUE) %>% 
@@ -4468,7 +4466,7 @@ full_val_range <- ERM_large %>%
     range
 
 gt(ERM_large) %>% 
-  tab_header(title = "1-5,000 µm Thresholds (Aligned)", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "10-5,000 µm Thresholds (Aligned to 1-5,000 µm)", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Particle, Volume,'Surface Area', Mass, 'Specific Surface Area'), 
              n_sigfig = 2,
              use_seps = TRUE) %>% 
