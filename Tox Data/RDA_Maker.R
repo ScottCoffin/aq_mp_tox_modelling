@@ -173,7 +173,7 @@ aoc_v1 <- aoc %>% # start with original dataset
                                      effect == "N" ~ "No"),
                            levels = c("No", "Yes"))) %>%
   # removing NAs to make data set nicer
-  replace_na(list(size.category = 0, shape = "Not Reported", polymer = "Not Reported", life.stage = "Not Reported", chem.exp.typ.nominal = "Particle Only"))
+  tidyr::replace_na(list(size.category = 0, shape = "Not Reported", polymer = "Not Reported", life.stage = "Not Reported", chem.exp.typ.nominal = "Particle Only"))
 
 aoc_setup <- aoc_v1 %>% # start with original dataset
   mutate(size_f = factor(case_when(
@@ -818,19 +818,43 @@ aoc_setup <- aoc_v1 %>% # start with original dataset
   mutate(tier_zero_tech_f = factor(case_when(tech.tier.zero == "Fail" ~ "Red Criteria Failed",
                                              tech.tier.zero == "Pass" ~ "Red Criteria Passed"))) %>% 
   mutate(tier_zero_risk_f = factor(case_when(risk.tier.zero == "Fail" ~ "Red Criteria Failed",
-                                             risk.tier.zero == "Pass" ~ "Red Criteria Passed"))) %>% 
+                                             risk.tier.zero == "Pass" ~ "Red Criteria Passed")))
+
+#### Particle Characteristics Equations ####
+#surface area equation for elongated spheres (fragments)
+SAfnx = function(a, # length
+                 b, # width
+                 c){ # height
+  SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
+  return(SA)}
+
+#Volume equation for elongated sphere (fragments)
+volumefnx = function(R, L){
+  volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (0.77 average in marine surface water)
+  return(volume)}
+
+aoc_SA <- aoc_setup %>% 
+  #calculate surface area based on shape
+  mutate(particle.surface.area.um2 = case_when(shape == "sphere" ~ particle.surface.area.um2,
+                                               shape == "fiber" ~ particle.surface.area.um2,
+                                               shape == "fragment" ~ SAfnx(a = size.length.um.used.for.conversions,
+                                                                           b = 0.77 * size.length.um.used.for.conversions,
+                                                                           c = 0.77 * 0.67 * size.length.um.used.for.conversions))) %>% 
+  mutate(particle.volume.um3 = case_when(shape == "sphere" ~ particle.volume.um3,
+                                         shape == "fiber" ~ particle.volume.um3,
+                                         shape == "fragment" ~ volumefnx(R = 0.77, L = size.length.um.used.for.conversions))) %>% 
   mutate(dose.surface.area.um2.mL.master = particle.surface.area.um2 * dose.particles.mL.master) %>% 
   mutate(particle.surface.area.um2.mg = particle.surface.area.um2 / mass.per.particle.mg)
 
 #### Aoc_z ####
 
 # Master dataset for SSDs
-aoc_z <- aoc_setup %>% # start with Heili's altered dataset (no filtration for terrestrial data)
+aoc_z <- aoc_SA %>% # start with Heili's altered dataset (no filtration for terrestrial data)
   # environment category data tidying.
   mutate(environment.noNA = replace_na(environment, "Not Reported")) %>% # replaces NA to better relabel.
   mutate(env_f = factor(environment.noNA, levels = c("Marine", "Freshwater", "Terrestrial", "Not Reported"))) %>% 
   #Remove leachate and additive/chemical transfer experiments
-  replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>% 
+  tidyr::replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>% 
   dplyr::filter(leachate.only != "Y") %>%
   mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
                                                    chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
@@ -839,7 +863,8 @@ aoc_z <- aoc_setup %>% # start with Heili's altered dataset (no filtration for t
   #calculate maximum ingestible size (if not already in database)
   mutate(max.size.ingest.mm = ifelse(is.na(max.size.ingest.mm), 
                                      10^(0.9341 * log10(body.length.cm) - 1.1200) * 10,  #(Jamm et al 2020 Nature paper)correction for cm to mm
-                                     max.size.ingest.mm)) # if already present, just use that
+                                     max.size.ingest.mm)) %>%  # if already present, just use that
+  mutate(dose.specific.surface.area.um2.mg.mL = particle.surface.area.um2.mg * dose.particles.mL.master)
 
 # final cleanup and factoring  
 

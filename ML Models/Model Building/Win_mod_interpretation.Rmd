@@ -96,46 +96,59 @@ skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
 
 **Important**: this dataset has ONLY been filtered for 'red' criteria for technical quality.
 
+*Suggested variables*: organism.group, acute.chronic_f, lvl2_f, bio.org, dose.mg.L.master, polymer,  particle.volume.um3, particle.surface.area.um2, particle.surface.area.um2.mg, mass.per.particle.mg, shape, max.size.ingest.mm
+
+The above variables should have the lowest possible colinearity while maintaining the critical predictor variables. While surface area and volume are related, they are actually non-linear. Having a single dose descriptor (mass) alongside important particle characteristics (surface area, volume, mass per particle) allows for all ecologically relevant metrics to be accounted for while avoiding colinearity. Leading hypotheses for ecologically relevant metrics include food dilution (volume), oxidative stress (surface area), and inflammation (length:width ratio - covered by shape). Ideally, species or even genus would be included, but there are too many levels to split data into test/train and retain all levels in both. This is really a shame, because some species are FAR more sensitive than others. Lacking this, organism group accounts ROUGHLY for this variabilty.
+
 ```{r}
-df <- aoc_z %>% 
+df <- aoc_z_characters %>% #use factors
   filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
   #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
-  dplyr::select(c(organism.group, 
-                  #exposure.duration.d, 
-                  #lvl1_f, 
-                  dose.um3.mL.master, 
-                  dose.mg.L.master,
-                  dose.particles.mL.master,
-                  #dose.mg.L.master, 
-                  #dose.particles.mL.master, 
-                  #life.stage,
-                  bio.org, 
-                  #polymer, 
-                  #shape,
-                  #size.length.um.used.for.conversions, 
-                  #treatments, 
-                  effect, 
-                  effect.metric,
-                  #particle.volume.um3,
-                  #density.mg.um.3,
-                  #environment,
-                  exposure.route,
-                  dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
-                  lvl1_f
+  dplyr::select(c(
+    ### Organism characteristics ###
+    organism.group, # very general organism group (e.g. fish, crustacea, etc.) - 13 levels
+    #species_f, #specific species (113 levels)
+    #genus, # 96 levels
+    max.size.ingest.mm,
+    acute.chronic_f, #binary classification - species specific (makes HUGE difference)
+    lvl1_f, # general endpoint (e.g. fitness, behavior) (9 levels)
+    lvl2_f, #specific endpoint (e.g. mortality, growth)(45 levels)
+    #environment,# freshwater, marine or terrestrial (should make little difference)
+    #life.stage, #4 levels, 100% complete (moderately important)
+    bio.org, # (organismal, tissue, population, etcl) 5 levels, 100% complete (highly important)
+    exposure.route, #water, food, sediment 
+    ## dose metrics ##
+    dose.um3.mL.master, #volume/volume dose
+    dose.mg.L.master, #mass/volume dose
+    dose.particles.mL.master, #particle/volume dose
+    dose.surface.area.um2.mL.master, #area/volume dose
+    dose.specific.surface.area.um2.mg.mL, # specific surface area/volume dose
+    ## Particle characteristics ##
+    polymer, #14 levels
+    shape, #4 levels
+    #size.length.um.used.for.conversions, #continuous, 99.5% complete
+    particle.volume.um3, #continuous, 89% complete
+    #density.mg.um.3, #continous, 97% complete
+    particle.surface.area.um2, #continuous surface area
+    particle.surface.area.um2.mg, #specific surface area
+    mass.per.particle.mg, # particle mass
+    ## Response variable
+    effect, # BINARY (y/n) 100% complete
+   # effect.metric #Honec, noec, loec, etc. NOTE: NA is an effect, but somewhere along the curve (unassigned magnitude)
                   )) %>% 
-  mutate(effect.metric = as.character(effect.metric)) %>% 
-  mutate(effect.metric = (case_when(
-    effect.metric == "NONEC" ~ "NOEC",
-    effect.metric == "HONEC" ~ "NOEC",
-    effect.metric == "LOEC" ~ "LOEC",
-    effect.metric == "LC50" ~ "LC50",
-    effect.metric == "EC50" ~"EC50",
-    effect.metric == "EC10" ~ "EC10"
-  ))) %>% 
+  # mutate(effect.metric = as.character(effect.metric)) %>% 
+  # mutate(effect.metric = (case_when(
+  #   effect.metric == "NONEC" ~ "NOEC",
+  #   effect.metric == "HONEC" ~ "NOEC",
+  #   effect.metric == "LOEC" ~ "LOEC",
+  #   effect.metric == "LC50" ~ "LC50",
+  #   effect.metric == "EC50" ~"EC50",
+  #   effect.metric == "EC10" ~ "EC10"
+  # ))) %>% 
   #mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
   #filter(effect.metric != "not_available") %>% 
   filter(exposure.route == "water") %>% 
-  mutate(effect.metric = as.factor(effect.metric)) %>% 
+  # mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
 #mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
   mutate(effect_10 = case_when( #convert ordinal to numeric
@@ -144,7 +157,10 @@ df <- aoc_z %>%
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(effect, exposure.route, effect.metric)) %>%
+  dplyr::select(-c(effect, 
+                   exposure.route#,
+                   #effect.metric
+                   )) %>%
   mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
 
 #ensure completeness
@@ -295,7 +311,7 @@ ggplot(model.data, aes(index, .std.resid)) +
 #Multicollinearity, VIF above 5 or 10 is bad. Too much colinearity here. 
 car::vif(dosemodel)
 
-dosemodel1 <- glm(effect_10 ~ dose.um3.mL.master + dose.particles.mL.master + dose.mg.L.master + sa_vol_ratio, data = train.data, family = binomial)
+dosemodel1 <- glm(effect_10 ~ dose.um3.mL.master + dose.particles.mL.master + dose.mg.L.master + dose.surface.area.um2.mL.master + sa_vol_ratio, data = train.data, family = binomial)
 AIC(dosemodel1)
 summary(dosemodel1)
 car::vif(dosemodel1)
