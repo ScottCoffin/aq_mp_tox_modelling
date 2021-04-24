@@ -48,7 +48,10 @@ large_tier_upper_size <- 5000 #um
 ```{r Theme, include=FALSE}
 #Theme type
      theme.type<- #theme_gray(base_size = 14)#,
-                       dark_theme_bw(base_size = 15)
+                       dark_theme_bw(base_size = 15) +
+theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
      #color selection
      fill.type <-    #scale_fill_viridis(discrete = TRUE)#,
                          #scale_fill_brewer(palette = "Paired"),
@@ -147,7 +150,9 @@ $\mu_{x,poly} = \frac{1 - a_{x}}{2 - a_{x}}  \frac{X^{2-a_x}_{UL} - X^{2-a_x}_{L
 
 Where $a_x$ relates to the power law distribution of microplastic particles in the marine environment (i.e. particle length; 2.07; Kooi et al 2021), and UL and LL are the upper and lower limits of bioavailability for this species/life stage/effect metric, respectively.
 
-In this example, the organism of interest is *Cerodaphnia magna*, which has an average body length of 0.5 cm, and an estimated maximum ingestible size range of 115 um particles, $L_{UL,m}$ would be equivalent to 115 um, and $L_{LL,m}$ would be the lower size range of the bin for which the SSD is built- in this example, 1 um as a lower limit.
+In this example, the organism of interest is *Cerodaphnia magna*, which has an average body length of 0.5 cm, and an estimated maximum ingestible particle width of 115 um particles based on average mouth size opening. Therefore, $L_{UL,m}$ would be equivalent to 115 um, and $L_{LL,m}$ would be the lower size range of the bin for which the SSD is built- in this example, 1 um as a lower limit. 
+
+Note that if bioavailability for an ERM of interest is based on a different parameter (for example, tissue translocation potential), $L_{UL,m}$ would be equivalent to that size. A default assumption for an upper limit of tissue translocation for this exercise is 10 um.
 
 $\mu_{x,poly}$ for particles for the 1-115 um fraction in the marine environment is then calculated:
 ```{r}
@@ -573,8 +578,8 @@ Group_size <- aoc_intermediate %>%
 endpoint_size <- aoc_intermediate %>% 
   ggplot(aes(x = size.length.um.used.for.conversions, fill = lvl1_f)) +
   geom_histogram(bins = 25) +
-   scale_fill_manual(name = "general endpoint", values = cal_palette(name = "superbloom3", type = "continuous", n = 9)) +
-  xlab("Length (um)") +
+   scale_fill_manual(name = "General Endpoint", values = cal_palette(name = "superbloom3", type = "continuous", n = 9)) +
+  xlab("Particle Length (um)") +
   ylab("# of observations")+
   labs(title = "Filtered Data by General Endpoint") +
   theme.type +
@@ -590,7 +595,8 @@ species_size_f <- aoc_intermediate %>%
   ggplot(aes(x = size_f, fill = Species)) +
   geom_bar() +
   scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 34)) +
-  labs(title = "Filtered Data by Species") +
+  labs(title = "Number of Species by Particle Length",
+       subtitle = "Red criteria passed only, aquatic species (subcell to population organization)") +
   xlab("Length (um)") +
   ylab("# of Species")+
   theme.type 
@@ -600,10 +606,11 @@ endpoint_size_f <- aoc_intermediate %>%
    distinct(lvl1_f, size_f) %>% 
   ggplot(aes(x = size_f, fill = lvl1_f)) +
   geom_bar() +
-  scale_fill_manual(values = cal_palette(name = "superbloom3", type = "continuous", n = 6)) +
-  labs(title = "Filtered Data by General Endpoint") +
+  scale_fill_manual(name = "General Endpoint", values = cal_palette(name = "superbloom3", type = "continuous", n = 6)) +
+  labs(title = "Filtered Data by General Endpoint",
+       subtitle = "Red criteria passed only, aquatic species (subcell to population organization)") +
   ylab("# of Endpoints")+
-  xlab("Length (um)") +
+  xlab("Particle Length (um)") +
   theme.type 
 
 #arrange histograms
@@ -699,17 +706,15 @@ x1M_set = small_tier_lower_size #lower size range for measured
 
 # calculate ERM for each species
 aoc_final_small <- aoc_intermediate  %>% 
-  # define upper size length for ingestion
-   # define upper size length for ingestion
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ 10,
-                         max.size.ingest.um < 10 ~ max.size.ingest.um,
-                         max.size.ingest.um > 10 ~ 10
-                         )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
+   # define upper size length for Translocation
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ 10, 
+                         max.size.ingest.um  < 10 ~  max.size.ingest.um,
+                         max.size.ingest.um  > 10 ~ 10)) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
   mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
-                                 x_UL= x2M, #upper ingestible size limit
+                                 x_UL= x2M, #upper ingestible size limit (width of particle)
                                  x_LL = x1M_set)) %>% 
   # polydisperse effect threshold for particles
   mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
@@ -796,11 +801,11 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 # calculate ERM for each species
 
 aoc_final_large <- aoc_intermediate  %>% 
-  # define upper size length for ingestion
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ 5000,
-                         max.size.ingest.um < 5000 ~ max.size.ingest.um,
-                         max.size.ingest.um > 5000 ~ 5000
-                         )) %>% 
+  # define upper size WIDTH for ingestion (based on average width:length ratio)
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
+                         (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
+                         (max.size.ingest.um * (1/R.ave)) > x2D_set ~ (x2D_set * (1/R.ave))
+                         )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles

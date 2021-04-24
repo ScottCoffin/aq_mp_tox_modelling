@@ -49,10 +49,10 @@ AF = 1#5
 
 ##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 0.89 / AF
-Threshold2 = 18 / AF
-Threshold3 = 30 / AF
-Threshold4 = 140 / AF
+Threshold1 = 0.69 / AF
+Threshold2 = 8.6 / AF
+Threshold3 = 13 / AF
+Threshold4 = 55 / AF
 ```
 
 ```{r Theme, include=FALSE}
