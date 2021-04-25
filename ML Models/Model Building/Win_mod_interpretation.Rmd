@@ -55,6 +55,8 @@ library(infotheo)
 library(tidyinftheo)
 library(sidekicks)
 require(readr)
+library(tidyverse)
+library(rcompanion)
 
 ```
 
@@ -137,25 +139,19 @@ skimmed_aoc_flag_missing <- skim(df) %>%
 
 #tells us if any of the variables have more variable groups than 10% of the total rows 
 skimmed_aoc_flag_deep <- skim(df) %>%
-  filter(character.n_unique > 0.1*nrow(df)) %>%
+  filter(factor.n_unique > 0.1*nrow(df)) %>%
   pull(skim_variable)
 
 #variables that only have one group (not useful)
 skimmed_aoc_flag_shallow <- skim(df) %>%
-  filter(character.n_unique == 1) %>%
+  filter(factor.n_unique == 1) %>%
   pull(skim_variable)
 
-#tells us which variables have character groups that have fewer than 3 observations.
-skimmed_aoc_inadequate_n_char <- skim(df) %>%
-  filter(character.min < 3) %>%
-  pull(skim_variable)
 ```
 
 #Look at mututal information between variables
 
 ```{r include=F}
-library(tidyverse)
-library(rcompanion)
 
 
 # Calculate a pairwise association between all variables in a data-frame. In particular nominal vs nominal with Chi-square, numeric vs numeric with Pearson correlation, and nominal vs numeric with ANOVA.
@@ -207,10 +203,13 @@ mixed_assoc = function(df, cor_method="spearman", adjust_cramersv_bias=TRUE){
 discretized <- discretize(df)
 matrix <- discretized %>%
   mutinformation() 
-dfmatrix <- as.data.frame(as.table(matrix))
+
+dfmatrix <- as.data.frame(as.table(matrix)) %>%
+  filter(Var1 == "effect_10")
 
 #Correlation matrix
-mixedassoc <- mixed_assoc(df)
+mixedassoc <- mixed_assoc(df) %>%
+  filter(y == "effect_10")
 
 
 #Correlation matrix
