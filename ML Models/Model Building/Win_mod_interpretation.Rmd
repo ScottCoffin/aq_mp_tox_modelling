@@ -54,43 +54,23 @@ library(interpret) #explainable boosting machine
 library(infotheo)
 library(tidyinftheo)
 library(sidekicks)
+require(readr)
+library(tidyverse)
+library(rcompanion)
+library(MASS)
+library(mgcv)
+library(car)
+library(broom)
+library(tidyr)
+
 ```
 
 ```{r include=FALSE}
-require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ```
-
-#Look at the data highlight potential variable issues for modeling.
-
-```{r include = FALSE}
-aoc_z_characters <- aoc_z %>%
-  mutate_if(is.factor, as.character)
-
-#tells us if any of the variables have more than 50% of the data missing. 
-skimmed_aoc_flag_missing <- skim(aoc_z_characters) %>%
-  filter(n_missing > 0.5*nrow(aoc_z)) %>%
-  pull(skim_variable)
-
-#tells us if any of the variables have more variable groups than 10% of the total rows 
-skimmed_aoc_flag_deep <- skim(aoc_z_characters) %>%
-  filter(character.n_unique > 0.1*nrow(aoc_z)) %>%
-  pull(skim_variable)
-
-#variables that only have one group (not useful)
-skimmed_aoc_flag_shallow <- skim(aoc_z_characters) %>%
-  filter(character.n_unique == 1) %>%
-  pull(skim_variable)
-
-#tells us which variables have character groups that have fewer than 3 observations.
-skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
-  filter(character.min < 3) %>%
-  pull(skim_variable)
-```
-
 
 # Data Selection
 
@@ -101,7 +81,7 @@ skimmed_aoc_inadequate_n_char <- skim(aoc_z_characters) %>%
 The above variables should have the lowest possible colinearity while maintaining the critical predictor variables. While surface area and volume are related, they are actually non-linear. Having a single dose descriptor (mass) alongside important particle characteristics (surface area, volume, mass per particle) allows for all ecologically relevant metrics to be accounted for while avoiding colinearity. Leading hypotheses for ecologically relevant metrics include food dilution (volume), oxidative stress (surface area), and inflammation (length:width ratio - covered by shape). Ideally, species or even genus would be included, but there are too many levels to split data into test/train and retain all levels in both. This is really a shame, because some species are FAR more sensitive than others. Lacking this, organism group accounts ROUGHLY for this variabilty.
 
 ```{r}
-df <- aoc_z_characters %>% #use factors
+df <- aoc_z %>% #use factors
   filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
   #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
   dplyr::select(c(
@@ -136,21 +116,8 @@ df <- aoc_z_characters %>% #use factors
     effect, # BINARY (y/n) 100% complete
    # effect.metric #Honec, noec, loec, etc. NOTE: NA is an effect, but somewhere along the curve (unassigned magnitude)
                   )) %>% 
-  # mutate(effect.metric = as.character(effect.metric)) %>% 
-  # mutate(effect.metric = (case_when(
-  #   effect.metric == "NONEC" ~ "NOEC",
-  #   effect.metric == "HONEC" ~ "NOEC",
-  #   effect.metric == "LOEC" ~ "LOEC",
-  #   effect.metric == "LC50" ~ "LC50",
-  #   effect.metric == "EC50" ~"EC50",
-  #   effect.metric == "EC10" ~ "EC10"
-  # ))) %>% 
-  #mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  #filter(effect.metric != "not_available") %>% 
   filter(exposure.route == "water") %>% 
-  # mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
-#mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
   mutate(effect_10 = case_when( #convert ordinal to numeric
       effect == "Y" ~ 1,
       effect == "N" ~ 0
@@ -167,11 +134,29 @@ df <- aoc_z_characters %>% #use factors
 skim(df)
 ```
 
+
+```{r}
+
+#tells us if any of the variables have more than 50% of the data missing. 
+skimmed_aoc_flag_missing <- skim(df) %>%
+  filter(n_missing > 0.5*nrow(df)) %>%
+  pull(skim_variable)
+
+#tells us if any of the variables have more variable groups than 10% of the total rows 
+skimmed_aoc_flag_deep <- skim(df) %>%
+  filter(factor.n_unique > 0.1*nrow(df)) %>%
+  pull(skim_variable)
+
+#variables that only have one group (not useful)
+skimmed_aoc_flag_shallow <- skim(df) %>%
+  filter(factor.n_unique == 1) %>%
+  pull(skim_variable)
+
+```
+
 #Look at mututal information between variables
 
 ```{r include=F}
-library(tidyverse)
-library(rcompanion)
 
 
 # Calculate a pairwise association between all variables in a data-frame. In particular nominal vs nominal with Chi-square, numeric vs numeric with Pearson correlation, and nominal vs numeric with ANOVA.
@@ -223,10 +208,13 @@ mixed_assoc = function(df, cor_method="spearman", adjust_cramersv_bias=TRUE){
 discretized <- discretize(df)
 matrix <- discretized %>%
   mutinformation() 
-dfmatrix <- as.data.frame(as.table(matrix))
+
+dfmatrix <- as.data.frame(as.table(matrix)) %>%
+  filter(Var1 == "effect_10")
 
 #Correlation matrix
-mixedassoc <- mixed_assoc(df)
+mixedassoc <- mixed_assoc(df) %>%
+  filter(y == "effect_10")
 
 
 #Correlation matrix
@@ -245,7 +233,6 @@ mixedassoc <- mixed_assoc(df)
 #Stepwise regression.
 
 ```{r}
-library(MASS)
 training.samples <- df$effect_10 %>% 
   createDataPartition(p = 0.8, list = FALSE)
 train.data  <- df[training.samples, ]
@@ -261,10 +248,6 @@ probabilities <- model %>% predict(test.data, type = "response")
 predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
 # Model accuracy
 mean(predicted.classes==test.data$effect_10)
-
-library(mgcv)
-library(car)
-library(broom)
 
 meanmodel <- gam(effect_10 ~ 1, data = train.data, family = binomial)
 AIC(meanmodel)
@@ -351,7 +334,6 @@ mean(predicted.classes == observed.classes)
 
 
 
-library(tidyr)
 
 ```
 #Plot model results for every species-endpoint combo observed and all concentrations and types observed.
