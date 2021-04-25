@@ -244,7 +244,7 @@ It may be possible to visualize discrete relationships of toxicity by creating a
 =======
 n = 1000
 >>>>>>> 508e2335b27f94933f95cad8551f8a1b93876383
-#Create uniform characteristics for base particle characteristics (size, shape, density)
+#Create uniform characteristics for base particle characteristics (size, shape, density)v
 csf <- runif(n, min = min(aoc_z$csf, na.rm = T), max(aoc_z$csf, na.rm = T)) #Set this to parameter space 
 #mass.per.particle.mg <- runif(n, min = 0, max = 1.65e+1)
 density.mg.um.3 <- runif(n, min = min(aoc_z$density.mg.um.3, na.rm = T), max = max(aoc_z$density.mg.um.3, na.rm = T))
