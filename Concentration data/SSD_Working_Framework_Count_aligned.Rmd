@@ -4590,8 +4590,58 @@ gt(smallsdf) %>%
 ```
 
 ## Multi plots
+### Larges
+```{r}
+# Build dataframe with all SSDs so we can get a color scale
+p_t1_l_p <- pred_tier1_2_large_1q_particles %>% mutate(alignment = "particle")
+p_t1_l_u <- pred_tier1_2_large_1q_unaligned %>% mutate(alignment = "unaligned")
+p_t1_l_v <- pred_tier1_2_large_1q_volume %>% mutate(alignment = "volume") %>% select(-est_format)
+p_t1_l_sa <- pred_tier1_2_large_1q_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
+p_t1_l_m <- pred_tier1_2_large_1q_mass %>% mutate(alignment = "mass") %>% select(-est_format)
 
-### Simple aligned vs unaligned
+predictions_t1_large <- rbind.data.frame(p_t1_l_p, 
+                                p_t1_l_u,
+                                p_t1_l_v,
+                                p_t1_l_sa,
+                                p_t1_l_m) %>% 
+  mutate(alignment = factor(alignment))
+predictions_t1_large
+
+#do the same for individual points
+s_t1_l_p <- SSD_tier1_2_large_1q_particles %>% mutate(alignment = "particle")
+s_t1_l_u <- SSD_tier1_2_large_1q_unaligned %>% mutate(alignment = "unaligned")
+s_t1_l_v <- SSD_tier1_2_large_1q_volume %>% mutate(alignment = "volume")
+s_t1_l_sa <- SSD_tier1_2_large_1q_surfacearea %>% mutate(alignment = "surface_area")
+s_t1_l_m <- SSD_tier1_2_large_1q_mass %>% mutate(alignment = "mass")
+
+points_t1_large <- rbind.data.frame(s_t1_l_p, 
+                                s_t1_l_u,
+                                s_t1_l_v,
+                                s_t1_l_sa,
+                                s_t1_l_m)# %>% 
+  #mutate(alignment = as.factor(alignment))
+#convert alignment to factor
+points_t1_large$alignment <- as.factor(points_t1_large$alignment)
+```
+#### All
+```{r}
+predictions_t1_large %>% 
+ggplot(aes(x = est, y = percent/100, color = alignment)) +
+  geom_line() +
+  geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+  geom_point(data = points_t1_large,aes(x = Conc, y =frac, color = alignment)) + 
+  scale_color_tron(name = "Alignment") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Tiers 1 & 2, 1-5000 µm", x = "particles/L") +
+      coord_trans(x = "log10") +
+      theme.type #user theme
+```
+
+#### Simple aligned vs unaligned
 ```{r}
 ## Particles, Mass, Volume for Tier 1
 ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
@@ -4618,19 +4668,22 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
   #                      breaks = c("green", "red", "blue", "yellow"),
   #                      labels = c("particles","volume", "mass", "surface area"),
   #                      guide = "legend")+
-      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      scale_color_manual(name = "alignment",
+                         values = c(1,1),
+                         guide = guide_legend(override.aes = list(color = c("red", "green")))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Microplastics Species Sensitivity Distribution",
              subtitle = "Red = Unaligned, Green = Particles") +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
   labs(title = "Tier 1/2, 1-5000 µm", x = "particles/L") +
-      fill.type + #user-selected
-      color.type + #user-selected
+     # fill.type + #user-selected
+    #  color.type + #user-selected
       theme.type #user theme
 
 ```
-### all ERMs
+#### all ERMs
 ```{r}
 ## Particles, Mass, Volume for Tier 1
 ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
@@ -4675,7 +4728,57 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
       theme.type #user theme
 
 ```
+### Smalls
+CURRENTLY DOES NOT WORK DUE TO LACK OF ASSIGNING UNIQUE IDs
+```{r eval=FALSE, include=FALSE}
+# Build dataframe with all SSDs so we can get a color scale
+p_t1_s_p <- pred_tier1_2_small_1q_particles %>% mutate(alignment = "particle")
+p_t1_s_u <- pred_tier1_2_small_1q_unaligned %>% mutate(alignment = "unaligned")
+p_t1_s_v <- pred_tier1_2_small_1q_volume %>% mutate(alignment = "volume") %>% select(-est_format)
+p_t1_s_sa <- pred_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
+p_t1_s_m <- pred_tier1_2_small_1q_mass %>% mutate(alignment = "mass") %>% select(-est_format)
 
+predictions_t1_small <- rbind.data.frame(p_t1_s_p, 
+                                p_t1_s_u,
+                                p_t1_s_v,
+                                p_t1_s_sa,
+                                p_t1_s_m) %>% 
+  mutate(alignment = factor(alignment))
+predictions_t1_small
+
+#do the same for individual points
+s_t1_s_p <- SSD_tier1_2_small_1q_particles %>% mutate(alignment = "particle")
+s_t1_s_u <- SSD_tier1_2_small_1q_unaligned %>% mutate(alignment = "unaligned")
+s_t1_s_v <- SSD_tier1_2_small_1q_volume %>% mutate(alignment = "volume")
+s_t1_s_sa <- SSD_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface_area")
+s_t1_s_m <- SSD_tier1_2_small_1q_mass %>% mutate(alignment = "mass")
+
+points_t1_small <- rbind.data.frame(s_t1_s_p, 
+                                s_t1_s_u,
+                                s_t1_s_v,
+                                s_t1_s_sa,
+                                s_t1_s_m)# %>% 
+  #mutate(alignment = as.factor(alignment))
+#convert alignment to factor
+points_t1_small$alignment <- as.factor(points_t1_small$alignment)
+```
+#### All
+```{r eval=FALSE, include=FALSE}
+predictions_t1_small %>% 
+ggplot(aes(x = est, y = percent/100, color = alignment)) +
+  geom_line() +
+  geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+  geom_point(data = points_t1_small,aes(x = Conc, y =frac, color = alignment)) + 
+  scale_color_tron(name = "Alignment") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Tiers 1 & 2, 1-5000 µm", x = "particles/L") +
+      coord_trans(x = "log10") +
+      theme.type #user theme
+```
 
 ## Grand Summary
 ```{r}
