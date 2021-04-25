@@ -57,6 +57,11 @@ library(sidekicks)
 require(readr)
 library(tidyverse)
 library(rcompanion)
+library(MASS)
+library(mgcv)
+library(car)
+library(broom)
+library(tidyr)
 
 ```
 
@@ -228,7 +233,6 @@ mixedassoc <- mixed_assoc(df) %>%
 #Stepwise regression.
 
 ```{r}
-library(MASS)
 training.samples <- df$effect_10 %>% 
   createDataPartition(p = 0.8, list = FALSE)
 train.data  <- df[training.samples, ]
@@ -244,10 +248,6 @@ probabilities <- model %>% predict(test.data, type = "response")
 predicted.classes <- ifelse(probabilities > 0.5, "1", "0")
 # Model accuracy
 mean(predicted.classes==test.data$effect_10)
-
-library(mgcv)
-library(car)
-library(broom)
 
 meanmodel <- gam(effect_10 ~ 1, data = train.data, family = binomial)
 AIC(meanmodel)
@@ -334,7 +334,6 @@ mean(predicted.classes == observed.classes)
 
 
 
-library(tidyr)
 
 ```
 #Plot model results for every species-endpoint combo observed and all concentrations and types observed.
