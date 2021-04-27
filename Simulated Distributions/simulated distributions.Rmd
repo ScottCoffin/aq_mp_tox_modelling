@@ -36,23 +36,324 @@ library(drc) #dose-response curves
 library(readr)
 library(readxl)
 library(MASS)
+library(caret)
+library(DALEX)
+library(ggdark)
 ```
 
 #The idea here is we want to be able to just change the dataset and model here and then the entire code base will react to the update. The challenge is that making the right synthetic and uniform datasets will differ depending on the column types. Is it safe to assume that there will be no numeric variables in the model besides the concentrations which will be present in the development of the synthetic and uniform datasets?  
 ```{r}
 # load tox data (cleaned for only what need to go into the model) and model
 
-final_model <- readRDS("final_rf_model.rds")
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>%
-  dplyr::select(names(final_model$trainingData)[-1], csf, density.mg.um.3, size.length.um.used.for.conversions)
-actual_model_data <- final_model$trainingData %>%
-  dplyr::mutate(.outcome = as.numeric(as.character(.outcome))) 
+#final_model <- readRDS("final_rf_model.rds")
 
-
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ```
 
+# Model Build
+## Particle Characteristics
+This model's purpose is to predict toxicity for a synthetic dataset, so it should be trained on particle-specific characteristics and a SINLGE dose metric (particle count).
+```{r}
+df <- aoc_z %>% 
+filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(
+    ### Organism characteristics ###
+    #organism.group, # very general organism group (e.g. fish, crustacea, etc.) - 13 levels
+    species_f, #specific species (113 levels)
+    #genus, # 96 levels
+    max.size.ingest.mm,
+    acute.chronic_f, #binary classification - species specific (makes HUGE difference)
+    #lvl1_f, # general endpoint (e.g. fitness, behavior) (9 levels)
+    lvl2_f, #specific endpoint (e.g. mortality, growth)(45 levels)
+    #environment,# freshwater, marine or terrestrial (should make little difference)
+    life.stage, #4 levels, 100% complete (moderately important)
+    bio.org, # (organismal, tissue, population, etcl) 5 levels, 100% complete (highly important)
+    exposure.route, #water, food, sediment 
+    
+    ## dose metrics ##
+    #dose.um3.mL.master, #volume/volume dose
+    #dose.mg.L.master, #mass/volume dose
+    #dose.particles.mL.master, #particle/volume dose
+    dose.surface.area.um2.mL.master, #area/volume dose
+    #dose.specific.surface.area.um2.mg.mL, # specific surface area/volume dose
+    
+    ## Particle characteristics ##
+    polymer, #14 levels
+    shape, #4 levels
+    size.length.um.used.for.conversions, #continuous, 99.5% complete
+    #particle.volume.um3, #continuous, 89% complete
+    #density.mg.um.3, #continous, 97% complete
+    #particle.surface.area.um2, #continuous surface area
+    #particle.surface.area.um2.mg, #specific surface area
+    #mass.per.particle.mg, # particle mass
+    
+    ## Response variable
+    effect, # BINARY (y/n) 100% complete
+   # effect.metric #Honec, noec, loec, etc. NOTE: NA is an effect, but somewhere along the curve (unassigned magnitude)
+                  )) %>% 
+  filter(exposure.route == "water") %>% 
+  drop_na() %>%  #drop missing
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(effect, 
+                   exposure.route#,
+                   #effect.metric
+                   )) #%>%
+  #mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
+```
 
+```{r}
+response <- as.numeric(as.character(df$effect_10))
+predictors <- as.data.frame(df %>% dplyr::select(-effect_10))
+#build glm
+glm_model <- train(effect_10~., data = df, method = "glm", family = "binomial")
+#build explainer for easy interpretation
+explainer_glm_model <- DALEX::explain(glm_model, label = "glm", data = predictors, y = response)
+
+#classifier plot
+classif_glm <- model_parts(explainer_glm_model, loss_function = loss_root_mean_square)
+#plot classifier
+#plot(classif_glm)
+```
+
+```{r}
+#partial dependence plot by dose
+pdp_classif_glm  <- model_profile(explainer_glm_model, variable = "dose.particles.mL.master", type = "partial")
+#partial dependence plot by particle surface area
+pdp_classif_glm_SA  <- model_profile(explainer_glm_model, variable = "particle.surface.area.um2", type = "partial")
+#partial dependence plot by particle length
+pdp_classif_glm_length  <- model_profile(explainer_glm_model, variable = "size.length.um.used.for.conversions", type = "partial")
+#partial dependence plot by polymer
+pdp_classif_glm_polymer  <- model_profile(explainer_glm_model, variable = "polymer", type = "partial")
+
+plot(pdp_classif_glm,  pdp_classif_glm_SA,  pdp_classif_glm_length)
+
+plot(pdp_classif_glm_polymer)
+```
+## Dose Metrics
+
+```{r}
+df2 <- aoc_z %>% 
+filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(
+    ### Organism characteristics ###
+    #organism.group, # very general organism group (e.g. fish, crustacea, etc.) - 13 levels
+    species_f, #specific species (113 levels)
+    #genus, # 96 levels
+    max.size.ingest.mm,
+    acute.chronic_f, #binary classification - species specific (makes HUGE difference)
+    #lvl1_f, # general endpoint (e.g. fitness, behavior) (9 levels)
+    lvl2_f, #specific endpoint (e.g. mortality, growth)(45 levels)
+    #environment,# freshwater, marine or terrestrial (should make little difference)
+    #life.stage, #4 levels, 100% complete (moderately important)
+    bio.org, # (organismal, tissue, population, etcl) 5 levels, 100% complete (highly important)
+    exposure.route, #water, food, sediment 
+    
+    ## dose metrics ##
+    dose.um3.mL.master, #volume/volume dose
+    dose.mg.L.master, #mass/volume dose
+    dose.particles.mL.master, #particle/volume dose
+    dose.surface.area.um2.mL.master, #area/volume dose
+   # dose.specific.surface.area.um2.mg.mL, # specific surface area/volume dose
+    
+    ## Particle characteristics ##
+    polymer, #14 levels
+    shape, #4 levels
+    #size.length.um.used.for.conversions, #continuous, 99.5% complete
+    #particle.volume.um3, #continuous, 89% complete
+    #density.mg.um.3, #continous, 97% complete
+    #particle.surface.area.um2, #continuous surface area
+    #particle.surface.area.um2.mg, #specific surface area
+    #mass.per.particle.mg, # particle mass
+    
+    ## Response variable
+    effect, # BINARY (y/n) 100% complete
+   # effect.metric #Honec, noec, loec, etc. NOTE: NA is an effect, but somewhere along the curve (unassigned magnitude)
+                  )) %>% 
+  filter(exposure.route == "water") %>% 
+  drop_na() %>%  #drop missing
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(effect, 
+                   exposure.route#,
+                   #effect.metric
+                   )) #%>%
+  #mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
+```
+
+```{r}
+response2 <- as.numeric(as.character(df2$effect_10))
+predictors2 <- as.data.frame(df2 %>% dplyr::select(-effect_10))
+#build glm
+glm_model2 <- train(effect_10~., data = df2, method = "glm", family = "binomial")
+#build explainer for easy interpretation
+explainer_glm_model2 <- DALEX::explain(glm_model2, label = "glm", data = predictors2, y = response2)
+
+#classifier plot
+classif_glm2 <- model_parts(explainer_glm_model2, loss_function = loss_root_mean_square)
+#plot classifier
+#plot(classif_glm2)
+```
+
+```{r}
+#partial dependence plot by dose metrics
+pdp_classif_glm_p  <- model_profile(explainer_glm_model2, variable = "dose.particles.mL.master", type = "partial")
+pdp_classif_glm_v  <- model_profile(explainer_glm_model2, variable = "dose.um3.mL.master", type = "partial")
+pdp_classif_glm_m  <- model_profile(explainer_glm_model2, variable = "dose.mg.L.master", type = "partial")
+pdp_classif_glm_SA  <- model_profile(explainer_glm_model2, variable = "dose.surface.area.um2.mL.master", type = "partial")
+#pdp_classif_glm_SSA  <- model_profile(explainer_glm_model2, variable = "dose.specific.surface.area.um2.mg.mL", type = "partial")
+
+#partial dependence plot by polymer
+
+plot(pdp_classif_glm_p,  pdp_classif_glm_v,  pdp_classif_glm_m, pdp_classif_glm_SA)#, pdp_classif_glm_SSA)
+```
+
+## Polymer Type
+This model's purpose is to predict toxicity for a synthetic dataset, so it should be trained on particle-specific characteristics and a SINLGE dose metric (particle count).
+```{r}
+df <- aoc_z %>% 
+filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(
+    ### Organism characteristics ###
+    #organism.group, # very general organism group (e.g. fish, crustacea, etc.) - 13 levels
+    species_f, #specific species (113 levels)
+    #genus, # 96 levels
+    max.size.ingest.mm,
+    acute.chronic_f, #binary classification - species specific (makes HUGE difference)
+    #lvl1_f, # general endpoint (e.g. fitness, behavior) (9 levels)
+    lvl2_f, #specific endpoint (e.g. mortality, growth)(45 levels)
+    #environment,# freshwater, marine or terrestrial (should make little difference)
+    #life.stage, #4 levels, 100% complete (moderately important)
+    bio.org, # (organismal, tissue, population, etcl) 5 levels, 100% complete (highly important)
+    exposure.route, #water, food, sediment 
+    
+    ## dose metrics ##
+    #dose.um3.mL.master, #volume/volume dose
+    #dose.mg.L.master, #mass/volume dose
+    #dose.particles.mL.master, #particle/volume dose
+    dose.surface.area.um2.mL.master, #area/volume dose
+    #dose.specific.surface.area.um2.mg.mL, # specific surface area/volume dose
+    
+    ## Particle characteristics ##
+    polymer, #14 levels
+    shape, #4 levels
+    size.length.um.used.for.conversions, #continuous, 99.5% complete
+    #particle.volume.um3, #continuous, 89% complete
+    #density.mg.um.3, #continous, 97% complete
+    #particle.surface.area.um2, #continuous surface area
+    #particle.surface.area.um2.mg, #specific surface area
+    #mass.per.particle.mg, # particle mass
+    
+    ## Response variable
+    effect, # BINARY (y/n) 100% complete
+   # effect.metric #Honec, noec, loec, etc. NOTE: NA is an effect, but somewhere along the curve (unassigned magnitude)
+                  )) %>% 
+  filter(exposure.route == "water") %>% 
+  drop_na() %>%  #drop missing
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(effect, 
+                   exposure.route#,
+                   #effect.metric
+                   )) #%>%
+  #mutate(sa_vol_ratio = dose.surface.area.um2.mL.master/dose.um3.mL.master)
+```
+
+```{r}
+response <- as.numeric(as.character(df$effect_10))
+predictors <- as.data.frame(df %>% dplyr::select(-effect_10))
+#build glm
+glm_model <- train(effect_10~., data = df, method = "glm", family = "binomial")
+#build explainer for easy interpretation
+explainer_glm_model <- DALEX::explain(glm_model, label = "glm", data = predictors, y = response)
+
+#classifier plot
+classif_glm2<- model_parts(explainer_glm_model, loss_function = loss_root_mean_square)
+#plot classifier
+plot(classif_glm2)
+
+final_model <- glm_model
+```
+### Partial dependence plot
+```{r}
+p1  <- model_profile(explainer_glm_model, variable = "bio.org", type = "partial")
+p2  <- model_profile(explainer_glm_model, variable = "polymer", type = "partial")
+p3  <- model_profile(explainer_glm_model, variable = "shape", type = "partial")
+p4  <- model_profile(explainer_glm_model, variable = "acute.chronic_f", type = "partial")
+
+plot(p1, p2, p3, p4)
+```
+
+Clean up the plot
+```{r}
+# bio org
+org <- p1$agr_profiles %>% 
+  as.data.frame()
+pp1 <- org %>% 
+  rename(bio.org = '_x_',
+         tox = '_yhat_') %>%
+  ggplot(aes(x = reorder(bio.org, -tox), y = tox)) +
+  geom_col(fill = "green") +
+  xlab("Biological Level of Organization") +
+  ylab("Relative Sensitivity") +
+  dark_theme_bw(base_size = 15)
+
+#polymer
+pp2 <- p2$agr_profiles %>% 
+  as.data.frame() %>% 
+  rename(factor = '_x_',
+         tox = '_yhat_') %>%
+  ggplot(aes(x = reorder(factor, -tox), y = tox)) +
+  geom_col(fill = "blue") +
+  xlab("Polymer") +
+  dark_theme_bw(base_size = 15)
+
+#shape
+pp3 <- p3$agr_profiles %>% 
+  as.data.frame() %>% 
+  rename(factor = '_x_',
+         tox = '_yhat_') %>%
+  ggplot(aes(x = reorder(factor, -tox), y = tox)) +
+  geom_col(fill = "yellow") +
+  xlab("Shape") +
+  dark_theme_bw(base_size = 15)
+
+#Acute chronic
+pp4 <- p4$agr_profiles %>% 
+  as.data.frame() %>% 
+  rename(factor = '_x_',
+         tox = '_yhat_') %>%
+  ggplot(aes(x = reorder(factor, -tox), y = tox)) +
+  geom_col(fill = "red") +
+  xlab("Acute or Chronic") +
+  dark_theme_bw(base_size = 15)
+
+grid.arrange(pp1,pp2,pp3,pp4, top = "Relative Toxicity of Variables", bottom = "General Linear Model; Coefficients")
+```
+
+```{r}
+aoc_z_sub <- aoc_z %>%
+  dplyr::select(names(final_model$trainingData)[-1], csf, density.mg.um.3, size.length.um.used.for.conversions)
+
+actual_model_data <- final_model$trainingData %>%
+  dplyr::mutate(.outcome = as.numeric(as.character(.outcome))) 
+```
 
 # Resources: 
 https://pubs.acs.org/doi/suppl/10.1021/acs.est.0c02982/suppl_file/es0c02982_si_001.pdf https://pubs.acs.org/doi/suppl/10.1021/acs.estlett.9b00379/suppl_file/ez9b00379_si_001.pdf
@@ -95,7 +396,7 @@ Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - whic
 
 #variables to set for funcions
       xmin = 1 #UM
-      alpha = 1.6 #2.7 is preferred in unpublished Kooi et al.
+      alpha = 2.07 #for marine surface water Kooi et al 2021
       
       mu1 <- 0.08
       mu2 <- 0.44
@@ -128,8 +429,8 @@ D.func <- function (D){
 }
 
 
-
-synthetic_distributed_data_builder <- function(count, volume_l, addedfactors){
+## Create environmentally realistic data
+synthetic_data_builder <- function(count, volume_l, addedfactors){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
       set.seed(123)
@@ -223,6 +524,19 @@ add_prediction <- function(fun, model, ...){
 Test synthetic data.
 
 ```{r}
+possible_variables <- aoc_z_sub %>%
+        # dplyr::select(treatments,
+        #        organism.group,
+        #        exposure.duration.d,
+        #        lvl1_f,
+        #        life.stage,
+        #        bio.org,
+        #        effect.metric,
+        #        environment,
+        #        exposure.route,
+        #        lvl2_f) %>%
+        distinct()
+
 ##++++++++++++++++++++++++++++++++++++++++
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
@@ -230,7 +544,6 @@ skim(synthetic_data_builder(count = 10000,
                                     volume_l = 1000, 
                                     addedfactors = possible_variables[488,]
                                     ))
-
 ```
 
 
@@ -240,10 +553,7 @@ It may be possible to visualize discrete relationships of toxicity by creating a
 
 #### Generate uniform particles
 ```{r}
-<<<<<<< HEAD
-=======
 n = 1000
->>>>>>> 508e2335b27f94933f95cad8551f8a1b93876383
 #Create uniform characteristics for base particle characteristics (size, shape, density)
 csf <- runif(n, min = min(aoc_z$csf, na.rm = T), max(aoc_z$csf, na.rm = T)) #Set this to parameter space 
 #mass.per.particle.mg <- runif(n, min = 0, max = 1.65e+1)
@@ -255,6 +565,18 @@ size.length.um.used.for.conversions <- runif(n, min = min(aoc_z$size.length.um.u
 #rel.ab <- c(0.2, 0.2, 0.2, 0.2, 0.2)
 #polymer <- sample(pols, size = n, prob = rel.ab, replace = TRUE)
 
+#surface area equation for elongated spheres (fragments)
+SAfnx = function(a, # length
+                 b, # width
+                 c){ # height
+  SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
+  return(SA)}
+
+#Volume equation for elongated sphere (fragments)
+volumefnx = function(R, L){
+  volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (0.77 average in marine surface water)
+  return(volume)}
+
 #create data frame with uniform distirbutions
 unif_df <- data.frame(csf, density.mg.um.3, size.length.um.used.for.conversions) %>%
   mutate(mass.per.particle.mg = density.mg.um.3 * size.length.um.used.for.conversions ^ 3 * 1E-9) %>% 
@@ -265,8 +587,13 @@ unif_df <- data.frame(csf, density.mg.um.3, size.length.um.used.for.conversions)
   mutate(dose.um3.mL.master = particle.volume.um3 / vol.mL) %>% 
   mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
   mutate(dose.mg.L.master = mass.per.particle.mg / vol.L) %>% 
-    #organism/test system characteristics
-  mutate_if(is.character, as.factor)
+  #calculate surface area based on shape
+  mutate(particle.surface.area.um2 = SAfnx(a = size.length.um.used.for.conversions,
+                                           b = 0.77 * size.length.um.used.for.conversions,
+                                           c = 0.77 * 0.67 * size.length.um.used.for.conversions)) %>% 
+  mutate(dose.surface.area.um2.mL.master = particle.surface.area.um2 * dose.particles.mL.master)
+  
+  
 
 skim(unif_df)
 ```
@@ -296,19 +623,26 @@ Big assumption: all particle toxicities are ADDITIVE! Depends on effect mechanis
 
 
 # Dose-response curves
-#Part of me just wants to set the uniform distribution to the distinct version of the dataset. That way we can define uncertainty for each dose response curve and are not extrapolating within ranges (sometimes people just get data for the max and min in a distribution that doesn't mean that we know what the middle should be.)
+Part of me just wants to set the uniform distribution to the distinct version of the dataset. That way we can define uncertainty for each dose response curve and are not extrapolating within ranges (sometimes people just get data for the max and min in a distribution that doesn't mean that we know what the middle should be.)
 
 ```{r}
-
+#creates new datatable that has all organism endpoint information in it
 org_endpoint_comb <- aoc_z %>%
-  dplyr::select(organism.group, bio.org, lvl1_f) %>%
+  dplyr::select(organism.group, 
+                bio.org, 
+                lvl2_f,
+                max.size.ingest.mm,
+                acute.chronic_f,
+                exposure.route,
+                species_f) %>%
   distinct() 
 
+# expands using uniform dataframe
 df_expand <- org_endpoint_comb %>%
   expand_grid(unif_df)
 
 #Ran the code below too to see if the glm methods were the same. They are returning the same response. 
-df_expand$prob <- predict(final_model, df_expand, type = "response")
+df_expand$prob <- predict.glm(final_model, df_expand, type = "response")
 
 for(row in 1:nrow(org_endpoint_comb)){
   slice <- org_endpoint_comb[row,]
