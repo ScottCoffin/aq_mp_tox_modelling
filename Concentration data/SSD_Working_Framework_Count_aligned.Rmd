@@ -1143,7 +1143,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1210,7 +1210,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
@@ -1403,7 +1403,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1457,7 +1457,7 @@ gt(largesdf) %>%
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE) 
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 3/4, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 ```
@@ -1701,7 +1701,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1768,7 +1768,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
@@ -2014,7 +2014,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -2368,7 +2368,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -2682,7 +2682,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -2996,7 +2996,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3310,7 +3310,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3623,7 +3623,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3937,7 +3937,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -4241,7 +4241,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -4555,7 +4555,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme

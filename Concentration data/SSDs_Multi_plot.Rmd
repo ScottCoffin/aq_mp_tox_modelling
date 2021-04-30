@@ -57,8 +57,8 @@ Tables imported from
 #threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL_10-100.csv")
 
 ### 100 - 5000 um
- threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL_100-5000.csv")
- threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL_100-5000.csv")
+threshold1_all_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_all_mgL_100-5000.csv")
+threshold1_tech_mgL <- read_csv("Concentration data/SSD_Multi/threshold1_tech_mgL_100-5000.csv")
 ```
 
 ```{r}
