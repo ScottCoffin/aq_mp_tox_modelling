@@ -596,7 +596,7 @@ species_size_f <- aoc_intermediate %>%
   distinct(Species, size_f) %>% 
   ggplot(aes(x = size_f, fill = Species)) +
   geom_bar() +
-  scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 34)) +
+  scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 35)) +
   labs(title = "Number of Species by Particle Length",
        subtitle = "Red criteria passed only, aquatic species (subcell to population organization)") +
   xlab("Length (um)") +
@@ -934,13 +934,6 @@ tier1_2_large <- aoc_final_large %>%
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
-
-# ### 10 - 100 um
-# tier1_2_medium <- tier1_2 %>% 
-#   filter(size_f %in% c("10µm < 100µm")) 
-#   
-# # Count observations and studies
-# tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
 ### 1 - 100 um
 tier1_2_small <- aoc_final_small %>% 
@@ -1460,6 +1453,31 @@ gt(smallsdf) %>%
   tab_header(title = "Tier 3/4, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
+```
+
+#Raw Data Export for Evaluation
+
+```{r tables for data review}
+
+a <- tier1_2_large %>% 
+  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported) %>% 
+  rename("Endpoint_Score" = risk.13, "Particle_Length" = size.length.um.used.for.conversions, "Particle_Width" = size.width.um.used.for.conversions) 
+
+b <- tier1_2_small %>% 
+  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions,dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported) %>% 
+  rename("Endpoint_Score" = risk.13, "Particle_Length" = size.length.um.used.for.conversions, "Particle_Width" = size.width.um.used.for.conversions) 
+
+c <- tier3_4_large %>% 
+  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions,dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported) %>% 
+  rename("Endpoint_Score" = risk.13, "Particle_Length" = size.length.um.used.for.conversions, "Particle_Width" = size.width.um.used.for.conversions) 
+
+d <- tier1_2_small %>% 
+  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions,dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported) %>% 
+  rename("Endpoint_Score" = risk.13, "Particle_Length" = size.length.um.used.for.conversions, "Particle_Width" = size.width.um.used.for.conversions) 
+
+list_of_datasets <- list("Tier 1_2, 1-5000um" = a, "Tier 1_2, 1-83um" = b, "Tier 3_4, 1-5000um" = c, "Tier 3_4, 1-83um" = d)
+write.xlsx(list_of_datasets, file = "SSD_rawdata.xlsx")
+
 ```
 
 ## ERM = Particles
