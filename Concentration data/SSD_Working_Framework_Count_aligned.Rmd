@@ -2762,7 +2762,7 @@ a <- tier1_2_large %>%
          "Biological_Level" = bio_f,
          "Particle_Length" = size.length.um.used.for.conversions, 
          "Particle_Width" = size.width.um.used.for.conversions, 
-         "Dose_Volume_Aligned" = EC_env_v.particles.mL, 
+         "Dose_Volume_Aligned_particles_L" = EC_env_v.particles.mL, 
          "Acute_Chronic_AF" = af.time_noNA, 
          "Convert_to_NOEC" = af.noec, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
@@ -2778,7 +2778,7 @@ b <- tier3_4_large %>%
          "Biological_Level" = bio_f,
          "Particle_Length" = size.length.um.used.for.conversions, 
          "Particle_Width" = size.width.um.used.for.conversions, 
-         "Dose_Volume_Aligned" = EC_env_v.particles.mL, 
+         "Dose_Volume_Aligned_particles_L" = EC_env_v.particles.mL, 
          "Acute_Chronic_AF" = af.time_noNA, 
          "Convert_to_NOEC" = af.noec, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
@@ -3428,7 +3428,7 @@ c <- tier1_2_small %>%
          "Biological_Level" = bio_f,
          "Particle_Length" = size.length.um.used.for.conversions, 
          "Particle_Width" = size.width.um.used.for.conversions, 
-         "Dose_SurfaceArea_Aligned" = EC_env_sa.particles.mL, 
+         "Dose_SurfaceArea_Aligned_particles_L" = EC_env_sa.particles.mL, 
          "Acute_Chronic_AF" = af.time_noNA, 
          "Convert_to_NOEC" = af.noec, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
@@ -3444,7 +3444,7 @@ d <- tier3_4_small %>%
          "Biological_Level" = bio_f,
          "Particle_Length" = size.length.um.used.for.conversions, 
          "Particle_Width" = size.width.um.used.for.conversions, 
-         "Dose_SurfaceArea_Aligned" = EC_env_sa.particles.mL, 
+         "Dose_SurfaceArea_Aligned_particles_L" = EC_env_sa.particles.mL, 
          "Acute_Chronic_AF" = af.time_noNA, 
          "Convert_to_NOEC" = af.noec, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
