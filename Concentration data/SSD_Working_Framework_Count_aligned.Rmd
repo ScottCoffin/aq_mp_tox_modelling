@@ -936,7 +936,7 @@ tier1_2_large <- aoc_final_large %>%
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -991,7 +991,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1019,7 +1019,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1095,7 +1095,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -1103,7 +1103,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1232,7 +1232,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier3_4_small <- aoc_final_small %>%
          filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
          bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
@@ -1289,7 +1289,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tiers 3 & 4, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tiers 3 & 4, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1317,7 +1317,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r}
 ###### --modelling ####
@@ -1363,7 +1363,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1494,7 +1494,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -1549,7 +1549,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1577,7 +1577,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1653,7 +1653,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -1661,7 +1661,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1806,7 +1806,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
          bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
@@ -1863,7 +1863,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1894,7 +1894,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1966,7 +1966,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -1974,7 +1974,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2119,7 +2119,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -2174,7 +2174,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -2205,7 +2205,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2320,7 +2320,7 @@ size.sa %>%
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -2328,7 +2328,7 @@ size.sa %>%
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2531,7 +2531,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -2562,7 +2562,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2634,7 +2634,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -2642,7 +2642,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2832,7 +2832,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -2887,7 +2887,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -2918,7 +2918,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2994,7 +2994,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3002,7 +3002,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3205,7 +3205,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -3236,7 +3236,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 #### SSD Build
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3308,7 +3308,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3316,7 +3316,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3424,7 +3424,7 @@ gt(smallsdf) %>%
 
 #Raw Data Export for Evaluation - Small Particles, Surface Area
 
-```{r tables for data review}
+```{r tables for data review 2}
 
 c <- tier1_2_small %>% 
   select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
@@ -3509,7 +3509,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -3564,7 +3564,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -3594,7 +3594,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3670,7 +3670,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3678,7 +3678,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3824,7 +3824,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
@@ -3881,7 +3881,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -3912,7 +3912,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3984,7 +3984,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3992,7 +3992,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4130,7 +4130,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
@@ -4185,7 +4185,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -4216,7 +4216,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4288,7 +4288,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -4296,7 +4296,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4499,7 +4499,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -4530,7 +4530,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4602,7 +4602,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -4610,7 +4610,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
