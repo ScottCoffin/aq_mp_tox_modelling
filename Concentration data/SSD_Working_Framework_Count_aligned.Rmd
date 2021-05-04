@@ -33,6 +33,7 @@ library(ggrepel)
 library(scales)
 library(gt)
 library(ggsci)
+library(openxlsx)
 ```
 
 ```{r ERM}
@@ -2752,36 +2753,44 @@ gt(smallsdf) %>%
 ```{r tables for data review}
 
 a <- tier1_2_large %>% 
-  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, af.time_noNA, af.noec, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
          "Organism Group" = org_f,
          "Species" = species_f,
          "Broad_Endpoint_Category" = lvl1_f,
-         "Specific_Endpoint_Category" = lvl2_f,
          "Measured_Endpoint" = lvl3_f,
          "Biological_Level" = bio_f,
-         "Particle_Length" = size.length.um.used.for.conversions, 
-         "Particle_Width" = size.width.um.used.for.conversions, 
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
          "Dose_Volume_Aligned_particles_mL" = EC_env_v.particles.mL, 
-         "Acute_Chronic_AF" = af.time_noNA, 
-         "Convert_to_NOEC" = af.noec, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
 
 b <- tier3_4_large %>% 
-  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions,dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, af.time_noNA, af.noec, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
          "Organism Group" = org_f,
          "Species" = species_f,
          "Broad_Endpoint_Category" = lvl1_f,
-         "Specific_Endpoint_Category" = lvl2_f,
          "Measured_Endpoint" = lvl3_f,
          "Biological_Level" = bio_f,
-         "Particle_Length" = size.length.um.used.for.conversions, 
-         "Particle_Width" = size.width.um.used.for.conversions, 
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
          "Dose_Volume_Aligned_particles_mL" = EC_env_v.particles.mL, 
-         "Acute_Chronic_AF" = af.time_noNA, 
-         "Convert_to_NOEC" = af.noec, 
-         "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
+         "Aligned_Dose_AF_Applied_particles_L" = dose_new)
 
 ```
 
@@ -3418,35 +3427,43 @@ gt(smallsdf) %>%
 ```{r tables for data review}
 
 c <- tier1_2_small %>% 
-  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions,dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, af.time_noNA, af.noec, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
          "Organism Group" = org_f,
          "Species" = species_f,
          "Broad_Endpoint_Category" = lvl1_f,
-         "Specific_Endpoint_Category" = lvl2_f,
          "Measured_Endpoint" = lvl3_f,
          "Biological_Level" = bio_f,
-         "Particle_Length" = size.length.um.used.for.conversions, 
-         "Particle_Width" = size.width.um.used.for.conversions, 
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
          "Dose_SurfaceArea_Aligned_particles_mL" = EC_env_sa.particles.mL, 
-         "Acute_Chronic_AF" = af.time_noNA, 
-         "Convert_to_NOEC" = af.noec, 
-         "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
+         "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
 
 d <- tier3_4_small %>% 
-  select(doi, article, authors, risk.13, org_f, species_f, lvl1_f, lvl2_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, size.width.um.used.for.conversions,dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL,af.time_noNA, af.noec, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
          "Organism Group" = org_f,
          "Species" = species_f,
          "Broad_Endpoint_Category" = lvl1_f,
-         "Specific_Endpoint_Category" = lvl2_f,
          "Measured_Endpoint" = lvl3_f,
          "Biological_Level" = bio_f,
-         "Particle_Length" = size.length.um.used.for.conversions, 
-         "Particle_Width" = size.width.um.used.for.conversions, 
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
          "Dose_SurfaceArea_Aligned_particles_mL" = EC_env_sa.particles.mL, 
-         "Acute_Chronic_AF" = af.time_noNA, 
-         "Convert_to_NOEC" = af.noec, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
 
 list_of_datasets <- list("Tier 1_2, 1-5000um" = a, "Tier 3_4, 1-5000um" = b, "Tier 1_2, 1-83um" = c, "Tier 3_4, 1-83um" = d)
