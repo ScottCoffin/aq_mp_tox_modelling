@@ -4972,4 +4972,181 @@ gt(ERM_large) %>%
     #as_raw_html() # return as html
 ```
 
+# Probabilistic Species Sensitivity Distribution Plus
+
+The below code will not run with an open environment due to memory constraints.
+```{r}
+#library(gdata)
+#keep(tier1_2_large, sure = TRUE)
+write.csv(tier1_2_large, "tier1_2_large.csv")
+rm(list = ls())
+gc()
+tier1_2_large <- read.csv("tier1_2_large.csv")
+```
+
+```{r}
+# -------------------------------------------------------------------------------------------------
+# Code based on PSSD and PNEC calculations using the tool PSSD+ developed by Wigger et al. (2019)
+# -------------------------------------------------------------------------------------------------
+# 
+# Associated publication: Systematic consideration of parameter uncertainty and variability in
+#                         probabilistic species sensitivity distributions
+# 
+# Authors: Henning Wigger, Delphine Kawecki, Bernd Nowack and V?ronique Adam
+# 
+# Institute: Empa, Swiss Federal Laboratories for Materials Science and Technology,
+#            Technology and Society Laboratory, Lerchenfeldstrasse 5, 9014 St. Gallen, Switzerland
+# 
+# submitted to Integrated Environmental Assessment and Management in December 2018
+# 
+# -------------------------------------------------------------------------------------------------
+
+##### Build functions ####
+source("PSSD/rmore.r")
+source("PSSD/do.pssd.r")
+#source("PSSD/do.pssd.troph.r")
+#source("PSSD/do.pssd.ag.r")
+
+
+###################################################################################################
+##### MAIN PARAMETERS FOR THE CALCULATION #########################################################
+###################################################################################################
+
+# number of simulations for the triangular distributions of the data points and uncertainty factors
+SIM <- 10000
+
+# coefficient of variation for the data point distributions
+CV.DP <- 0.3
+
+# coefficient of variation for the uncertainty factor distributions
+CV.UF <- 0.5
+```
+## Data preparation
+```{r}
+library(reshape2)
+require(tidyverse)
+
+t2 <- tier1_2_large#%>% 
+ # filter(species == "magna")
+
+# prep dataframe for tox datapoints
+DP_1_large_volume <-  t2 %>% 
+  #mutate(tier = "A") %>% 
+  mutate(id = row_number()) %>% 
+  mutate(particles_L = EC_env_v.particles.mL*10) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
+  mutate(particles_L_round = as.integer(round(particles_L,digits = 1))) %>%  #must make integer for below code to work
+  select(id, species, particles_L_round) %>% 
+  acast(id ~ species, value.var = "particles_L_round") %>% 
+  as.matrix()
+
+#prep uncertainty factors for conversion from acute to chronic values
+UFt_1_large_volume <- t2 %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.time) %>% 
+  acast(id ~ species, value.var = "af.time")
+
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd_1_large_volume <- t2 %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.noec) %>% 
+  acast(id ~ species, value.var = "af.noec")
+rm(tier1_2_large)
+```
+
+## Tier 1_2_Large_volume
+```{r}
+# read toxicity data
+# data points from the literature
+DP   <- DP_1_large_volume
+# uncertainty factors for conversion from acute to chronic values
+UFt  <- UFt_1_large_volume
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd <- UFdd_1_large_volume
+
+
+###################################################################################################
+##### CALCULATION OF NOECs and PSSDs ##############################################################
+###################################################################################################
+
+# estimate the NOEC distributions for each species
+NOEC <- do.pSSD(DP, UFt, UFdd, SIM, CV.DP, CV.UF)
+
+# calculate the deterministic (modal) values of the NOEC
+NOEC.det <- DP/(UFdd*UFt)
+
+###convert to particles/L
+NOEC2 = NOEC * 100
+NOEC.det2 = NOEC.det * 100
+```
+
+```{r}
+###################################################################################################
+##### EXAMPLES OF RESULTS #########################################################################
+###################################################################################################
+
+### Plot the probability densities of some species
+
+## For a species with 1 endpoint (T. thermophila)
+# histogram
+hist(log10(NOEC2[3,]), freq = F, main = "Ceriodaphnia dupia - 14 endpoints", xlab = "NOEC log[particles/L]")
+# probability density
+lines(density(log10(NOEC2[3,])), col = "red", lwd = 2) 
+# Deterministic NOEC
+abline(v = median(log10(NOEC.det2[,3]), na.rm = TRUE), col = "green", lty = 2, lwd = 2)
+```
+
+```{R}
+## For a species with 1 endpoints (Danio rerio)
+hist(NOEC[11,], freq = F, main = "Danio rero - 1 endpoints", xlab = "NOEC [ug/l]")
+lines(density(NOEC[11,]), col = "red", lwd = 2)
+abline(v = median(NOEC.det[,11], na.rm = TRUE), col = "green", lty = 2, lwd = 2)
+
+# for(i in 1:length(which(!is.na(NOEC.det[,11])))){
+#   abline(v = NOEC.det[i,11], col = "green", lty = 2, lwd = 2)
+#}
+
+```
+
+```{r}
+### Plot PSSDs
+
+# calculate all PSSD curves
+xvalues <- seq(-6,7,0.001)
+PSSD <- matrix(NA, SIM, length(xvalues))
+# calculate the ecdf function
+for(i in 1:SIM){
+  the.ecdf.f <- ecdf(log(NOEC[,i], base = 10))
+  PSSD[i,] <- the.ecdf.f(xvalues)
+}
+
+```
+
+```{r}
+# Plot the mean PSSD
+plot(c(-2,6), c(0,1),
+     main = "Microplastics Probabilistic SSD (1-5,000 um; volumetric)",
+     xlab = "NOEC [particles/L]",
+     ylab = "Proportion of Species Affected",
+     type = "n",
+     axes = F)
+axis(1, at = c(-2,0,2,4,6), labels = expression(10^-2, 10^0, 10^2, 10^4, 10^6), lwd = 0.5)
+axis(2, lwd = 0.5, las = 1)
+abline(h = seq(0,1,0.2), lty = 1, lwd = 0.5, col = "gray90")
+abline(v = seq(-6,5,1), lty = 1, lwd = 0.5, col = "gray90")
+box(lwd = 0.5)
+lines(xvalues, apply(PSSD,2,function(x) {mean(x)}), col = "red", lwd = 1.5)
+legend("topleft", "Mean PSSD", col = "red", lwd = 1.5)
+```
+
+```{r}
+### PNEC histogram
+
+# calculate the PNEC
+PNEC <- apply(NOEC,2,function(x){ quantile(x, probs = 0.05) })
+
+# plot a histogram of the PNEC
+hist(PNEC, xlab = "HC5's [particles/l]", main = "Probabilistic HC5's", sub = "1-5,000 um Microplastics; tier 3; volumetric alignment")
+
+```
+
 
