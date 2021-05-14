@@ -4979,8 +4979,8 @@ The below code will not run with an open environment due to memory constraints.
 #library(gdata)
 #keep(tier1_2_large, sure = TRUE)
 write.csv(tier1_2_large, "tier1_2_large.csv")
-rm(list = ls())
-gc()
+#rm(list = ls())
+#gc()
 tier1_2_large <- read.csv("tier1_2_large.csv")
 ```
 
@@ -5054,7 +5054,7 @@ rm(tier1_2_large)
 ```
 
 ## Tier 1_2_Large_volume
-```{r}
+```{r include=FALSE}
 # read toxicity data
 # data points from the literature
 DP   <- DP_1_large_volume
@@ -5150,3 +5150,277 @@ hist(PNEC, xlab = "HC5's [particles/l]", main = "Probabilistic HC5's", sub = "1-
 ```
 
 
+# Sensitivity Analysis
+## Leave-one-out method
+These techniques are based on the Leave-One-Out-method, in which we recalculate the results of our meta-analysis K − 1  times, each times leaving out one study. This way, we can more easily detect studies which influence the overall estimate of our meta-analysis the most, and this lets us better assess if this influence may distort our pooled effect (Viechtbauer and Cheung 2010).
+
+### SSD and Sensitivity analysis Functions
+```{r}
+#### define function for SSD generation for tier 1 ####
+SSD_function_t1 <- function(filtered.data){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[5]) #CI95
+#values to extract
+print(hc5lcl)
+}
+
+# Leave-one-out by study function
+sensitivity_t1 <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function_t1(train)
+})
+
+#### define function for SSD generation for tiers 2,3 and 4 ####
+SSD_function <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+
+# Leave-one-out by study function
+sensitivity <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function(train, hcx = y)
+})
+
+```
+
+###  Tiers 1 and 2 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+aoc_final_smallhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier1_2_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_2_small_SA
+```
+
+#### Analytics
+```{r}
+#study
+tier1_2_small_SA %>% 
+  mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies")
+  labs(title = "Sensitivity Analysis",
+       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+```
+###  Tiers 3 and 4 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new*1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier3_4_small_SAhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier3_4_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier3_4_small_SA
+```
+
+#### Analytics
+```{r}
+#study
+tier3_4_small_SA %>% 
+  mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies")
+  labs(title = "Sensitivity Analysis",
+       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+```
+
+
+###  Tiers 1 and 2 - Food Dilution
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_large %>% 
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier1_2_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier1_2_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_2_large_V
+```
+
+#### Analytics
+```{r}
+#study
+tier1_2_large_V %>% 
+  mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies")
+  labs(title = "Sensitivity Analysis",
+       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+```
+
+###  Tiers 3 and 4 - Food Dilution
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_large %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new*1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier3_4_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier3_4_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier3_4_large_V
+```
+
+#### Analytics
+```{r}
+#study
+tier3_4_large_V %>% 
+  mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  geom_line() +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies")
+  labs(title = "Sensitivity Analysis",
+       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+```
