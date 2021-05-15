@@ -5157,7 +5157,7 @@ These techniques are based on the Leave-One-Out-method, in which we recalculate 
 ### SSD and Sensitivity analysis Functions
 ```{r}
 #### define function for SSD generation for tier 1 ####
-SSD_function_t1 <- function(filtered.data){
+SSD_function_t1 <- function(filtered.data, hcxlcl){
   set.seed(99)
   #data collapse
 collapsed <- filtered.data %>% 
@@ -5168,7 +5168,7 @@ dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", 
 #use average distribution with weighthing based on AICC
 preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 #report HC metrics of interest
-hc5lcl <- c(preds$lcl[5]) #CI95
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
 #values to extract
 print(hc5lcl)
 }
@@ -5176,7 +5176,7 @@ print(hc5lcl)
 # Leave-one-out by study function
 sensitivity_t1 <- Vectorize(function(x, y) {
   train <- filtered.data[!filtered.data$doi %in% x,]
-   SSD_function_t1(train)
+   SSD_function_t1(train, hcxlcl = y)
 })
 
 #### define function for SSD generation for tiers 2,3 and 4 ####
@@ -5205,7 +5205,7 @@ sensitivity <- Vectorize(function(x, y) {
 
 ```
 
-###  Tiers 1 and 2 - Translocation
+###  Tier 1 - Translocation
 ```{r warning=FALSE}
 #data filtering
 filtered.data <- aoc_final_small %>% 
@@ -5215,10 +5215,76 @@ filtered.data <- aoc_final_small %>%
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
 
 #HC metrics to calculate
-y <- list(hc5 = 5,hc10 = 10)
+y <- list(hcxlcl = 5)
 
 # get HC5 for all studies
-aoc_final_smallhc5 <- SSD_function(filtered.data, hcx = 5)
+aoc_final_smalllcl <- SSD_function_t1(filtered.data = filtered.data, hcxlcl = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity_t1), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
+  
+tier1_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hcxlcl,
+                acute.chronic_f, 
+                bio_f,
+               lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_2_small_SA
+```
+Save
+```{r}
+t1_2_SA <- tier1_small_SA %>%  
+  distinct(doi, authors, year, hcxlcl) 
+```
+
+#### Analytics
+```{r}
+#study
+tier1_small_SA %>% 
+  mutate(doi = fct_reorder(doi, hcxlcl)) %>% 
+  mutate(diff = (hcxlcl - aoc_final_smalllcl)/aoc_final_smalllcl) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 2, position = position_nudge(x = 0.2)) +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "95% lower CI:HC5 - Tier 1(Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+###  Tier 2 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5)
+
+# get HC5 for all studies
+aoc_final_smallhc5 <- SSD_function(filtered.data = filtered.data, hcx = 5)
 
 #unique study names
 doi.u <- unique(filtered.data$doi)
@@ -5228,36 +5294,49 @@ doi.u <- unique(filtered.data$doi)
 o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
 
 #bind DOI's to other parameters of interest for analysis
-tier1_2_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
+  
+tier2_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
   dplyr::select(authors,
                 year,
                 Species, 
                 dose_new,
                 EC_env_sa.particles.mL,
-                hc5, 
-                hc10, 
+                hc5,
                 acute.chronic_f, 
                 bio_f,
-                lvl2_f,
+               lvl2_f,
                 size.length.um.used.for.conversions,
                 doi) 
-tier1_2_small_SA
+tier2_small_SA
+```
+Save
+```{r}
+t2_SA <- tier2_small_SA %>%  
+  distinct(doi, authors, year, hc5) 
 ```
 
 #### Analytics
 ```{r}
 #study
-tier1_2_small_SA %>% 
+tier2_small_SA %>% 
   mutate(doi = fct_reorder(doi, hc5)) %>% 
   mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
   ggplot(aes(x = diff, y = doi, color = Species)) +
   geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 2, position = position_nudge(x = 0.2)) +
   geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference in Threshold Relative to using all studies")
-  labs(title = "Sensitivity Analysis",
-       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 2 (Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
 ```
+
 ###  Tiers 3 and 4 - Translocation
 ```{r warning=FALSE}
 #data filtering
@@ -5298,20 +5377,31 @@ tier3_4_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2
                 doi) 
 tier3_4_small_SA
 ```
+Save
+```{r}
+t3_4_SA <- tier3_4_small_SA %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
 
 #### Analytics
 ```{r}
 #study
 tier3_4_small_SA %>% 
-  mutate(doi = fct_reorder(doi, hc5)) %>% 
-  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+    mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - tier3_4_small_SAhc5)/tier3_4_small_SAhc5) %>% 
   ggplot(aes(x = diff, y = doi, color = Species)) +
   geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 3, position = position_nudge(x = 0.2)) +
   geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference in Threshold Relative to using all studies")
-  labs(title = "Sensitivity Analysis",
-       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 3 & 4 (Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
 ```
 
 
@@ -5353,20 +5443,31 @@ tier1_2_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)
                 doi) 
 tier1_2_large_V
 ```
+Save
+```{r}
+t1_2_volume <- tier1_2_large_V %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
 
 #### Analytics
 ```{r}
 #study
 tier1_2_large_V %>% 
-  mutate(doi = fct_reorder(doi, hc5)) %>% 
-  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+   mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - tier1_2_large_Vhc5)/tier1_2_large_Vhc5) %>% 
   ggplot(aes(x = diff, y = doi, color = Species)) +
   geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 3, position = position_nudge(x = 0.2)) +
   geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference in Threshold Relative to using all studies")
-  labs(title = "Sensitivity Analysis",
-       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 1 & 2 (Volume)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
 ```
 
 ###  Tiers 3 and 4 - Food Dilution
@@ -5407,20 +5508,42 @@ tier3_4_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)
                 lvl2_f,
                 size.length.um.used.for.conversions,
                 doi) 
-tier3_4_large_V
+
+tier3_4_large_V %>% 
+  datatable()
+```
+Save
+```{r}
+t3_4_volume <- tier3_4_large_V %>%  
+  distinct(doi, authors, year, hc5, hc10) 
 ```
 
 #### Analytics
 ```{r}
 #study
 tier3_4_large_V %>% 
-  mutate(doi = fct_reorder(doi, hc5)) %>% 
-  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+    mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - tier3_4_large_Vhc5)/tier3_4_large_Vhc5) %>% 
   ggplot(aes(x = diff, y = doi, color = Species)) +
   geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 3, position = position_nudge(x = 0.2)) +
   geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
   scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference in Threshold Relative to using all studies")
-  labs(title = "Sensitivity Analysis",
-       subtitle = "HC5 for Tier 2(Tissue Translocation) by Leave-One-Out (Study)")
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 3 & 4 (Volume)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
 ```
+## Export to Excel
+```{r}
+library(openxlsx)
+write.xlsx(t1_2_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
+write.xlsx(t3_4_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t3_4_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+```
+
