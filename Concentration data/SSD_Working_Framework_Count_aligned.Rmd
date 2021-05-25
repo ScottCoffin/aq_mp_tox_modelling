@@ -2753,11 +2753,12 @@ gt(smallsdf) %>%
 ```{r tables for data review}
 
 a <- tier1_2_large %>% 
-  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
          "First_Author" = authors,
          "Particle_Shape" = shape_f,
          "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
          "Polymer_Type" = poly_f,
          "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
          "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
@@ -2773,11 +2774,12 @@ a <- tier1_2_large %>%
          "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
 
 b <- tier3_4_large %>% 
-  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
          "First_Author" = authors,
          "Particle_Shape" = shape_f,
          "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
          "Polymer_Type" = poly_f,
          "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
          "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
@@ -3427,11 +3429,12 @@ gt(smallsdf) %>%
 ```{r tables for data review 2}
 
 c <- tier1_2_small %>% 
-  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
          "First_Author" = authors,
          "Particle_Shape" = shape_f,
          "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
          "Polymer_Type" = poly_f,
          "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
          "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
@@ -3447,11 +3450,12 @@ c <- tier1_2_small %>%
          "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
 
 d <- tier3_4_small %>% 
-  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
   rename("Endpoint_Score" = risk.13,
          "First_Author" = authors,
          "Particle_Shape" = shape_f,
          "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
          "Polymer_Type" = poly_f,
          "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
          "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
