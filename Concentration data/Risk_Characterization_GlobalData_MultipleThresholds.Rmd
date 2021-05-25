@@ -117,6 +117,7 @@ sfBay <- read.csv("Concentration Data/Datasets/SFBayData.csv", na.strings = "NA"
 
 ```
 
+
 ## Size-based Correction
 Given an upper limit (UL) and lower limit (LL) of the measured and default size range, a dimensionless correction factor ($CF_{meas}$) for measured environmental concentrations may be calculated, which rescales the measured number concentrations for a certain size range to the number concentration for the microplastics default (D) size range (e.g. 1 to 5,000 um) (Koelmans et al 2020). Coefficients for the environmental-specific compartment for the power law distribution for length (L) with slope $\alpha_L$ is from Table S4 of Kooi et al (2021). 
 
@@ -1128,3 +1129,106 @@ unaligned.tox.occurence %>%
         plot.subtitle = element_text(hjust = 0.5, size = 14),
     plot.caption = element_text(hjust = 0.9, size = 14))
 ```
+
+# Tox Sizes vs. Monitoring Cut-offs
+## Histograms
+```{r}
+unaligned.tox.2 <- aoc_final_large %>% 
+  # tier 3/4 filters
+  #filter(risk.13 != 1,
+         #bio_f %in% c("Organism", "Population")) %>% 
+         mutate(Conc = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         drop_na(Conc) %>% 
+         mutate(Conc = Conc * 1000) %>% 
+ # filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 
+  mutate(tox.occurrence = "tox") %>% 
+  mutate(x1M = size.length.um.used.for.conversions) %>% 
+  dplyr::select(x1M, tox.occurrence)
+
+# extract size cutoff from monitoring data
+unaligned.global.2 <- dfADAM %>% 
+  #mutate(unaligned = particle.L.master / CF) %>%
+  dplyr::select(x1M) %>% 
+  #rename(Conc = unaligned) %>% 
+  mutate(tox.occurrence = "occurence")
+  
+#join datasets for plotting
+sizes.tox.occurence <- rbind.data.frame(unaligned.tox.2, unaligned.global.2)
+
+#### PLOTTING ####
+sizes.tox.occurence %>% 
+   ggplot(aes(x = x1M, fill = tox.occurrence)) +
+  #geom_histogram(bins = 40) +
+  geom_density(alpha = 0.6) +
+  scale_fill_manual(values = cal_palette(name = "superbloom3", type = "discrete"),
+                    name = "Tox or Occurence Data", 
+                    labels = c("Lower size limits for microplastics sampling",
+                               "Sizes of Microplastics tested in ecotoxicology")) +
+  scale_x_log10(name =  bquote("size ("~mu*"m)"),
+                             breaks = scales::log_breaks(),
+                             labels = comma_signif) +
+  ylab("Relative Frequency") +
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  labs(title = "Microplastics Monitoring Lower Size Limits vs. Sizes of Microplastics Tested in Ecotoxicology Studies"#,
+       #caption = paste("(24 occurence studies, 37 tox studies, Alpha = ",alpha,")")
+       ) +
+  dark_theme_minimal() +
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 16),
+        axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14),
+        #axis.text =  element_text(size = 16),
+        legend.text = element_text(size =12),
+    legend.position = "top",
+    legend.justification = "left",
+    legend.direction = "vertical",
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14),
+    plot.caption = element_text(hjust = 0.9, size = 12))
+```
+
+## ECDFs
+
+```{r}
+
+# get lower limit for occurence data for plotting
+lower.size <- sizes.tox.occurence %>% 
+  filter(tox.occurrence == "occurence") %>% 
+  summarize("lower" = min(x1M))
+
+#build ECDF
+sizes.tox.occurence %>% 
+ggplot(aes(x = x1M, color = tox.occurrence))+
+  stat_ecdf(geom = "point", size = 1, alpha = 0.9, pad = FALSE) +
+  stat_ecdf(geom = "step", linetype = 'solid', alpha = 0.7, size = 1.5, pad = FALSE) +
+  scale_color_manual(values = cal_palette(name = "superbloom3", type = "discrete"),
+                    name = "Tox or Occurence Data", 
+                    labels = c("Lower size limits for microplastics sampling",
+                               "Sizes of Microplastics tested in ecotoxicology")) +
+  ylab("Cumulative Frequency") +
+  xlab(bquote("size ("~mu*"m)")) +
+  # lower size dotted lines
+  geom_segment(x = lower.size[[1]], xend = lower.size[[1]], y = 0.13, yend = 0, 
+  linetype = 'dashed', color = '#00798c', size = 1) +
+  geom_segment(x = 0.001, xend = lower.size[[1]], y = 0.13, yend = 0.13, 
+  linetype = 'dashed', color = '#00798c', size = 1) +
+  scale_y_continuous(labels = scales::percent) +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  labs(title = "Microplastics Monitoring Lower Size Limits vs. Sizes of Microplastics Tested in Ecotoxicology Studies") +
+  dark_theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, size = 16),
+        axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14),
+        #axis.text =  element_text(size = 16),
+        legend.text = element_text(size =14),
+    legend.position = "top",
+    legend.justification = "left",
+    legend.direction = "vertical",
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14),
+    plot.caption = element_text(hjust = 0.9, size = 12))
+```
+
