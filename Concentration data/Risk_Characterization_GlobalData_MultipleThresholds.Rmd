@@ -35,6 +35,7 @@ library(broom)
 library(knitr)
 library(ggdark)
 library(viridis)
+library(overlapping)
 ```
 
 # Hazard Concentration and Alignment Parameters
@@ -1099,16 +1100,49 @@ unaligned.global <- dfADAM %>%
   dplyr::select(unaligned) %>% 
   rename(Conc = unaligned) %>% 
   mutate(tox.occurrence = "occurence")
-  
-  
+
 
 unaligned.tox.occurence <- rbind.data.frame(unaligned.tox, unaligned.global)
 
-#build plot
+
+####define overlap ###
+#bin the data using density
+tox.unaligned <- unaligned.tox.occurence %>% 
+  filter(tox.occurrence == "tox") %>% 
+    dplyr::select(Conc)
+
+occurrence.unaligned <- unaligned.tox.occurence %>% 
+  filter(tox.occurrence == "occurence") %>% 
+    dplyr::select(Conc)
+
+
+
+## METHOD 1
+tox.unaligned.density <- density(tox.unaligned$Conc)
+occurrence.unaligned.density <- density(occurrence.unaligned$Conc)
+
+idx <- (occurrence.unaligned.density$y < tox.unaligned.density$y) &
+(occurrence.unaligned.density$x > min(occurrence.unaligned.density$x)) &
+(occurrence.unaligned.density$x < max(occurrence.unaligned.density$x))
+#overlap
+unaligned_intersection <- min(occurrence.unaligned.density$x[idx])  
+unaligned_intersection
+
+##Method 2
+#remotes::install_github("andrewheiss/reconPlots")
+require(reconPlots)
+curve_intersect(occurrence.unaligned.density, tox.unaligned.density, empirical = TRUE)
+```
+
+```{r}
+##### Genereate PLot###
 unaligned.tox.occurence %>% 
   ggplot(aes(x = Conc, fill = tox.occurrence)) +
   #geom_histogram(bins = 40) +
   geom_density(alpha = 0.6) +
+  geom_vline(xintercept = unaligned_intersection, linetype = 'dashed', size = 0.5) +
+  annotate(geom = "text", label = round(unaligned_intersection, 2), 
+           x = unaligned_intersection - 1, y = 0.1, size = 4, angle = 90) +
   scale_fill_manual(values = cal_palette(name = "superbloom3", type = "discrete"),
                     name = "Tox or Occurence Data", labels = c("Occurence", "NOECs")) +
   scale_x_log10(name = paste("Particles/L (unaligned)"),
@@ -1129,6 +1163,40 @@ unaligned.tox.occurence %>%
         plot.subtitle = element_text(hjust = 0.5, size = 14),
     plot.caption = element_text(hjust = 0.9, size = 14))
 ```
+## Table comparing overlap
+```{r}
+require(overlapping)
+
+#can't install package
+
+# #bin the data using density
+# tox.unaligned <- unaligned.tox.occurence %>% 
+#   filter(tox.occurrence == "tox") %>% 
+#     dplyr::select(Conc)
+# 
+# occurrence.unaligned <- unaligned.tox.occurence %>% 
+#   filter(tox.occurrence == "occurence") %>% 
+#     dplyr::select(Conc)
+# # create list with different distributions
+# unaligned <- list(tox = tox.unaligned$Conc, occurrence = occurrence.unaligned$Conc)
+# out <- overlap(unaligned, plot = TRUE)
+# out$OV #estimate overlapped areas
+```
+
+```{r}
+require(ggplot2)
+require(reshape2)
+
+# Melt and plot
+munaligned.tox.occurence <- melt(unaligned.tox.occurence)
+
+ggplot(munaligned.tox.occurence) +
+  geom_density(aes(x = log10(value), color = tox.occurrence))
+
+# Find points that intersect  
+intersect(df$x, df$y)
+```
+
 
 # Tox Sizes vs. Monitoring Cut-offs
 ## Histograms

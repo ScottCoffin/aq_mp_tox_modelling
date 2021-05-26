@@ -1,0 +1,127 @@
+---
+title: "Translocation"
+author: "Scott Coffin"
+date: "4/26/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(caret)
+library(DALEX)
+library(skimr)
+library(ggeffects)
+library(ggdark)
+```
+
+```{r}
+#data cleanup
+Tissue_Translocation <- read_excel("translocation/Tissue_Translocation.xlsx", 
+    sheet = "obs") %>% 
+  mutate(Species = as.factor(Species)) %>% 
+  mutate(Polymer = as.factor(Polymer)) %>% 
+  mutate(lab.field = as.factor(lab.field)) %>% 
+  mutate(Shape = as.factor(Shape)) %>%
+  mutate(size.um = `Size (µm)`) %>% 
+  mutate(Organisms = as.factor(Organisms)) %>%
+  mutate(Exposure_route = as.factor(Exposure_route)) %>% 
+  mutate(Tissue = as.factor(Tissue)) %>% 
+  mutate(translocated_10 = case_when(`Tissue translocation observed (Y/N)` == "Y" ~ 1,
+                                     `Tissue translocation observed (Y/N)` == "N" ~ 0))
+
+#select variables for model
+df <- Tissue_Translocation %>% 
+  select(c(translocated_10,
+           Polymer,
+           Shape,
+           size.um,
+           Organisms,
+           lab.field,
+           Exposure_route
+           )) %>% 
+  drop_na()
+skim(df)
+```
+
+
+#logistic regression
+```{r}
+response <- as.numeric(as.character(df$translocated_10))
+predictors <- as.data.frame(df %>% dplyr::select(-translocated_10))
+#build glm
+glm_model <- train(translocated_10~., data = df, method = "glm", family = "binomial")
+#build explainer for easy interpretation
+explainer_glm_model <- DALEX::explain(glm_model, label = "glm", data = predictors, y = response)
+
+#classifier plot
+classif_glm <- model_parts(explainer_glm_model, loss_function = loss_root_mean_square)
+#plot classifier
+plot(classif_glm)
+```
+
+```{r}
+#partial dependence plot by dose
+pdp_classif_glm  <- model_profile(explainer_glm_model, variable = "Polymer", type = "partial")
+#partial dependence plot by particle surface area
+pdp_classif_glm_2  <- model_profile(explainer_glm_model, variable = "Shape", type = "partial")
+#partial dependence plot by particle length
+pdp_classif_glm_length  <- model_profile(explainer_glm_model, variable = "size.um", type = "partial")
+#partial dependence plot by polymer
+pdp_classif_glm_polymer  <- model_profile(explainer_glm_model, variable = "Organisms", type = "partial")
+
+plot(pdp_classif_glm,  pdp_classif_glm_2)
+
+plot(pdp_classif_glm_polymer)
+plot(pdp_classif_glm_length)
+```
+```{r}
+summary(glm_model)
+```
+```{r}
+#simpler model
+simple <- glm(translocated_10 ~ size.um, data = df, family = "binomial")
+summary(simple)
+
+response <- as.numeric(as.character(df$translocated_10))
+predictors <- as.data.frame(df %>% dplyr::select(size.um))
+
+#build explainer for easy interpretation
+explainer_glm_model <- DALEX::explain(glm_model, label = "glm", data = predictors, y = response)
+```
+
+```{r}
+obj <- ggeffects::ggpredict(simple, terms="size.um [all]")
+plot(obj)
+```
+```{r}
+#generate distribution of data
+mockData <- expand.grid(size.um = seq(0.001, 1500))
+
+mockData$translocated_10 <- predict(simple,
+                     mockData,
+                     type = "response")
+#plot
+mockData %>% 
+  ggplot(aes(x = size.um, 
+             y = translocated_10)) +
+  geom_line() +
+  scale_x_log10(name = "Particle Length (um)",
+                limits = c(1, 1000)) +
+  scale_y_continuous(name = "Particle Translocation Probability",
+                     labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Microplastics Particle Translocation",
+       subtitle = "General Linear Model Output",
+       caption = "p = 0.042, RMSE = 0.54") +
+  #geom_smooth() +
+  #scale_color_gradientn(colors = topo.colors(7)) +
+  #scale_color_viridis_c(option = "A") +
+  dark_theme_bw()
+```
+
+
+
