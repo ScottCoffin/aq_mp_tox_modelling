@@ -27,7 +27,7 @@ library(grid)
 library(wesanderson)
 library(ggdark)
 library(broom)
-library(knitr)
+#library(knitr)
 library(viridis)
 library(ggrepel)
 library(scales)
@@ -4982,7 +4982,7 @@ gt(ERM_large) %>%
 # Probabilistic Species Sensitivity Distribution Plus
 
 The below code will not run with an open environment due to memory constraints.
-```{r}
+```{r eval=FALSE, include=FALSE}
 #library(gdata)
 #keep(tier1_2_large, sure = TRUE)
 write.csv(tier1_2_large, "tier1_2_large.csv")
@@ -4991,7 +4991,7 @@ write.csv(tier1_2_large, "tier1_2_large.csv")
 tier1_2_large <- read.csv("tier1_2_large.csv")
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 # -------------------------------------------------------------------------------------------------
 # Code based on PSSD and PNEC calculations using the tool PSSD+ developed by Wigger et al. (2019)
 # -------------------------------------------------------------------------------------------------
@@ -5029,7 +5029,7 @@ CV.DP <- 0.3
 CV.UF <- 0.5
 ```
 ## Data preparation
-```{r}
+```{r eval=FALSE, include=FALSE}
 library(reshape2)
 require(tidyverse)
 
@@ -5061,7 +5061,7 @@ rm(tier1_2_large)
 ```
 
 ## Tier 1_2_Large_volume
-```{r include=FALSE}
+```{r eval=FALSE, include=FALSE}
 # read toxicity data
 # data points from the literature
 DP   <- DP_1_large_volume
@@ -5086,7 +5086,7 @@ NOEC2 = NOEC * 100
 NOEC.det2 = NOEC.det * 100
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 ###################################################################################################
 ##### EXAMPLES OF RESULTS #########################################################################
 ###################################################################################################
@@ -5102,7 +5102,7 @@ lines(density(log10(NOEC2[3,])), col = "red", lwd = 2)
 abline(v = median(log10(NOEC.det2[,3]), na.rm = TRUE), col = "green", lty = 2, lwd = 2)
 ```
 
-```{R}
+```{r eval=FALSE, include=FALSE}
 ## For a species with 1 endpoints (Danio rerio)
 hist(NOEC[11,], freq = F, main = "Danio rero - 1 endpoints", xlab = "NOEC [ug/l]")
 lines(density(NOEC[11,]), col = "red", lwd = 2)
@@ -5114,7 +5114,7 @@ abline(v = median(NOEC.det[,11], na.rm = TRUE), col = "green", lty = 2, lwd = 2)
 
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 ### Plot PSSDs
 
 # calculate all PSSD curves
@@ -5128,7 +5128,7 @@ for(i in 1:SIM){
 
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 # Plot the mean PSSD
 plot(c(-2,6), c(0,1),
      main = "Microplastics Probabilistic SSD (1-5,000 um; volumetric)",
@@ -5145,7 +5145,7 @@ lines(xvalues, apply(PSSD,2,function(x) {mean(x)}), col = "red", lwd = 1.5)
 legend("topleft", "Mean PSSD", col = "red", lwd = 1.5)
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 ### PNEC histogram
 
 # calculate the PNEC
