@@ -35,7 +35,7 @@ library(broom)
 library(knitr)
 library(ggdark)
 library(viridis)
-library(overlapping)
+#library(overlapping)
 ```
 
 # Hazard Concentration and Alignment Parameters
@@ -50,9 +50,9 @@ AF = 1#5
 
 ##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 0.88 / AF
-Threshold2 = 3.6 / AF
-Threshold3 = 25 / AF
+Threshold1 = 1.9 / AF
+Threshold2 = 12 / AF
+Threshold3 = 17 / AF
 Threshold4 = 100 / AF
 ```
 
@@ -1131,7 +1131,13 @@ unaligned_intersection
 ##Method 2
 #remotes::install_github("andrewheiss/reconPlots")
 require(reconPlots)
-curve_intersect(occurrence.unaligned.density, tox.unaligned.density, empirical = TRUE)
+occurrence.unaligned.df <- data.frame(x = occurrence.unaligned.density$x, 
+                                      y =occurrence.unaligned.density$y)
+
+tox.unaligned.df <- data.frame(x = tox.unaligned.density$x, 
+                                      y =tox.unaligned.density$y)
+
+curve_intersect(occurrence.unaligned.df, tox.unaligned.df, empirical = TRUE)
 ```
 
 ```{r}
@@ -1165,7 +1171,7 @@ unaligned.tox.occurence %>%
 ```
 ## Table comparing overlap
 ```{r}
-require(overlapping)
+#require(overlapping)
 
 #can't install package
 
