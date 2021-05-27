@@ -564,8 +564,7 @@ aoc_intermediate <- aoc_z %>%
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
          risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
          ) %>% 
-  #Remove all temperature treatment LC50s from Jaimukar et al. 2018 besides 22C
-  filter(!(article == 42 & media.temp == 18)) %>% 
+  #Remove 26C temperature treatment data from Jaimukar et al. 2018
   filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
 #### Ecologically Relevant Metric calculations ####
