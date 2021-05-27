@@ -5249,7 +5249,7 @@ tier1_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>%
                lvl2_f,
                 size.length.um.used.for.conversions,
                 doi) 
-tier1_2_small_SA
+tier1_small_SA
 ```
 Save
 ```{r}
