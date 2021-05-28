@@ -11,7 +11,8 @@ library(readr) #saves RDA
 
 
 # Load finalized dataset.
-aoc <- read_csv("Tox Data/AquaticOrganisms_Clean_final.csv", guess_max = 10000)
+#aoc <- read_csv("Tox Data/AquaticOrganisms_Clean_final.csv", guess_max = 10000)
+aoc <- read_csv("Tox Data/AquaticOrganisms_Clean_final_z_rev.csv", guess_max = 10000) #includes ESTIMATED particles/mL dose for Ziajahromi et al (2017)
 
 polydf<-rowPerc(xtabs( ~polymer +effect, aoc)) #pulls polymers by effect 
 polyf<-as.data.frame(polydf)%>% #Makes data frame 

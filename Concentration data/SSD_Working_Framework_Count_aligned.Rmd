@@ -5551,5 +5551,12 @@ write.xlsx(t1_2_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_translo
 write.xlsx(t3_4_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
 write.xlsx(t1_2_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
 write.xlsx(t3_4_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+
+## doesn't seem to work, so do manual export to .csv and append to excel file
+
+write.csv(t1_2_SA, file="Tier 1&2_translocation.csv")
+write.csv(t3_4_SA, file="Tier 3&4_translocation.csv")
+write.csv(t1_2_volume, file="Tier 1&2_food_dilution.csv")
+write.csv(t3_4_volume, file="Tier 3&4_food_dilution.csv")
 ```
 
