@@ -2077,7 +2077,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -2431,7 +2431,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -2745,7 +2745,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -3107,7 +3107,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -3421,7 +3421,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -3785,7 +3785,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -4093,7 +4093,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -4403,7 +4403,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -4717,7 +4717,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -4977,6 +4977,51 @@ gt(ERM_large) %>%
     tab_options(column_labels.hidden = FALSE) #%>% 
     #as_raw_html() # return as html
 ```
+## SIMPLE Summary Table
+```{r}
+# Steve wants thresholds reported in the units they're aligned to (um3/L and um2/L)
+oxidative.stress.tiers <- ERM_small %>% 
+  mutate(EC_env_sa_um2.L =  `Surface Area` * mux.polyfnx(a.x = 1.50, #alpha for marine surface water for surface area
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_sa_um2.L, `Surface Area`)
+
+# calculate food dilution tiers with surface area and in particles/L
+food.dilution.tiers <- ERM_large %>% 
+  mutate(EC_env_volume_um3.L =  Volume * mux.polyfnx(a.x = 1.48, #alpha for marine surface water for surface area
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_volume_um3.L, Volume)
+
+simple.summary <- bind_cols(oxidative.stress.tiers, food.dilution.tiers)
+
+simple.summary <- simple.summary %>% 
+  mutate("Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4')) %>% 
+  rename("um2/L" = EC_env_sa_um2.L,
+         "surface area (particles/L)" = 'Surface Area',
+         "um3/L" = EC_env_volume_um3.L,
+        "volume (particles/L)" =  Volume) %>% 
+  relocate(Tier)
+
+full_val_range <- simple.summary %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+
+gt(simple.summary) %>% 
+  tab_header(title = "Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
+  fmt_number(columns = vars(names(simple.summary)[2:5]), 
+             decimals = 0,
+             use_seps = TRUE) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+  tab_spanner(label = "Surface Area ERM",
+              columns = vars(names(simple.summary)[2:3])) %>% 
+  tab_spanner(label = "Volume ERM",
+              columns = vars(names(simple.summary)[4:5]))
+```
+
 
 # Probabilistic Species Sensitivity Distribution Plus
 
@@ -5019,7 +5064,7 @@ source("PSSD/do.pssd.r")
 ###################################################################################################
 
 # number of simulations for the triangular distributions of the data points and uncertainty factors
-SIM <- 10000
+SIM <- 10 #10 is minimum, 10,000 is recommended
 
 # coefficient of variation for the data point distributions
 CV.DP <- 0.3
@@ -5029,8 +5074,10 @@ CV.UF <- 0.5
 ```
 ## Data preparation
 ```{r eval=FALSE, include=FALSE}
+memory.limit(size=56000) #force R to use more memory than what's phyiscally available
 library(reshape2)
 require(tidyverse)
+require(Matrix)
 
 t2 <- tier1_2_large#%>% 
  # filter(species == "magna")
@@ -5039,11 +5086,11 @@ t2 <- tier1_2_large#%>%
 DP_1_large_volume <-  t2 %>% 
   #mutate(tier = "A") %>% 
   mutate(id = row_number()) %>% 
-  mutate(particles_L = EC_env_v.particles.mL*10) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
+  mutate(particles_L = EC_env_v.particles.mL * 1000) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
   mutate(particles_L_round = as.integer(round(particles_L,digits = 1))) %>%  #must make integer for below code to work
   select(id, species, particles_L_round) %>% 
   acast(id ~ species, value.var = "particles_L_round") %>% 
-  as.matrix()
+  Matrix(sparse = TRUE) # makes a smaller object than using as.matrix()
 
 #prep uncertainty factors for conversion from acute to chronic values
 UFt_1_large_volume <- t2 %>% 
@@ -5056,7 +5103,7 @@ UFdd_1_large_volume <- t2 %>%
   mutate(id = row_number()) %>% 
   select(id, species, af.noec) %>% 
   acast(id ~ species, value.var = "af.noec")
-rm(tier1_2_large)
+#rm(tier1_2_large)
 ```
 
 ## Tier 1_2_Large_volume
@@ -5075,14 +5122,14 @@ UFdd <- UFdd_1_large_volume
 ###################################################################################################
 
 # estimate the NOEC distributions for each species
-NOEC <- do.pSSD(DP, UFt, UFdd, SIM, CV.DP, CV.UF)
+NOEC_t1_volume <- do.pSSD(DP, UFt, UFdd, SIM, CV.DP, CV.UF)
 
 # calculate the deterministic (modal) values of the NOEC
-NOEC.det <- DP/(UFdd*UFt)
+NOEC.det_t1_volume <- DP/(UFdd*UFt)
 
 ###convert to particles/L
-NOEC2 = NOEC * 100
-NOEC.det2 = NOEC.det * 100
+NOEC2_t1_volume = NOEC_t1_volume * 1000 #correction factor from getting into integer values (above)
+NOEC.det2_t1_volume = NOEC.det_t1_volume * 1000
 ```
 
 ```{r eval=FALSE, include=FALSE}
@@ -5094,18 +5141,18 @@ NOEC.det2 = NOEC.det * 100
 
 ## For a species with 1 endpoint (T. thermophila)
 # histogram
-hist(log10(NOEC2[3,]), freq = F, main = "Ceriodaphnia dupia - 14 endpoints", xlab = "NOEC log[particles/L]")
+hist(log10(NOEC2_t1_volume[3,]), freq = F, main = "Ceriodaphnia dupia - 14 endpoints", xlab = "NOEC log[particles/L]")
 # probability density
-lines(density(log10(NOEC2[3,])), col = "red", lwd = 2) 
+lines(density(log10(NOEC2_t1_volume[3,])), col = "red", lwd = 2) 
 # Deterministic NOEC
-abline(v = median(log10(NOEC.det2[,3]), na.rm = TRUE), col = "green", lty = 2, lwd = 2)
+abline(v = median(log10(NOEC.det2_t1_volume[,3]), na.rm = TRUE), col = "green", lty = 2, lwd = 2)
 ```
 
 ```{r eval=FALSE, include=FALSE}
 ## For a species with 1 endpoints (Danio rerio)
-hist(NOEC[11,], freq = F, main = "Danio rero - 1 endpoints", xlab = "NOEC [ug/l]")
-lines(density(NOEC[11,]), col = "red", lwd = 2)
-abline(v = median(NOEC.det[,11], na.rm = TRUE), col = "green", lty = 2, lwd = 2)
+hist(NOEC_t1_volume[11,], freq = F, main = "Danio rero - 1 endpoints", xlab = "NOEC [ug/l]")
+lines(density(NOEC_t1_volume[11,]), col = "red", lwd = 2)
+abline(v = median(NOEC.det_t1_volume[,11], na.rm = TRUE), col = "green", lty = 2, lwd = 2)
 
 # for(i in 1:length(which(!is.na(NOEC.det[,11])))){
 #   abline(v = NOEC.det[i,11], col = "green", lty = 2, lwd = 2)
@@ -5121,7 +5168,7 @@ xvalues <- seq(-6,7,0.001)
 PSSD <- matrix(NA, SIM, length(xvalues))
 # calculate the ecdf function
 for(i in 1:SIM){
-  the.ecdf.f <- ecdf(log(NOEC[,i], base = 10))
+  the.ecdf.f <- ecdf(log(NOEC_t1_volume[,i], base = 10))
   PSSD[i,] <- the.ecdf.f(xvalues)
 }
 
@@ -5144,15 +5191,71 @@ lines(xvalues, apply(PSSD,2,function(x) {mean(x)}), col = "red", lwd = 1.5)
 legend("topleft", "Mean PSSD", col = "red", lwd = 1.5)
 ```
 
+## Tier 1_2_Small_SurfaceArea
 ```{r eval=FALSE, include=FALSE}
-### PNEC histogram
+t2_s <- tier1_2_small#%>% 
+ # filter(species == "magna")
 
-# calculate the PNEC
-PNEC <- apply(NOEC,2,function(x){ quantile(x, probs = 0.05) })
+# prep dataframe for tox datapoints
+DP_1_small_surfaceArea <-  t2_s %>% 
+  #mutate(tier = "A") %>% 
+  mutate(id = row_number()) %>% 
+  mutate(particles_L = EC_env_sa.particles.mL * 1000) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
+  mutate(particles_L_round = as.integer(round(particles_L,digits = 1))) %>%  #must make integer for below code to work
+  select(id, species, particles_L_round) %>% 
+  acast(id ~ species, value.var = "particles_L_round") %>% 
+  Matrix(sparse = TRUE) # makes a smaller object than using as.matrix()
 
-# plot a histogram of the PNEC
-hist(PNEC, xlab = "HC5's [particles/l]", main = "Probabilistic HC5's", sub = "1-5,000 um Microplastics; tier 3; volumetric alignment")
+#prep uncertainty factors for conversion from acute to chronic values
+UFt_1_small_surfaceArea <- t2_s %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.time) %>% 
+  acast(id ~ species, value.var = "af.time")
 
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd_1_small_surfaceArea <- t2_s %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.noec) %>% 
+  acast(id ~ species, value.var = "af.noec")
+
+# read toxicity data
+# data points from the literature
+DP   <- DP_1_small_surfaceArea
+# uncertainty factors for conversion from acute to chronic values
+UFt  <- UFt_1_small_surfaceArea
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd <- UFdd_1_small_surfaceArea
+
+
+###################################################################################################
+##### CALCULATION OF NOECs and PSSDs ##############################################################
+###################################################################################################
+
+# estimate the NOEC distributions for each species
+NOEC_t1_SA <- do.pSSD(DP, UFt, UFdd, SIM, CV.DP, CV.UF)
+
+# calculate the deterministic (modal) values of the NOEC
+NOEC.det_t1_SA <- DP/(UFdd*UFt)
+
+###convert to particles/L
+NOEC2_t1_SA = NOEC_t1_SA * 1000 #correction factor from getting into integer values (above)
+NOEC.det2_t1_SA = NOEC.det_t1_SA * 1000
+```
+
+## Plotting
+```{r eval=FALSE, include=FALSE}
+# calculate PNEC (HC5) for volume and surface area
+PNEC_t1_SA <- apply(NOEC_t1_SA,2,function(x){quantile(x, probs = 0.05, na.rm = TRUE) })
+
+PNEC_t1_volume <- apply(NOEC_t1_SA,2,function(x){quantile(x, probs = 0.05, na.rm = TRUE) })
+
+#make into dataframe
+PNECs <- data.frame( = PNEC_t1_SA,
+                    
+
+PNEC %>% 
+  data.frame(PNEC) %>% 
+  ggplot(aes(x = PNEC))
 ```
 
 
