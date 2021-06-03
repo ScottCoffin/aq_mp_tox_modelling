@@ -87,32 +87,35 @@ df <- aoc_z %>% #use factors
   #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
   dplyr::select(c(
     ### Organism characteristics ###
-    organism.group, # very general organism group (e.g. fish, crustacea, etc.) - 13 levels
-    #species_f, #specific species (113 levels)
+    #organism.group, # very general organism group (e.g. fish, crustacea, etc.) - 13 levels
+    species_f, #specific species (113 levels)
     #genus, # 96 levels
     max.size.ingest.mm,
     acute.chronic_f, #binary classification - species specific (makes HUGE difference)
-    lvl1_f, # general endpoint (e.g. fitness, behavior) (9 levels)
+    #lvl1_f, # general endpoint (e.g. fitness, behavior) (9 levels)
     lvl2_f, #specific endpoint (e.g. mortality, growth)(45 levels)
     #environment,# freshwater, marine or terrestrial (should make little difference)
     #life.stage, #4 levels, 100% complete (moderately important)
     bio.org, # (organismal, tissue, population, etcl) 5 levels, 100% complete (highly important)
     exposure.route, #water, food, sediment 
+    
     ## dose metrics ##
     dose.um3.mL.master, #volume/volume dose
     dose.mg.L.master, #mass/volume dose
     dose.particles.mL.master, #particle/volume dose
     dose.surface.area.um2.mL.master, #area/volume dose
     dose.specific.surface.area.um2.mg.mL, # specific surface area/volume dose
+    
     ## Particle characteristics ##
     polymer, #14 levels
     shape, #4 levels
     #size.length.um.used.for.conversions, #continuous, 99.5% complete
-    particle.volume.um3, #continuous, 89% complete
+    #particle.volume.um3, #continuous, 89% complete
     #density.mg.um.3, #continous, 97% complete
-    particle.surface.area.um2, #continuous surface area
-    particle.surface.area.um2.mg, #specific surface area
-    mass.per.particle.mg, # particle mass
+    #particle.surface.area.um2, #continuous surface area
+    #particle.surface.area.um2.mg, #specific surface area
+    #mass.per.particle.mg, # particle mass
+    
     ## Response variable
     effect, # BINARY (y/n) 100% complete
    # effect.metric #Honec, noec, loec, etc. NOTE: NA is an effect, but somewhere along the curve (unassigned magnitude)
@@ -230,6 +233,22 @@ mixedassoc <- mixed_assoc(df) %>%
 #cor_matrix <- cor2(aoc_no_logical)
 
 ```
+
+##Visualize Information
+```{r}
+#reorder
+dfmatrix$Var2 <- factor(dfmatrix$Var2, levels = dfmatrix$Var2[order(dfmatrix$Freq)])
+#plot
+dfmatrix %>%
+  filter(Var2 != "effect_10") %>% 
+  ggplot(aes(y = Var2, x = Freq)) +
+  geom_col(color = "white") +
+  labs(x = "Relative Predictor Power for Toxicity",
+       y = "Variable",
+       title = "Mutual Information Output") +
+  dark_theme_bw()
+```
+
 
 #Stepwise regression.
 

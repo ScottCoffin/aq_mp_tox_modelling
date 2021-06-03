@@ -3,6 +3,7 @@
 .RData
 .Ruserdata
 <<<<<<< HEAD
+<<<<<<< HEAD
 Stepwise Multiple Regressions.Rmd
 Stepwise-Multiple-Regressions.html
 =======
@@ -12,3 +13,6 @@ Stepwise-Multiple-Regressions.html
 accuracy_difference.csv
 fitsnolvl1.csv
 fitsnolvl1_manualedit.csv
+=======
+SSD_rawdata.xlsx
+>>>>>>> c7e146dcd0aef3fbb3aea0915b66e7c0e0c77d42

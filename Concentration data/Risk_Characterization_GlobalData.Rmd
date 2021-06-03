@@ -61,7 +61,7 @@ kable(data.frame(
   "lower_size_range_microns" = x1D,
   "upper_size_range_microns" = x2D))
 ```
-
+## Data Import
 ```{r}
 #data import
 # Adam et al (2019) data needs correcting
@@ -71,7 +71,7 @@ adam <- read.csv("Concentration data/Datasets/adam2019.csv", na.strings = "N.A."
   mutate(Sample.Type = "sample")
 ```
 
-
+## Alignment
 ```{r}
 # Align Data
 
@@ -99,8 +99,8 @@ adam <- adam %>%
   filter(particle.L.master > 0) %>% 
   mutate(System = factor(System))
 ```
-#Plot
 
+#Risk Characterization
 ```{r}
 # read in concentration data
 samplesADAM <- adam %>% 
@@ -115,7 +115,7 @@ sampleSimpleADAM <- samplesADAM %>%
 dfADAM <- rbind(sampleSimpleADAM)#,food.dilution.simple)
 ```
 
-
+## Exceedances Table
 ```{r}
 #calculate exceedance
 dfADAM_exceedance <- dfADAM %>% 
@@ -135,6 +135,7 @@ exceedance <- dfADAM_exceedance  %>%
 kable(exceedance)
 ```
 
+## Histograms
 ```{r}
 #generate plot
 dfADAM_exceedance %>% 
@@ -166,7 +167,7 @@ dfADAM_exceedance %>%
         legend.title = element_blank())
 ```
 
-
+## ECDF
 ```{r}
 #ECDF by System
 adam %>% 
@@ -196,7 +197,6 @@ filter(System != "") %>%
 
 
 # Modelling
-
 ```{r}
 sample_dists_ADAM <- ssd_fit_dists(samplesADAM, #data frame
                               left = "Conc", #string of the column in data with the concentrations
@@ -230,6 +230,7 @@ sample_pred_ADAM # The resultant object is a data frame of the estimated concent
 
 ```
 
+
 ```{r}
 sample_pred_ADAM %>% mutate_if(is.numeric, ~ signif(., 3)) %>% 
   datatable(rownames = FALSE,
@@ -251,7 +252,7 @@ samplesADAM <- samplesADAM %>%
 sampleSSDADAM <- samplesADAM[order(samplesADAM$Conc), ]
 sampleSSDADAM$frac <- ppoints(samplesADAM$Conc, 0.5)
 ```
-
+## Light Mode
 
 ```{r}
 ECDF_model_occurrence_ADAM <- ggplot(sample_pred_ADAM,aes_string(x = "est")) +
@@ -290,7 +291,7 @@ ECDF_model_occurrence_ADAM_white <- ECDF_model_occurrence_ADAM +
 ECDF_model_occurrence_ADAM_white
 
 ```
-
+## Dark Mode
 ```{r}
 #dark mode
 ECDF_model_occurrence_ADAM_dark <- ECDF_model_occurrence_ADAM +
@@ -313,6 +314,10 @@ ECDF_model_occurrence_ADAM_dark <- ECDF_model_occurrence_ADAM +
 ECDF_model_occurrence_ADAM_dark
 ```
 
+# Compare sizes of tox and occurrence
 
+```{r}
+adam
+```
 
 

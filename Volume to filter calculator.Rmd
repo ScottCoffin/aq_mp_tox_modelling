@@ -1,0 +1,51 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+
+```{r}
+CFfnx = function(a, #default alpha from Koelmans et al (2020)
+                 x2D, #set detault values to convert ranges to (1-5,000 um) #5mm is upper defuault 
+                 x1D, #1 um is lower default size
+                 x2M, x1M){
+  
+  CF = (x2D^(1-a)-x1D^(1-a))/(x2M^(1-a)-x1M^(1-a))
+  
+  return(CF)
+}
+### Define params for ###
+alpha = 2.64 #table s4 for freshwater surface water
+x2D_set = 5000
+x1D_set = 1
+x2M = 5000
+x1M = 20
+
+CF <- CFfnx(a = alpha, x2D = x2D_set, x1D = x1D_set, x2M = x2M, x1M = x1M)
+target_concentration <- 100 #particles/L
+
+
+#C_env = CF * C_meas rearranges to C_meas = C_env / CF
+
+C_measfnx = function(C_env, CF){
+  C_meas = C_env / CF
+  return(C_meas)
+}
+
+C_measfnx(C_env = target_concentration, CF = CF)
+```
+How much volume would be necessary to filter to detect 100 particles/L in a drinking water sample using Pyr-GC/MS. 
+LOQ for Pyr-GC/MS is 1 - 10 ug (total).
+Average mass of 1-10 um particle in drinking water is 3.14e-06 ug.
+```{r}
+average_particle_mass_dw <- 3.14e-06 #ug
+actual_LOQ_mass <- 1 #ug
+target_LOQ_vol <- 100 #particles/L
+target_LOQ_mass <- average_particle_mass_dw  * target_LOQ_vol #ug/L
+volume_required =  actual_LOQ_mass / target_LOQ_mass
+paste(round(volume_required,1), "L")
+```
+

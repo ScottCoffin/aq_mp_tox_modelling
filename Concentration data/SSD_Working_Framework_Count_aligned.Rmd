@@ -27,20 +27,21 @@ library(grid)
 library(wesanderson)
 library(ggdark)
 library(broom)
-library(knitr)
+#library(knitr)
 library(viridis)
 library(ggrepel)
 library(scales)
 library(gt)
 library(ggsci)
+library(openxlsx)
 ```
 
 ```{r ERM}
 ###define sizes for filtering and alignment##
 # smaller size bin
 small_tier_lower_size <- 1 #um
-small_tier_upper_size <- 5000 #um
-upper.tissue.trans.size.um <- 100 #10 #um #set size for filtering data and x2M
+small_tier_upper_size <- 5000 #um #size to align to
+upper.tissue.trans.size.um <- 83 #10 #um #set size for filtering data and x2M
 # larger size bin
 large_tier_lower_size <- 1 #um
 large_tier_upper_size <- 5000 #um
@@ -562,7 +563,9 @@ aoc_intermediate <- aoc_z %>%
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
          risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
-         ) %>%  
+         ) %>% 
+  #Remove 26C temperature treatment data from Jaimukar et al. 2018
+  filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
 #### Ecologically Relevant Metric calculations ####
 
@@ -596,7 +599,7 @@ species_size_f <- aoc_intermediate %>%
   distinct(Species, size_f) %>% 
   ggplot(aes(x = size_f, fill = Species)) +
   geom_bar() +
-  scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 34)) +
+  scale_fill_manual(values = cal_palette(name = "superbloom1", type = "continuous", n = 35)) +
   labs(title = "Number of Species by Particle Length",
        subtitle = "Red criteria passed only, aquatic species (subcell to population organization)") +
   xlab("Length (um)") +
@@ -930,24 +933,17 @@ tier1_2_large <- aoc_final_large %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-# ### 10 - 100 um
-# tier1_2_medium <- tier1_2 %>% 
-#   filter(size_f %in% c("10µm < 100µm")) 
-#   
-# # Count observations and studies
-# tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
-
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) 
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -997,7 +993,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1025,7 +1021,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1101,7 +1097,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -1109,7 +1105,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1143,7 +1139,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1210,7 +1206,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
@@ -1226,7 +1222,7 @@ tier3_4_large <- aoc_final_large %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1238,14 +1234,14 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier3_4_small <- aoc_final_small %>%
          filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
          bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1295,7 +1291,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tiers 3 & 4, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tiers 3 & 4, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1323,7 +1319,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r}
 ###### --modelling ####
@@ -1369,7 +1365,7 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 plot(tier3_4_large_median_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1403,7 +1399,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1457,7 +1453,7 @@ gt(largesdf) %>%
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE) 
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 3/4, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 ```
@@ -1488,7 +1484,7 @@ tier1_2_large <- aoc_final_large %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1500,12 +1496,12 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1555,7 +1551,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1583,7 +1579,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1659,7 +1655,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -1667,7 +1663,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1701,7 +1697,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -1768,7 +1764,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1 < 100 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1 < 83 um", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 ```
@@ -1800,7 +1796,7 @@ tier3_4_large <-  aoc_final_large %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1812,14 +1808,14 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
          bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1869,7 +1865,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -1900,7 +1896,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -1972,7 +1968,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -1980,7 +1976,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2014,7 +2010,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -2081,7 +2077,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -2113,7 +2109,7 @@ tier1_2_large <- aoc_final_large %>%
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2125,12 +2121,12 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2180,7 +2176,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -2211,7 +2207,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2258,6 +2254,44 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 plot(tier1_2_large_1q_ggplot)
 ```
 
+Is body size related to effect threshold for Voluime?
+```{r}
+
+size.volume <- aoc_final_large %>%  
+  #filter(effect.metric %in% c("EC50","LC50")) %>% 
+  filter(lvl1_f %in% c("Fitness"))
+
+summary(lm(data = size.volume, EC_env_v.particles.mL ~ body.length.cm))
+
+
+size.volume %>%  
+  #filter(effect.metric %in% c("EC50","LC50")) %>% 
+  ggplot(aes(x = EC_env_v.particles.mL, y = body.length.cm, color = Group)) +
+  #geom_smooth() +
+  geom_point() + 
+  scale_x_log10(limits = c(1e-2, 1e10)) + 
+  scale_y_log10() + 
+  dark_theme_bw()
+```
+Is body size related to effect threshold for Surface Area?
+```{r}
+size.sa <- aoc_final_large %>%  
+  #filter(effect.metric %in% c("EC50","LC50")) %>% 
+  filter(lvl1_f %in% c("Fitness"))
+
+summary(lm(data = size.sa, EC_env_sa.particles.mL ~ body.length.cm))
+
+
+size.sa %>%  
+  #filter(effect.metric %in% c("EC50","LC50")) %>% 
+  ggplot(aes(x = EC_env_sa.particles.mL, y = body.length.cm, color = Group)) +
+  #geom_smooth() +
+  geom_point() + 
+  scale_x_log10(limits = c(1e-2, 1e10)) + 
+  scale_y_log10() + 
+  dark_theme_bw()
+```
+
 ```{r include=TRUE, warning=FALSE}
 # ###### --modelling ####
 # dists_tier1_2_medium_1q <- ssd_fit_dists(tier1_2_medium_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
@@ -2288,7 +2322,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -2296,7 +2330,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2330,7 +2364,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -2397,7 +2431,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -2430,7 +2464,7 @@ tier3_4_large <-  aoc_final_large %>%
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2449,7 +2483,7 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2499,7 +2533,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -2530,7 +2564,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2602,7 +2636,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -2610,7 +2644,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2644,7 +2678,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -2711,8 +2745,56 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
+
+```
+
+#Raw Data Export for Evaluation - Large Particles, Volume
+
+```{r tables for data review}
+
+a <- tier1_2_large %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new, sol.rinse) %>% 
+  rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Broad_Endpoint_Category" = lvl1_f,
+         "Measured_Endpoint" = lvl3_f,
+         "Biological_Level" = bio_f,
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
+         "Dose_Volume_Aligned_particles_mL" = EC_env_v.particles.mL, 
+         "Aligned_Dose_AF_Applied_particles_L" = dose_new)  
+
+b <- tier3_4_large %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new, sol.rinse) %>% 
+  rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Broad_Endpoint_Category" = lvl1_f,
+         "Measured_Endpoint" = lvl3_f,
+         "Biological_Level" = bio_f,
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
+         "Dose_Volume_Aligned_particles_mL" = EC_env_v.particles.mL, 
+         "Aligned_Dose_AF_Applied_particles_L" = dose_new)
 
 ```
 
@@ -2742,7 +2824,7 @@ tier1_2_large <- aoc_final_large %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2754,12 +2836,12 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2809,7 +2891,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -2840,7 +2922,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2916,7 +2998,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -2924,7 +3006,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -2958,7 +3040,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3025,7 +3107,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -3058,7 +3140,7 @@ tier3_4_large <-  aoc_final_large %>%
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3077,7 +3159,7 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3127,7 +3209,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -3158,7 +3240,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 #### SSD Build
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3230,7 +3312,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3238,7 +3320,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3272,7 +3354,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3339,8 +3421,59 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
+
+```
+
+#Raw Data Export for Evaluation - Small Particles, Surface Area
+
+```{r tables for data review 2}
+
+c <- tier1_2_small %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new, sol.rinse) %>% 
+  rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Broad_Endpoint_Category" = lvl1_f,
+         "Measured_Endpoint" = lvl3_f,
+         "Biological_Level" = bio_f,
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
+         "Dose_SurfaceArea_Aligned_particles_mL" = EC_env_sa.particles.mL, 
+         "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
+
+d <- tier3_4_small %>% 
+  select(doi, authors, risk.13, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new, sol.rinse) %>% 
+  rename("Endpoint_Score" = risk.13,
+         "First_Author" = authors,
+         "Particle_Shape" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Acute_Chronic" = acute.chronic_f,
+         "Polymer_Type" = poly_f,
+         "Raw_Dose_Particles_mL" = dose.particles.mL.master, 
+         "Raw_Dose_Particles_mL_Reported_Converted" = dose.particles.mL.master.converted.reported,
+         "Raw_Dose_mg_L" = dose.mg.L.master,
+         "Raw_Dose_mg_L_Reported_Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Broad_Endpoint_Category" = lvl1_f,
+         "Measured_Endpoint" = lvl3_f,
+         "Biological_Level" = bio_f,
+         "Particle_Length_um" = size.length.um.used.for.conversions, 
+         "Dose_SurfaceArea_Aligned_particles_mL" = EC_env_sa.particles.mL, 
+         "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
+
+list_of_datasets <- list("Tier 1_2, 1-5000um, Volume Aligned" = a, "Tier 3_4, 1-5000um, Volume Aligned" = b, "Tier 1_2, 1-83um, Surface Area Aligned" = c, "Tier 3_4, 1-83um, Surface Area Aligned" = d)
+write.xlsx(list_of_datasets, file = "SSD_rawdata.xlsx")
 
 ```
 
@@ -3370,7 +3503,7 @@ tier1_2_large <- aoc_final_large %>%
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3382,12 +3515,12 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3437,7 +3570,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -3467,7 +3600,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3543,7 +3676,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3551,7 +3684,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3585,7 +3718,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3652,7 +3785,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -3685,7 +3818,7 @@ tier3_4_large <-  aoc_final_large %>%
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3697,14 +3830,14 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier3_4_medium.obs <- tier3_4_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3754,7 +3887,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -3785,7 +3918,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (10 - 5000 µm) 
+##### Food Dilution (10 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3857,7 +3990,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -3865,7 +3998,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -3899,7 +4032,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -3960,7 +4093,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
@@ -3991,7 +4124,7 @@ tier1_2_large <- aoc_final_large %>%
          mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4003,12 +4136,12 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 # # Count observations and studies
 # tier1_2_medium.obs <- tier1_2_medium %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
-### 1 - 100 um
+### 1 - 83 µm
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4058,7 +4191,7 @@ endpoints_tier1_2_small <- tier1_2_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -4089,7 +4222,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4161,7 +4294,7 @@ plot(tier1_2_large_1q_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 1/2, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 1/2, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -4169,7 +4302,7 @@ plot(tier1_2_large_1q_ggplot)
 # plot(tier1_2_medium_1q_ggplot)
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4203,7 +4336,7 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 1/2, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 1/2, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -4270,7 +4403,7 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 1/2, 1-10µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
+  tab_header(title = "Tier 1/2, 1-83µm ", subtitle = paste("Thresholds presented in particles/L; ERM = ",ERM)
              ) %>% 
   fmt_number(columns = vars(Tier_1, Tier_2),decimals = 2, use_seps = TRUE)
 
@@ -4303,7 +4436,7 @@ tier3_4_large <-  aoc_final_large %>%
          mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4322,7 +4455,7 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(size.length.um.used.for.conversions %in% (1:upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4372,7 +4505,7 @@ endpoints_tier3_4_small <- tier3_4_small %>%
   ggplot(aes(x = lvl1_f, y=lvl1_count, fill = bio_f))+
   geom_bar(stat = "identity") +
   scale_fill_manual(values = wes_palette("Zissou1", 5, type = "continuous")) +
-  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 100µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
+  labs(title = "Tier 1 & 2, Endpoint Representation", subtitle = "1µm < 83µm", x = "Endpoint Category", y = "Number of Endpoints", fill = "Biological Level\nof Organization", caption = "Number of endpoints is prior to data collapse") +
   theme_test() +
   scale_x_discrete(labels = wrap_format(10)) 
         
@@ -4403,7 +4536,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Large (100 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4475,7 +4608,7 @@ plot(tier3_4_large_median_ggplot)
 #       coord_trans(x = "log10") +
 #       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
 #                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-#   labs(title = "Tier 3/4, 10-100 µm", x = "particles/L") +
+#   labs(title = "Tier 3/4, 10-83 µm", x = "particles/L") +
 #       fill.type + #user-selected
 #       color.type + #user-selected
 #       theme.type #user theme
@@ -4483,7 +4616,7 @@ plot(tier3_4_large_median_ggplot)
 # tier3_4_medium_median_ggplot
 ```
 
-##### Small (1 - 100 µm) 
+##### Oxidative Stress (1 - 83 µm) 
 
 ```{r include=TRUE, warning=FALSE}
 ###### --modelling ####
@@ -4517,7 +4650,7 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
-  labs(title = "Tier 3/4, 1 < 10 µm", x = "particles/L") +
+  labs(title = "Tier 3/4, 1 < 83 µm", x = "particles/L") +
       fill.type + #user-selected
       color.type + #user-selected
       theme.type #user theme
@@ -4584,14 +4717,64 @@ gt(largesdf) %>%
 #   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 gt(smallsdf) %>% 
-  tab_header(title = "Tier 3/4, 1-10µm ", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = "Tier 3/4, 1-83µm ", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
 
 ## Multi plots
+### Larges
+```{r}
+# Build dataframe with all SSDs so we can get a color scale
+p_t1_l_p <- pred_tier1_2_large_1q_particles %>% mutate(alignment = "particle")
+p_t1_l_u <- pred_tier1_2_large_1q_unaligned %>% mutate(alignment = "unaligned")
+p_t1_l_v <- pred_tier1_2_large_1q_volume %>% mutate(alignment = "volume") %>% select(-est_format)
+p_t1_l_sa <- pred_tier1_2_large_1q_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
+p_t1_l_m <- pred_tier1_2_large_1q_mass %>% mutate(alignment = "mass") %>% select(-est_format)
 
-### Simple aligned vs unaligned
+predictions_t1_large <- rbind.data.frame(p_t1_l_p, 
+                                p_t1_l_u,
+                                p_t1_l_v,
+                                p_t1_l_sa,
+                                p_t1_l_m) %>% 
+  mutate(alignment = factor(alignment))
+predictions_t1_large
+
+#do the same for individual points
+s_t1_l_p <- SSD_tier1_2_large_1q_particles %>% mutate(alignment = "particle")
+s_t1_l_u <- SSD_tier1_2_large_1q_unaligned %>% mutate(alignment = "unaligned")
+s_t1_l_v <- SSD_tier1_2_large_1q_volume %>% mutate(alignment = "volume")
+s_t1_l_sa <- SSD_tier1_2_large_1q_surfacearea %>% mutate(alignment = "surface_area")
+s_t1_l_m <- SSD_tier1_2_large_1q_mass %>% mutate(alignment = "mass")
+
+points_t1_large <- rbind.data.frame(s_t1_l_p, 
+                                s_t1_l_u,
+                                s_t1_l_v,
+                                s_t1_l_sa,
+                                s_t1_l_m)# %>% 
+  #mutate(alignment = as.factor(alignment))
+#convert alignment to factor
+points_t1_large$alignment <- as.factor(points_t1_large$alignment)
+```
+#### All
+```{r}
+predictions_t1_large %>% 
+ggplot(aes(x = est, y = percent/100, color = alignment)) +
+  geom_line(size = 1.3) +
+  #geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+  geom_point(data = points_t1_large,aes(x = Conc, y =frac, color = alignment)) + 
+  scale_color_tron(name = "Alignment") +
+  scale_fill_tron(name = "Alignment") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Tiers 1 & 2, 1-5000 µm", x = "particles/L") +
+      theme.type #user theme
+```
+
+#### Simple aligned vs unaligned
 ```{r}
 ## Particles, Mass, Volume for Tier 1
 ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
@@ -4618,19 +4801,22 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
   #                      breaks = c("green", "red", "blue", "yellow"),
   #                      labels = c("particles","volume", "mass", "surface area"),
   #                      guide = "legend")+
-      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      scale_color_manual(name = "alignment",
+                         values = c(1,1),
+                         guide = guide_legend(override.aes = list(color = c("red", "green")))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Microplastics Species Sensitivity Distribution",
              subtitle = "Red = Unaligned, Green = Particles") +
       coord_trans(x = "log10") +
       scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                          labels = trans_format("log10", scales::math_format(10^.x))) + 
   labs(title = "Tier 1/2, 1-5000 µm", x = "particles/L") +
-      fill.type + #user-selected
-      color.type + #user-selected
+     # fill.type + #user-selected
+    #  color.type + #user-selected
       theme.type #user theme
 
 ```
-### all ERMs
+#### all ERMs
 ```{r}
 ## Particles, Mass, Volume for Tier 1
 ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
@@ -4675,7 +4861,57 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
       theme.type #user theme
 
 ```
+### Smalls
+CURRENTLY DOES NOT WORK DUE TO LACK OF ASSIGNING UNIQUE IDs
+```{r eval=FALSE, include=FALSE}
+# Build dataframe with all SSDs so we can get a color scale
+p_t1_s_p <- pred_tier1_2_small_1q_particles %>% mutate(alignment = "particle")
+p_t1_s_u <- pred_tier1_2_small_1q_unaligned %>% mutate(alignment = "unaligned")
+p_t1_s_v <- pred_tier1_2_small_1q_volume %>% mutate(alignment = "volume") %>% select(-est_format)
+p_t1_s_sa <- pred_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
+p_t1_s_m <- pred_tier1_2_small_1q_mass %>% mutate(alignment = "mass") %>% select(-est_format)
 
+predictions_t1_small <- rbind.data.frame(p_t1_s_p, 
+                                p_t1_s_u,
+                                p_t1_s_v,
+                                p_t1_s_sa,
+                                p_t1_s_m) %>% 
+  mutate(alignment = factor(alignment))
+predictions_t1_small
+
+#do the same for individual points
+s_t1_s_p <- SSD_tier1_2_small_1q_particles %>% mutate(alignment = "particle")
+s_t1_s_u <- SSD_tier1_2_small_1q_unaligned %>% mutate(alignment = "unaligned")
+s_t1_s_v <- SSD_tier1_2_small_1q_volume %>% mutate(alignment = "volume")
+s_t1_s_sa <- SSD_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface_area")
+s_t1_s_m <- SSD_tier1_2_small_1q_mass %>% mutate(alignment = "mass")
+
+points_t1_small <- rbind.data.frame(s_t1_s_p, 
+                                s_t1_s_u,
+                                s_t1_s_v,
+                                s_t1_s_sa,
+                                s_t1_s_m)# %>% 
+  #mutate(alignment = as.factor(alignment))
+#convert alignment to factor
+points_t1_small$alignment <- as.factor(points_t1_small$alignment)
+```
+#### All
+```{r eval=FALSE, include=FALSE}
+predictions_t1_small %>% 
+ggplot(aes(x = est, y = percent/100, color = alignment)) +
+  geom_line() +
+  geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+  geom_point(data = points_t1_small,aes(x = Conc, y =frac, color = alignment)) + 
+  scale_color_tron(name = "Alignment") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Tiers 1 & 2, 1-5000 µm", x = "particles/L") +
+      coord_trans(x = "log10") +
+      theme.type #user theme
+```
 
 ## Grand Summary
 ```{r}
@@ -4697,7 +4933,7 @@ full_val_range <- ERM_small %>%
     range
 
 gt(ERM_small) %>% 
-  tab_header(title = "1-100 µm Thresholds (Aligned to 1 - 5000 µm)", subtitle = "Thresholds presented in particles/L") %>% 
+  tab_header(title = paste0("1-", upper.tissue.trans.size.um, "µm Thresholds (Aligned to 1 - 5000 µm)"), subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Unaligned, Particle, Volume,'Surface Area', Mass, 'Specific Surface Area'), 
              n_sigfig = 2,
              use_seps = TRUE) %>% 
@@ -4709,8 +4945,6 @@ gt(ERM_small) %>%
     alpha = 0.75) %>% 
     tab_options(column_labels.hidden = FALSE) #%>% 
     #as_raw_html() # return as html
-
-
 ```
 
 ```{r}
@@ -4743,5 +4977,689 @@ gt(ERM_large) %>%
     tab_options(column_labels.hidden = FALSE) #%>% 
     #as_raw_html() # return as html
 ```
+## SIMPLE Summary Table
+```{r}
+# Steve wants thresholds reported in the units they're aligned to (um3/L and um2/L)
+oxidative.stress.tiers <- ERM_small %>% 
+  mutate(EC_env_sa_um2.L =  `Surface Area` * mux.polyfnx(a.x = 1.50, #alpha for marine surface water for surface area
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_sa_um2.L, `Surface Area`)
 
+# calculate food dilution tiers with surface area and in particles/L
+food.dilution.tiers <- ERM_large %>% 
+  mutate(EC_env_volume_um3.L =  Volume * mux.polyfnx(a.x = 1.48, #alpha for marine surface water for surface area
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_volume_um3.L, Volume)
+
+simple.summary <- bind_cols(oxidative.stress.tiers, food.dilution.tiers)
+
+simple.summary <- simple.summary %>% 
+  mutate("Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4')) %>% 
+  rename("um2/L" = EC_env_sa_um2.L,
+         "surface area (particles/L)" = 'Surface Area',
+         "um3/L" = EC_env_volume_um3.L,
+        "volume (particles/L)" =  Volume) %>% 
+  relocate(Tier)
+
+full_val_range <- simple.summary %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+
+gt(simple.summary) %>% 
+  tab_header(title = "Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
+  fmt_number(columns = vars(names(simple.summary)[2:5]), 
+             decimals = 0,
+             use_seps = TRUE) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+  tab_spanner(label = "Surface Area ERM",
+              columns = vars(names(simple.summary)[2:3])) %>% 
+  tab_spanner(label = "Volume ERM",
+              columns = vars(names(simple.summary)[4:5]))
+```
+
+
+# Probabilistic Species Sensitivity Distribution Plus
+
+The below code will not run with an open environment due to memory constraints.
+```{r eval=FALSE, include=FALSE}
+#library(gdata)
+#keep(tier1_2_large, sure = TRUE)
+write.csv(tier1_2_large, "tier1_2_large.csv")
+#rm(list = ls())
+#gc()
+tier1_2_large <- read.csv("tier1_2_large.csv")
+```
+
+```{r eval=FALSE, include=FALSE}
+# -------------------------------------------------------------------------------------------------
+# Code based on PSSD and PNEC calculations using the tool PSSD+ developed by Wigger et al. (2019)
+# -------------------------------------------------------------------------------------------------
+# 
+# Associated publication: Systematic consideration of parameter uncertainty and variability in
+#                         probabilistic species sensitivity distributions
+# 
+# Authors: Henning Wigger, Delphine Kawecki, Bernd Nowack and V?ronique Adam
+# 
+# Institute: Empa, Swiss Federal Laboratories for Materials Science and Technology,
+#            Technology and Society Laboratory, Lerchenfeldstrasse 5, 9014 St. Gallen, Switzerland
+# 
+# submitted to Integrated Environmental Assessment and Management in December 2018
+# 
+# -------------------------------------------------------------------------------------------------
+
+##### Build functions ####
+source("PSSD/rmore.r")
+source("PSSD/do.pssd.r")
+#source("PSSD/do.pssd.troph.r")
+#source("PSSD/do.pssd.ag.r")
+
+
+###################################################################################################
+##### MAIN PARAMETERS FOR THE CALCULATION #########################################################
+###################################################################################################
+
+# number of simulations for the triangular distributions of the data points and uncertainty factors
+SIM <- 10 #10 is minimum, 10,000 is recommended
+
+# coefficient of variation for the data point distributions
+CV.DP <- 0.3
+
+# coefficient of variation for the uncertainty factor distributions
+CV.UF <- 0.5
+```
+## Data preparation
+```{r eval=FALSE, include=FALSE}
+memory.limit(size=56000) #force R to use more memory than what's phyiscally available
+library(reshape2)
+require(tidyverse)
+require(Matrix)
+
+t2 <- tier1_2_large#%>% 
+ # filter(species == "magna")
+
+# prep dataframe for tox datapoints
+DP_1_large_volume <-  t2 %>% 
+  #mutate(tier = "A") %>% 
+  mutate(id = row_number()) %>% 
+  mutate(particles_L = EC_env_v.particles.mL * 1000) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
+  mutate(particles_L_round = as.integer(round(particles_L,digits = 1))) %>%  #must make integer for below code to work
+  select(id, species, particles_L_round) %>% 
+  acast(id ~ species, value.var = "particles_L_round") %>% 
+  Matrix(sparse = TRUE) # makes a smaller object than using as.matrix()
+
+#prep uncertainty factors for conversion from acute to chronic values
+UFt_1_large_volume <- t2 %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.time) %>% 
+  acast(id ~ species, value.var = "af.time")
+
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd_1_large_volume <- t2 %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.noec) %>% 
+  acast(id ~ species, value.var = "af.noec")
+#rm(tier1_2_large)
+```
+
+## Tier 1_2_Large_volume
+```{r eval=FALSE, include=FALSE}
+# read toxicity data
+# data points from the literature
+DP   <- DP_1_large_volume
+# uncertainty factors for conversion from acute to chronic values
+UFt  <- UFt_1_large_volume
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd <- UFdd_1_large_volume
+
+
+###################################################################################################
+##### CALCULATION OF NOECs and PSSDs ##############################################################
+###################################################################################################
+
+# estimate the NOEC distributions for each species
+NOEC_t1_volume <- do.pSSD(DP, UFt, UFdd, SIM, CV.DP, CV.UF)
+
+# calculate the deterministic (modal) values of the NOEC
+NOEC.det_t1_volume <- DP/(UFdd*UFt)
+
+###convert to particles/L
+NOEC2_t1_volume = NOEC_t1_volume * 1000 #correction factor from getting into integer values (above)
+NOEC.det2_t1_volume = NOEC.det_t1_volume * 1000
+```
+
+```{r eval=FALSE, include=FALSE}
+###################################################################################################
+##### EXAMPLES OF RESULTS #########################################################################
+###################################################################################################
+
+### Plot the probability densities of some species
+
+## For a species with 1 endpoint (T. thermophila)
+# histogram
+hist(log10(NOEC2_t1_volume[3,]), freq = F, main = "Ceriodaphnia dupia - 14 endpoints", xlab = "NOEC log[particles/L]")
+# probability density
+lines(density(log10(NOEC2_t1_volume[3,])), col = "red", lwd = 2) 
+# Deterministic NOEC
+abline(v = median(log10(NOEC.det2_t1_volume[,3]), na.rm = TRUE), col = "green", lty = 2, lwd = 2)
+```
+
+```{r eval=FALSE, include=FALSE}
+## For a species with 1 endpoints (Danio rerio)
+hist(NOEC_t1_volume[11,], freq = F, main = "Danio rero - 1 endpoints", xlab = "NOEC [ug/l]")
+lines(density(NOEC_t1_volume[11,]), col = "red", lwd = 2)
+abline(v = median(NOEC.det_t1_volume[,11], na.rm = TRUE), col = "green", lty = 2, lwd = 2)
+
+# for(i in 1:length(which(!is.na(NOEC.det[,11])))){
+#   abline(v = NOEC.det[i,11], col = "green", lty = 2, lwd = 2)
+#}
+
+```
+
+```{r eval=FALSE, include=FALSE}
+### Plot PSSDs
+
+# calculate all PSSD curves
+xvalues <- seq(-6,7,0.001)
+PSSD <- matrix(NA, SIM, length(xvalues))
+# calculate the ecdf function
+for(i in 1:SIM){
+  the.ecdf.f <- ecdf(log(NOEC_t1_volume[,i], base = 10))
+  PSSD[i,] <- the.ecdf.f(xvalues)
+}
+
+```
+
+```{r eval=FALSE, include=FALSE}
+# Plot the mean PSSD
+plot(c(-2,6), c(0,1),
+     main = "Microplastics Probabilistic SSD (1-5,000 um; volumetric)",
+     xlab = "NOEC [particles/L]",
+     ylab = "Proportion of Species Affected",
+     type = "n",
+     axes = F)
+axis(1, at = c(-2,0,2,4,6), labels = expression(10^-2, 10^0, 10^2, 10^4, 10^6), lwd = 0.5)
+axis(2, lwd = 0.5, las = 1)
+abline(h = seq(0,1,0.2), lty = 1, lwd = 0.5, col = "gray90")
+abline(v = seq(-6,5,1), lty = 1, lwd = 0.5, col = "gray90")
+box(lwd = 0.5)
+lines(xvalues, apply(PSSD,2,function(x) {mean(x)}), col = "red", lwd = 1.5)
+legend("topleft", "Mean PSSD", col = "red", lwd = 1.5)
+```
+
+## Tier 1_2_Small_SurfaceArea
+```{r eval=FALSE, include=FALSE}
+t2_s <- tier1_2_small#%>% 
+ # filter(species == "magna")
+
+# prep dataframe for tox datapoints
+DP_1_small_surfaceArea <-  t2_s %>% 
+  #mutate(tier = "A") %>% 
+  mutate(id = row_number()) %>% 
+  mutate(particles_L = EC_env_sa.particles.mL * 1000) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
+  mutate(particles_L_round = as.integer(round(particles_L,digits = 1))) %>%  #must make integer for below code to work
+  select(id, species, particles_L_round) %>% 
+  acast(id ~ species, value.var = "particles_L_round") %>% 
+  Matrix(sparse = TRUE) # makes a smaller object than using as.matrix()
+
+#prep uncertainty factors for conversion from acute to chronic values
+UFt_1_small_surfaceArea <- t2_s %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.time) %>% 
+  acast(id ~ species, value.var = "af.time")
+
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd_1_small_surfaceArea <- t2_s %>% 
+  mutate(id = row_number()) %>% 
+  select(id, species, af.noec) %>% 
+  acast(id ~ species, value.var = "af.noec")
+
+# read toxicity data
+# data points from the literature
+DP   <- DP_1_small_surfaceArea
+# uncertainty factors for conversion from acute to chronic values
+UFt  <- UFt_1_small_surfaceArea
+# uncertainty factors for conversion of dose descriptors to NOEC
+UFdd <- UFdd_1_small_surfaceArea
+
+
+###################################################################################################
+##### CALCULATION OF NOECs and PSSDs ##############################################################
+###################################################################################################
+
+# estimate the NOEC distributions for each species
+NOEC_t1_SA <- do.pSSD(DP, UFt, UFdd, SIM, CV.DP, CV.UF)
+
+# calculate the deterministic (modal) values of the NOEC
+NOEC.det_t1_SA <- DP/(UFdd*UFt)
+
+###convert to particles/L
+NOEC2_t1_SA = NOEC_t1_SA * 1000 #correction factor from getting into integer values (above)
+NOEC.det2_t1_SA = NOEC.det_t1_SA * 1000
+```
+
+## Plotting
+```{r eval=FALSE, include=FALSE}
+# calculate PNEC (HC5) for volume and surface area
+PNEC_t1_SA <- apply(NOEC_t1_SA,2,function(x){quantile(x, probs = 0.05, na.rm = TRUE) })
+
+PNEC_t1_volume <- apply(NOEC_t1_SA,2,function(x){quantile(x, probs = 0.05, na.rm = TRUE) })
+
+#make into dataframe
+PNECs <- data.frame( = PNEC_t1_SA,
+                    
+
+PNEC %>% 
+  data.frame(PNEC) %>% 
+  ggplot(aes(x = PNEC))
+```
+
+
+# Sensitivity Analysis
+## Leave-one-out method
+These techniques are based on the Leave-One-Out-method, in which we recalculate the results of our meta-analysis K − 1  times, each times leaving out one study. This way, we can more easily detect studies which influence the overall estimate of our meta-analysis the most, and this lets us better assess if this influence may distort our pooled effect (Viechtbauer and Cheung 2010).
+
+### SSD and Sensitivity analysis Functions
+```{r}
+#### define function for SSD generation for tier 1 ####
+SSD_function_t1 <- function(filtered.data, hcxlcl){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
+#values to extract
+print(hc5lcl)
+}
+
+# Leave-one-out by study function
+sensitivity_t1 <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function_t1(train, hcxlcl = y)
+})
+
+#### define function for SSD generation for tiers 2,3 and 4 ####
+SSD_function <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+
+# Leave-one-out by study function
+sensitivity <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function(train, hcx = y)
+})
+
+```
+
+###  Tier 1 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+
+#HC metrics to calculate
+y <- list(hcxlcl = 5)
+
+# get HC5 for all studies
+aoc_final_smalllcl <- SSD_function_t1(filtered.data = filtered.data, hcxlcl = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity_t1), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
+  
+tier1_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hcxlcl,
+                acute.chronic_f, 
+                bio_f,
+               lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_small_SA
+```
+Save
+```{r}
+t1_2_SA <- tier1_small_SA %>%  
+  distinct(doi, authors, year, hcxlcl) 
+```
+
+#### Analytics
+```{r}
+#study
+tier1_small_SA %>% 
+  mutate(doi = fct_reorder(doi, hcxlcl)) %>% 
+  mutate(diff = (hcxlcl - aoc_final_smalllcl)/aoc_final_smalllcl) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 2, position = position_nudge(x = 0.2)) +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "95% lower CI:HC5 - Tier 1(Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+###  Tier 2 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5)
+
+# get HC5 for all studies
+aoc_final_smallhc5 <- SSD_function(filtered.data = filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
+  
+tier2_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5,
+                acute.chronic_f, 
+                bio_f,
+               lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier2_small_SA
+```
+Save
+```{r}
+t2_SA <- tier2_small_SA %>%  
+  distinct(doi, authors, year, hc5) 
+```
+
+#### Analytics
+```{r}
+#study
+tier2_small_SA %>% 
+  mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 2, position = position_nudge(x = 0.2)) +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 2 (Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+###  Tiers 3 and 4 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new*1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier3_4_small_SAhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier3_4_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier3_4_small_SA
+```
+Save
+```{r}
+t3_4_SA <- tier3_4_small_SA %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
+
+#### Analytics
+```{r}
+#study
+tier3_4_small_SA %>% 
+    mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - tier3_4_small_SAhc5)/tier3_4_small_SAhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 3, position = position_nudge(x = 0.2)) +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 3 & 4 (Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+
+###  Tiers 1 and 2 - Food Dilution
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_large %>% 
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier1_2_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier1_2_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_2_large_V
+```
+Save
+```{r}
+t1_2_volume <- tier1_2_large_V %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
+
+#### Analytics
+```{r}
+#study
+tier1_2_large_V %>% 
+   mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - tier1_2_large_Vhc5)/tier1_2_large_Vhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 3, position = position_nudge(x = 0.2)) +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 1 & 2 (Volume)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+###  Tiers 3 and 4 - Food Dilution
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_large %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new*1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))  
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier3_4_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier3_4_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+
+tier3_4_large_V %>% 
+  datatable()
+```
+Save
+```{r}
+t3_4_volume <- tier3_4_large_V %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
+
+#### Analytics
+```{r}
+#study
+tier3_4_large_V %>% 
+    mutate(doi = fct_reorder(doi, hc5)) %>% 
+  mutate(diff = (hc5 - tier3_4_large_Vhc5)/tier3_4_large_Vhc5) %>% 
+  ggplot(aes(x = diff, y = doi, color = Species)) +
+  geom_point() +
+  #geom_text_repel(aes(label = Species), size = 1) +
+  geom_text(aes(label = Species), size = 3, position = position_nudge(x = 0.2)) +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference in Threshold Relative to using all studies") +
+  ylab("Study DOI") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "HC5 - Tier 3 & 4 (Volume)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+## Export to Excel
+```{r}
+library(openxlsx)
+write.xlsx(t1_2_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
+write.xlsx(t3_4_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t3_4_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+
+## doesn't seem to work, so do manual export to .csv and append to excel file
+
+write.csv(t1_2_SA, file="Tier 1&2_translocation.csv")
+write.csv(t3_4_SA, file="Tier 3&4_translocation.csv")
+write.csv(t1_2_volume, file="Tier 1&2_food_dilution.csv")
+write.csv(t3_4_volume, file="Tier 3&4_food_dilution.csv")
+```
 

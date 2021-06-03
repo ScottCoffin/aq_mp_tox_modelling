@@ -1,0 +1,311 @@
+---
+title: "SSD Working Framework: Particles/L"
+author: "Scott Coffin & Leah Thornton Hampton"
+date: "4/21/2021"
+output:   
+  html_document:
+    code_folding: hide
+    theme: journal
+    toc: yes
+    toc_float: yes
+    toc_depth: 6
+    number_sections: true
+    includes:
+     # after_body: footer.html
+  word_document:
+    toc: yes
+---
+
+```{r libraries, include=FALSE}
+library(tidyverse)
+library(calecopal)
+library(ssdtools)
+library(DT)
+library(plotly)
+library(gridExtra)
+library(grid)
+library(wesanderson)
+library(ggdark)
+library(broom)
+library(knitr)
+library(viridis)
+library(ggrepel)
+library(scales)
+library(gt)
+library(ggsci)
+```
+
+```{r ERM}
+###define sizes for filtering and alignment##
+# smaller size bin
+small_tier_lower_size <- 1 #um
+small_tier_upper_size <- 5000 #um
+upper.tissue.trans.size.um <- 100 #10 #um #set size for filtering data and x2M
+# larger size bin
+large_tier_lower_size <- 1 #um
+large_tier_upper_size <- 5000 #um
+```
+
+```{r Theme, include=FALSE}
+#Theme type
+     theme.type<- #theme_gray(base_size = 14)#,
+                       dark_theme_bw(base_size = 15) +
+theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
+     #color selection
+     fill.type <-    #scale_fill_viridis(discrete = TRUE)#,
+                         #scale_fill_brewer(palette = "Paired"),
+                          scale_fill_tron()#,
+                         # scale_fill_locuszoom(),
+                         # scale_fill_d3(),
+                         # scale_fill_npg(),
+                         # scale_fill_jama())
+     #color selection
+     color.type <- #scale_color_viridis(discrete = TRUE)#,
+                         # scale_color_brewer(palette = "Paired"),
+                          scale_color_tron()#,
+                         # scale_color_locuszoom(),
+                         # scale_color_d3(),
+                         # scale_color_npg(),
+                         # scale_color_jama())
+
+```
+
+```{r import, include=FALSE}
+# Data Import
+#require(readr)
+#load aoc_z into dataframe. This file is generated from RDA_Maker.R
+#source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
+
+
+
+# Data Filtering by Quality
+```{r}
+## First filter data with global filters
+aoc_intermediate <- aoc_z %>% 
+  filter(!environment %in% c("Terrestrial", "Not Reported"),
+         org_f != "Bacterium",
+         org_f != "Plant",
+         effect.metric != "HONEC",
+         tier_zero_tech_f == "Red Criteria Passed",
+         #tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
+         risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+         ) %>%  
+  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
+#### Ecologically Relevant Metric calculations ####
+```
+
+# Data Filtering by size
+
+```{r size category selection, include=TRUE}
+#1 - 100 nanometers
+tier1_2_nano <- aoc_intermediate %>% 
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 0.001, 0.1)) 
+
+### 100 - 1000 nm
+tier1_2_sub <- aoc_intermediate %>% 
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 0.1, 1)) 
+
+### 1 - 100 um
+tier1_2_small <- aoc_intermediate %>% 
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 100)) 
+
+### 100 - 1000 um
+tier1_2_large <- aoc_intermediate %>% 
+         mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 100, 1000)) 
+```
+
+##### Data Collapse
+```{r data collapse, include=TRUE}
+
+#1 - 100 nanometers
+tier1_2_nano_1q <- tier1_2_nano %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+### 100 - 1000 nm
+tier1_2_sub_1q <- tier1_2_sub %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+### 1 - 100 um
+tier1_2_small_1q <- tier1_2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+
+### 100 - 1000 um
+tier1_2_large_1q <- tier1_2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+```
+
+## SSD Build
+
+### Nano
+```{r include=TRUE, warning=FALSE}
+###### --modelling ####
+dists_tier1_2_nano_1q <- ssd_fit_dists(tier1_2_nano_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_2_nano_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_2_nano_1q <- as.data.frame(ssd_gof(dists_tier1_2_nano_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_2_nano_1q <- predict(dists_tier1_2_nano_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_2_nano_1q <- tier1_2_nano_1q[order(tier1_2_nano_1q$Conc), ]
+SSD_tier1_2_nano_1q$frac <- ppoints(tier1_2_nano_1q$Conc, 0.5)
+
+#add unique ID for multiplot
+pred_tier1_2_nano_1q_nano <- pred_tier1_2_nano_1q
+SSD_tier1_2_nano_1q_nano <- SSD_tier1_2_nano_1q
+
+tier1_2_nano_1q_lcl <- c(pred_tier1_2_nano_1q$lcl[5]) #CI95
+tier1_2_nano_1q_hc5 <- c(pred_tier1_2_nano_1q$est[5]) #HC5
+pred_tier1_2_nano_1q$est_format <-format(pred_tier1_2_nano_1q$est, digits = 3, scientific = TRUE)
+```
+### Sub
+```{r include=TRUE, warning=FALSE}
+###### --modelling ####
+dists_tier1_2_sub_1q <- ssd_fit_dists(tier1_2_sub_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_2_sub_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_2_sub_1q <- as.data.frame(ssd_gof(dists_tier1_2_sub_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_2_sub_1q <- predict(dists_tier1_2_sub_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_2_sub_1q <- tier1_2_sub_1q[order(tier1_2_sub_1q$Conc), ]
+SSD_tier1_2_sub_1q$frac <- ppoints(tier1_2_sub_1q$Conc, 0.5)
+
+#add unique ID for multiplot
+pred_tier1_2_sub_1q_sub <- pred_tier1_2_sub_1q
+SSD_tier1_2_sub_1q_sub <- SSD_tier1_2_sub_1q
+
+tier1_2_sub_1q_lcl <- c(pred_tier1_2_sub_1q$lcl[5]) #CI95
+tier1_2_sub_1q_hc5 <- c(pred_tier1_2_sub_1q$est[5]) #HC5
+pred_tier1_2_sub_1q$est_format <-format(pred_tier1_2_sub_1q$est, digits = 3, scientific = TRUE)
+```
+
+### Small
+```{r include=TRUE, warning=FALSE}
+###### --modelling ####
+dists_tier1_2_small_1q <- ssd_fit_dists(tier1_2_small_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_2_small_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_2_small_1q <- as.data.frame(ssd_gof(dists_tier1_2_small_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_2_small_1q <- predict(dists_tier1_2_small_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_2_small_1q <- tier1_2_small_1q[order(tier1_2_small_1q$Conc), ]
+SSD_tier1_2_small_1q$frac <- ppoints(tier1_2_small_1q$Conc, 0.5)
+
+#add unique ID for multiplot
+pred_tier1_2_small_1q_small <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_small <- SSD_tier1_2_small_1q
+
+tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
+tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
+pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
+```
+
+### large
+```{r include=TRUE, warning=FALSE}
+###### --modelling ####
+dists_tier1_2_large_1q <- ssd_fit_dists(tier1_2_large_1q, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(dists_tier1_2_large_1q) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof_tier1_2_large_1q <- as.data.frame(ssd_gof(dists_tier1_2_large_1q)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+pred_tier1_2_large_1q <- predict(dists_tier1_2_large_1q, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD_tier1_2_large_1q <- tier1_2_large_1q[order(tier1_2_large_1q$Conc), ]
+SSD_tier1_2_large_1q$frac <- ppoints(tier1_2_large_1q$Conc, 0.5)
+
+#add unique ID for multiplot
+pred_tier1_2_large_1q_large <- pred_tier1_2_large_1q
+SSD_tier1_2_large_1q_large <- SSD_tier1_2_large_1q
+
+tier1_2_large_1q_lcl <- c(pred_tier1_2_large_1q$lcl[5]) #CI95
+tier1_2_large_1q_hc5 <- c(pred_tier1_2_large_1q$est[5]) #HC5
+pred_tier1_2_large_1q$est_format <-format(pred_tier1_2_large_1q$est, digits = 3, scientific = TRUE)
+```
+
+
+# Multi plots
+## Data tables
+```{r}
+# Build dataframe with all SSDs so we can get a color scale
+p_t1_l_p <- pred_tier1_2_nano_1q_nano %>% mutate(size = "0.001 - 0.1 µm")
+p_t1_l_u <- pred_tier1_2_sub_1q_sub %>% mutate(size = "0.1 - 1 µm")
+p_t1_l_v <- pred_tier1_2_small_1q_small %>% mutate(size = "1 - 100 µm")
+p_t1_l_sa <- pred_tier1_2_large_1q_large %>% mutate(size = "100 - 1,000 µm")
+
+predictions_t1_large <- rbind.data.frame(p_t1_l_p, 
+                                p_t1_l_u,
+                                p_t1_l_v,
+                                p_t1_l_sa) %>% 
+  mutate(size = factor(size))
+predictions_t1_large
+
+#do the same for individual points
+s_t1_l_p <- SSD_tier1_2_nano_1q_nano %>% mutate(size = "0.001 - 0.1 µm")
+s_t1_l_u <- SSD_tier1_2_sub_1q_sub %>% mutate(size = "0.1 - 1 µm")
+s_t1_l_v <- SSD_tier1_2_small_1q_small %>% mutate(size = "1 - 100 µm")
+s_t1_l_sa <- SSD_tier1_2_large_1q_large %>% mutate(size = "100 - 1,000 µm")
+
+points_t1_large <- rbind.data.frame(s_t1_l_p, 
+                                s_t1_l_u,
+                                s_t1_l_v,
+                                s_t1_l_sa)
+
+points_t1_large$size <- as.factor(points_t1_large$size)
+```
+## Plot
+```{r}
+predictions_t1_large %>% 
+ggplot(aes(x = est, y = percent/100, color = size)) +
+  geom_line(size = 1) +
+  geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = size),color = "black", alpha = 0.15) +
+  geom_point(data = points_t1_large,aes(x = Conc, y =frac, color = size)) + 
+  scale_color_tron(name = "Size Bins") +
+  scale_fill_tron(name = "Size Bins") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(limits = c(1, 1e24),
+                           breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "SSDs by Size Binning", x = "particles/L") +
+      theme.type #user theme
+```
+
+

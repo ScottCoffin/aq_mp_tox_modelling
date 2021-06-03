@@ -180,8 +180,8 @@ aoc_setup_select <- aoc_setup %>%
   mutate(effect_10 = case_when( #convert ordinal to numeric
       effect == "Y" ~ 1,
       effect == "N" ~ 0
-    )) %>%
-  mutate(effect_10 = factor(effect_10))
+    ))# %>%
+  #mutate(effect_10 = factor(effect_10))
 
 
 ```
@@ -260,7 +260,7 @@ Full Model
 ```{r, echo = FALSE}
 
 #Select the columns that we want to feed into the model for simplicity
-m1_crust <- aoc_setup %>% 
+m1_crust <- aoc_setup_select %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -285,7 +285,7 @@ summary(m1_crust_model_dose)
 ```{r}
 #Plots
 
-ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = TRUE)
+ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = FALSE)
 ```
 
 ## Dose (volume)
@@ -295,7 +295,7 @@ Full Model
 ```{r, echo = FALSE}
 
 #Select the columns that we want to feed into the model for simplicity
-m1_crust <- aoc_setup %>% 
+m1_crust <- aoc_setup_select %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -323,7 +323,7 @@ ggPredict(m1_crust_model_dose,
           colorn=200,
  #         jitter=TRUE, 
 point = FALSE,
-          interactive = TRUE, 
+          interactive = FALSE, 
 show.summary = TRUE,
 #digits = 3, 
 se = FALSE)
@@ -332,7 +332,7 @@ se = FALSE)
 ```{r}
 #particle couunt
 #Select the columns that we want to feed into the model for simplicity
-m1_crust_part <- aoc_setup %>% 
+m1_crust_part <- aoc_setup_select %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -353,13 +353,13 @@ summary(m1_crust_model_particles)
 ```
 plot
 ```{r}
-ggPredict(m1_crust_model_particles, colorn=1000, interactive = TRUE)
+ggPredict(m1_crust_model_particles, colorn=1000, interactive = FALSE, jitter = FALSE)
 ```
 ### volume
 ```{r}
 #particle couunt
 #Select the columns that we want to feed into the model for simplicity
-m1_crust_volume <- aoc_setup %>% 
+m1_crust_volume <- aoc_setup_select %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -380,7 +380,7 @@ summary(m1_crust_model_volume)
 ```
 plot
 ```{r}
-ggPredict(m1_crust_model_volume, colorn=500, interactive = TRUE)
+ggPredict(m1_crust_model_volume, colorn=800, interactive = FALSE,jitter = FALSE)
 ```
 
 
@@ -416,7 +416,7 @@ Full Model
 ```{r, echo = FALSE}
 
 #Select the columns that we want to feed into the model for simplicity
-m1_crust <- aoc_setup %>% 
+m1_crust <- aoc_setup_select %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -437,9 +437,72 @@ m1_crust_model_dose <- glm(effect_10 ~ logdose.particles.mL.master*size.length.u
 
 summary(m1_crust_model_dose)
 
-ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = TRUE)
+ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = FALSE)
 
 ```
+## Dose (Surface Area)
+
+Full Model 
+
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.surface.area.um2.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose_SA <- glm(effect_10 ~ logdose.surface.area.um2.mL.master * size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose_SA)
+
+ggPredict(m1_crust_model_dose_SA,colorn=700,jitter=FALSE, interactive = FALSE)
+```
+
+## Combo Dose Predictors
+
+Full Model 
+
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.surface.area.um2.mL.master, logdose.um3.mL.master)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose <- glm(effect_10 ~ logdose.surface.area.um2.mL.master , data = m1_crust,
+                           na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose)
+
+ggPredict(m1_crust_model_dose,colorn=700,jitter=FALSE, interactive = FALSE)
+```
+
 
 ```{r}
 require(ggiraphExtra)
@@ -454,7 +517,7 @@ require(ggdark)
 require(ggsci)
 ggpredict(m1_crust_model_dose)
 df <- ggpredict(m1_crust_model_dose, se = TRUE)
-df <- ggpredict(m1_crust_model_dose,terms=c("logdose.mg.L.master", "size.length.um.used.for.conversions"))
+df <- ggpredict(m1_crust_model_dose_SA,terms=c("logdose.surface.area.um2.mL.master", "size.length.um.used.for.conversions"))
 
 #note that faceting works best with discrete variable as interactive term
 ggplot(df, aes(x = x, y = predicted, colour = group)) +
@@ -470,10 +533,44 @@ ggplot(df, aes(x = x, y = predicted, colour = group)) +
 plot(df, facet = TRUE)
 ```
 
+
+## Polymers
+
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+poly <- aoc_z %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>%
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    ))
+ # filter(acute.chronic_f == "Acute") %>% 
+  #dplyr::select(c(effect_10, logdose.surface.area.um2.mL.master, max.size.ingest.mm, logdose.um3.mL.master)) %>% 
+  #drop_na()
+
+#Fit the full model
+poly_glm <- glm(effect_10 ~ logdose.surface.area.um2.mL.master + poly_f, data = poly, na.action = "na.exclude", family = "binomial")
+
+summary(poly_glm)
+
+ggPredict(poly_glm,colorn=700,jitter=FALSE, interactive = FALSE)
+```
+
 ## Discrete predictor and dose
 ```{r, echo = FALSE}
 #Select the columns that we want to feed into the model for simplicity
-m1_crust <- aoc_setup %>% 
+m1_crust <- aoc_setup_select %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -495,7 +592,8 @@ summary(m1_crust_model_discrete)
 Plotted below.
 ```{r}
 discrete <- ggpredict(m1_crust_model_discrete,terms = c("logdose.mg.L.master", "size_f"))
-plot(discrete, facet = TRUE, add.data = TRUE, colors = "quadro", alpha = 0.2, dodge = 0.2)
+plot(discrete, facet = TRUE, add.data = TRUE,# colors = "quadro",
+     alpha = 0.2, dodge = 0.2)
      #title = "All Aquatic Organisms")
 ```
 #### Acute only crustacea
