@@ -42,6 +42,37 @@ library(knitr)
 library(modelplotr)
 library(rsample)
 library(interpret) #explainable boosting machine
+library(ssdtools)
+library(ggrepel)
+library(scales)
+library(ggdark)
+library(ggsci)
+```
+
+```{r Theme, include=FALSE}
+#Theme type
+     theme.type<- #theme_gray(base_size = 14)#,
+                       dark_theme_bw(base_size = 15) +
+theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5))
+
+     #color selection
+     fill.type <-    #scale_fill_viridis(discrete = TRUE)#,
+                         #scale_fill_brewer(palette = "Paired"),
+                          scale_fill_tron()#,
+                         # scale_fill_locuszoom(),
+                         # scale_fill_d3(),
+                         # scale_fill_npg(),
+                         # scale_fill_jama())
+     #color selection
+     color.type <- #scale_color_viridis(discrete = TRUE)#,
+                         # scale_color_brewer(palette = "Paired"),
+                          scale_color_tron()#,
+                         # scale_color_locuszoom(),
+                         # scale_color_d3(),
+                         # scale_color_npg(),
+                         # scale_color_jama())
+
 ```
 
 The idea here is we want to be able to just change the dataset and model here and then the entire code base will react to the update. The challenge is that making the right synthetic and uniform datasets will differ depending on the column types. Is it safe to assume that there will be no numeric variables in the model besides the concentrations which will be present in the development of the synthetic and uniform datasets?  
@@ -265,7 +296,8 @@ df_oxidative.stress <- aoc_final %>%
     ### Effect data ####
                   #effect, 
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
-                  lvl1_f #keep it generic for easy SSD build (use fitness)
+                  lvl1_f, #keep it generic for easy SSD build (use fitness)
+                  lvl2_f
                   )) %>% 
    rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
@@ -358,14 +390,14 @@ test_y <- as.numeric(as.vector(test$particles.mL.ox.stress))
 
 #####build additional models using caret package and expain using DALEX package #####
 classif_rf_oxidative.stress <- train(particles.mL.ox.stress ~ ., data = train, method = "rf", ntree = 100, tuneLength = 1)
-classif_glm_oxidative.stress <- train(particles.mL.ox.stress ~., data = train, method = "glm", family = "binomial")
+classif_glm_oxidative.stress <- train(particles.mL.ox.stress ~., data = train, method = "lm")
 ```
 
 ##### Model diagnostics
 ```{r}
 ##### build explainers ####
 # extract test data#
-yTest <- as.numeric(as.character(test$effect_10))
+yTest <- as.numeric(as.character(test$particles.mL.ox.stress))
 
 explainer_classif_rf_oxidative.stress <- DALEX::explain(classif_rf_oxidative.stress,
                                        label = "rf",
@@ -380,10 +412,15 @@ explainer_classif_glm_oxidative.stress <- DALEX::explain(classif_glm_oxidative.s
 #### Caret models ####
 mp_classif_rf_oxidative.stress <- model_performance(explainer_classif_rf_oxidative.stress)
 mp_classif_glm_oxidative.stress <- model_performance(explainer_classif_glm_oxidative.stress)
+
+plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress)
+```
+```{r}
+plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress, geom = "boxplot")
 ```
 
 ###### RoC Curves
-```{r}
+```{r eval=FALSE, include=FALSE}
 #plot ROC curves
 plot(mp_classif_rf_oxidative.stress, 
      mp_classif_glm_oxidative.stress, 
@@ -433,9 +470,10 @@ df_food.dilution <- aoc_final %>%
                   #density.g.cm3,
                   #size.length.um.used.for.conversions, 
     ### Effect data ####
-                  effect, 
+                  #effect, 
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
-                  lvl1_f #keep it generic for easy SSD build (use fitness)
+                  lvl1_f, #keep it generic for easy SSD build (use fitness)
+                  lvl2_f
                   )) %>% 
    rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
@@ -468,13 +506,13 @@ mutate(value = 1) %>%
   mutate(effect.metric = as.factor(effect.metric)) %>% 
 
 #mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
-  mutate(effect_10 = case_when( #convert ordinal to numeric
-      effect == "Y" ~ 1,
-      effect == "N" ~ 0
-    )) %>%
-  mutate(effect_10 = factor(effect_10)) %>% 
+  # mutate(effect_10 = case_when( #convert ordinal to numeric
+  #     effect == "Y" ~ 1,
+  #     effect == "N" ~ 0
+  #   )) %>%
+  # mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(effect, rowid, EVA, LTX, PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
+  dplyr::select(-c( rowid, EVA, LTX, PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
    drop_na()  #drop missing
 
 #ensure completeness
@@ -497,15 +535,15 @@ train <- training(df_split)
 test <- testing(df_split)
 
 # variable names for response & features
-y <- "effect_10"
+y <- "particles.mL.food.dilution"
 x <- setdiff(names(df_food.dilution), y) 
 
 ## subset for ebm syntax
-train_x <- as.data.frame(train %>% dplyr::select(-effect_10))
-train_y <- as.numeric(as.vector(train$effect_10))
+train_x <- as.data.frame(train %>% dplyr::select(-particles.mL.food.dilution))
+train_y <- as.numeric(as.vector(train$particles.mL.food.dilution))
 
-test_x <- as.data.frame(test %>% dplyr::select(-effect_10))
-test_y <- as.numeric(as.vector(test$effect_10))
+test_x <- as.data.frame(test %>% dplyr::select(-particles.mL.food.dilution))
+test_y <- as.numeric(as.vector(test$particles.mL.food.dilution))
 ```
 
 #### Build GLM and EBM
@@ -527,16 +565,15 @@ ebm_food.dilution <- ebm_classify(train_x, #features
                             random_state = 42)
 
 #####build additional models using caret package and expain using DALEX package #####
-classif_rf_food.dilution <- train(effect_10~., data = train, method = "rf", ntree = 100, tuneLength = 1)
-classif_glm_food.dilution <- train(effect_10~., data = train, method = "glm", family = "binomial")
-
+classif_rf_food.dilution <- train(particles.mL.food.dilution~., data = train, method = "rf", ntree = 100, tuneLength = 1)
+classif_glm_food.dilution <- train(particles.mL.food.dilution~., data = train, method = "lm")
 ```
 
 #### Model diagnostics
 ```{r}
 ##### build explainers ####
 # extract test data#
-yTest <- as.numeric(as.character(test$effect_10))
+yTest <- as.numeric(as.character(test$particles.mL.food.dilution))
 
 explainer_classif_rf_food.dilution <- DALEX::explain(classif_rf_food.dilution,
                                        label = "rf",
@@ -813,15 +850,37 @@ Big assumption: all particle toxicities are ADDITIVE! Depends on effect mechanis
 
 # Dose-response curves
 
+```{r}
+SSD_function_t1 <- function(filtered.data, hcxlcl){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#
+ssd_frame <- collapsed[order(collapsed$Conc), ]
+ssd_frame$frac <- ppoints(collapsed$Conc, 0.5)
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
+#values to extract
+#print(hc5lcl)
+return(list(preds, ssd_frame))
+}
+```
+
 Part of me just wants to set the uniform distribution to the distinct version of the dataset. That way we can define uncertainty for each dose response curve and are not extrapolating within ranges (sometimes people just get data for the max and min in a distribution that doesn't mean that we know what the middle should be.)
 
 
 Abundance of most commonly found polymers based on Table S3 of kooi and Kolemans 2019. Shape abundance based on the main text of Kooi and Koelmans 2019. Since there are no training data for films (5.5% in envirnoment) or foam (3.5% in environment), they were omitted from this synthetic dataset and all other categories were increased by a factor of 1.16 to reach 100%. https://pubs.acs.org/doi/suppl/10.1021/acs.estlett.9b00379/suppl_file/ez9b00379_si_001.pdf
 ```{r}
 #define base parameters for all SSDs
-composition <- df %>% 
+composition <- df_oxidative.stress %>% 
   # make entry for each species
-  distinct(species_f, max.size.ingest.mm, life.stage) %>% 
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
   EVA_frac = 0.06,
@@ -840,23 +899,230 @@ composition <- df %>%
         fragment_frac = 0.31 * 1.1627,
         sphere_frac = 0.065 * 1.1627,
   #common metrics for all SSDs
-  lvl1_f = "Fitness",
+  #lvl1_f = "Fitness",
  # life.stage = "Adult",
   exposure.route = "water",
   environment = "Marine",
   acute.chronic_f = "Chronic",
-  effec.metric = "NOEC"
+  effect.metric = "NOEC"
   )
 ```
 
 ## Oxidative Stress
-### Tier 1
+### Tier 1/2
+
 ```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
 ox.1 <- composition %>% 
-  mutate(bio.org = "Tissue",
-         particles.mL.ox.stress = 1000)
-predict(classif_glm_oxidative.stress, ox.1, type = "prob")
+  filter(#bio.org %in% c("tissue", "organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+ox.1$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.1, type = "raw")
+
+#Data collapse
+ox1.summary <- ox.1 %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(particles.mL.ox.stress, 0.25))
+
+## SSD build
+ox.t1.ssd <- SSD_function_t1(filtered.data = ox1.summary, hcxlcl = 5)
+
+#extract data frames from object
+ox.t1.preds <- as.data.frame(ox.t1.ssd[1])
+ox.t1.points <- as.data.frame(ox.t1.ssd[2])
+
+#ggplot
+ggplot(ox.t1.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = ox.t1.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
 ```
+
+### Tier 3/4
+
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+ox.3 <- composition %>% 
+  filter(bio.org %in% c("organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+ox.3$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.3, type = "raw")
+
+#Data collapse
+ox3.summary <- ox.3 %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(particles.mL.ox.stress, 0.50))
+
+## SSD build
+ox.t3.ssd <- SSD_function_t1(filtered.data = ox3.summary, hcxlcl = 5)
+
+#extract data frames from object
+ox.t3.preds <- as.data.frame(ox.t3.ssd[1])
+ox.t3.points <- as.data.frame(ox.t3.ssd[2])
+
+#ggplot
+ggplot(ox.t3.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = ox.t1.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+
+For comparison, the surface area particles/L for tiers 1-4 are:
+tier 1: 236 (hc5 lower 95% CI; tissue and above, 1st quantile)
+tier 2: 1,312 (hc5; tissue and above, 1st quantile)
+tier 3: 3,097 (hc5; organism and above, median)
+tier 4: 14,397 (hc10; organism and above, median)
+
+```{r}
+ox.t1.preds$lcl[5]
+ox.t1.preds$est[5]
+ox.t3.preds$est[5]
+ox.t3.preds$est[10]
+```
+
+
+
+## Food Dilution
+### Tier 1
+
+```{r}
+#assign groups
+food.1 <- composition %>% 
+  filter(bio.org %in% c("tissue", "organism", "population"),
+         lvl1_f %in% c("fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+food.1$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.1, type = "raw")
+
+#Data collapse
+food1.summary <- food.1 %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quartile(particles.mL.food.dilution, 0.25))
+
+## SSD build
+food.t1.ssd <- SSD_function_t1(filtered.data = food1.summary, hcxlcl = 5)
+
+#extract data frames from object
+food.t1.preds <- as.data.frame(food.t1.ssd[1])
+food.t1.points <- as.data.frame(food.t1.ssd[2])
+
+#ggplot
+ggplot(food.t1.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = food.t1.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+
+```
+### Tier 3/4
+
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+food.3 <- composition %>% 
+  filter(bio.org %in% c("organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+food.3$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.3, type = "raw")
+
+#Data collapse
+food3.summary <- food.3 %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(particles.mL.food.dilution, 0.50))
+
+## SSD build
+food.t3.ssd <- SSD_function_t1(filtered.data = food3.summary, hcxlcl = 5)
+
+#extract data frames from object
+food.t3.preds <- as.data.frame(food.t3.ssd[1])
+food.t3.points <- as.data.frame(food.t3.ssd[2])
+
+#ggplot
+ggplot(food.t3.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = food.t1.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+
+For comparison, the volume particles/L for tiers 1-4 are:
+tier 1: 3 (hc5 lower 95% CI; tissue and above, 1st quantile)
+tier 2: 21 (hc5; tissue and above, 1st quantile)
+tier 3: 17 (hc5; organism and above, median)
+tier 4: 105 (hc10; organism and above, median)
+
+```{r}
+food.t1.preds$lcl[5]
+food.t1.preds$est[5]
+food.t3.preds$est[5]
+food.t3.preds$est[10]
+```
+
+
 
 
 ```{r}
