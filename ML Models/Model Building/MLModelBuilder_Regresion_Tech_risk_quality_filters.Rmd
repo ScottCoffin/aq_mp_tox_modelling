@@ -1,0 +1,1407 @@
+---
+title: "DALEX_TechQualityControl"
+author: "Scott Coffin"
+date: "2/23/2021"
+output: 
+  html_document:
+    code_folding: hide
+    theme: journal
+    toc: yes
+    toc_float: yes
+    toc_depth: 6
+    number_sections: true
+    includes:
+      after_body: footer.html
+  word_document:
+    toc: yes
+---
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE,time_it = TRUE) #report time to knit for all chunks
+
+#knit time reporter
+all_times <- list()  # store the time for all chunks in a list
+knitr::knit_hooks$set(time_it = local({
+  now <- NULL
+  function(before, options) {
+    if (before) {
+      now <<- Sys.time()
+    } else {
+      res <- difftime(Sys.time(), now)
+      all_times[[options$label]] <<- res
+    }
+  }
+}))
+```
+
+
+```{r message=FALSE, warning=FALSE, include=FALSE}
+# load required packages
+library(rsample)
+library(dplyr)
+library(DALEX)
+library(tidyverse)
+library(tigerstats)
+library(caret)
+library(skimr)
+library(ggeffects)
+library(knitr)
+library(doParallel)
+library(modelplotr)
+library(gridExtra)
+library(interpret) #explainable boosting machine
+```
+
+# Data Selection
+
+**Important**: this dataset has ONLY been filtered for 'red' criteria for technical quality.
+
+```{r}
+require(readr)
+#load aoc_z into dataframe. This file is generated from RDA_Maker.R
+#source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+
+## First filter data with global filters
+aoc_intermediate <- aoc_z %>% 
+  filter(tier_zero_tech_f == "Red Criteria Passed",
+         polymer != "Not Reported") %>% 
+  droplevels() %>%  #eliminate polymer aand shape data that's not needed
+  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
+```
+
+
+### Alignment
+
+#### Parameters
+```{r}
+## parametrization ##
+# Define params for correction #
+alpha = 2.07 #table s4 for marine surface water. length
+# define parameters for power law coefficients
+a.sa = 1.5 #marine surface area power law
+a.v = 1.48 #a_V for marine surface water volume
+a.m = 1.32 # upper limit fora_m for mass for marine surface water in table S4 
+a.ssa = 1.98 # A_SSA for marine surface water
+
+#define additional parameters for calculations based on averages in the environment
+R.ave = 0.77 #average width to length ratio for microplastics in marine enviornment
+p.ave = 1.10 #average density in marine surface water
+```
+
+#### Functions
+```{r}
+###function to derive correction factor (CF) from Koelmans et al (equation 2)
+CFfnx = function(a, #default alpha from Koelmans et al (2020)
+                 x2D, #set detault values to convert ranges to (1-5,000 um) #5mm is upper defuault 
+                 x1D, #1 um is lower default size
+                 x2M, x1M){
+  CF = (x2D^(1-a)-x1D^(1-a))/(x2M^(1-a)-x1M^(1-a)) 
+  return(CF)}
+
+#### equations for mu_x_poly (note that there are three depending on certain alphas for limits of equation)
+###### if alpha does not equal 2 #####
+mux.polyfnx = function(a.x, 
+                       x_UL, 
+                       x_LL){
+  mux.poly = ((1-a.x)/(2-a.x)) * ((x_UL^(2-a.x) - x_LL^(2-a.x))/(x_UL^(1-a.x) - x_LL^(1-a.x)))
+  return(mux.poly)}
+
+##### If alpha does equal 2 #####
+mux.polyfnx.2 = function(x_UL,x_LL){
+  mux.poly = (log(x_UL/x_LL))/(x_LL^(-1) - x_UL^-1)
+  return(mux.poly)}
+
+### Calculating max ingestible parameters ###
+## function to calcualte min and max ingestible surface area ##
+SAfnx = function(a, # a = 0.5 * length
+                 b, # b = 0.5 * width
+                 c # c = 0.5 * height (note that hieght is 0.67 * width)
+){
+  SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
+  return(SA)}
+
+## max ingestible volume ##
+volumefnx = function(R, L){
+  volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+  return(volume)}
+
+#max ingestible mass
+massfnx = function(R, L, p){
+  mass = p * #density (g/cm^3)
+    0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+    1/1e12 * 1e6 #correction factors
+  return(mass)}
+
+#max ingestible specific surface area
+SSAfnx = function(sa, #surface area, calcaulted elsewhere
+                  m){ #mass, calculated elsewhere
+  SSA = sa/m
+    return(SSA)}
+```
+
+#### Calculate
+
+Here we will calculate two aligned exposure concentrations: surface area (1 - 83 um), and volume (1 - 5,000 um). For both, the upper aligned value is the smaller of either the nominal size listed or the mouth size of the species.
+```{r}
+###define sizes for alignment##
+x1M_set <- 1 #um lower size for all alignments
+x1D_set <- 1 #um lower size for all alignments
+x2D_set <- 5000 #um
+upper.tissue.trans.size.um <- 83 #10 #um #set size for x2M
+
+
+
+# calculate ERM for each species
+aoc_final <- aoc_intermediate  %>% 
+  #### TISSUE TRANSLOCATION ####
+   # define upper size length for Translocation 
+#set to 83um for upper limit or max size ingest, whichever is smaller
+  mutate(x2M_trans = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
+                         max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
+                         max.size.ingest.um  > upper.tissue.trans.size.um ~ upper.tissue.trans.size.um)) %>%  
+   # calculate effect threshold for particles
+  mutate(EC_mono_p.particles.mL_trans = dose.particles.mL.master) %>% 
+  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
+  mutate(mu.p.poly_trans = mux.polyfnx(a.x = alpha, #alpha for particles
+                                 x_UL= x2M_trans, #upper ingestible size limit (width of particle)
+                                 x_LL = x1M_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL_trans = (EC_mono_p.particles.mL_trans * mu.p.mono)/mu.p.poly_trans) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio_trans = CFfnx(x1M = x1M_set,#lower size bin
+                        x2M = x2M_trans, #upper ingestible
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default
+                        a = alpha)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL_trans = EC_poly_p.particles.mL_trans * CF_bio_trans) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### Surface area ERM ####
+  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
+  #calculate lower ingestible surface area
+  mutate(x_LL_sa_trans = SAfnx(a = 0.5 * x1D_set, 
+                         b = 0.5 * R.ave * x1D_set, 
+                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+  #calculate upper ingestible surface area
+  mutate(x_UL_sa_trans = SAfnx(a = 0.5 * x2M_trans, 
+                         b = 0.5 * R.ave *x2M_trans, 
+                         c = 0.5 * R.ave * 0.67 * x2M_trans)) %>%  
+  #calculate mu_x_poly for surface area
+  mutate(mu.sa.poly_trans = if(a.sa == 2){mux.polyfnx.2(x_UL_sa_trans, x_LL_sa_trans)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa_trans, x_LL_sa_trans)}) %>% 
+  #calculate polydisperse effect concentration for surface area (particles/mL)
+  mutate(EC_poly_sa.particles.mL_trans = (EC_mono_p.particles.mL_trans * mu.sa.mono)/mu.sa.poly_trans) %>%  
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_sa.particles.mL_trans = EC_poly_sa.particles.mL_trans * CF_bio_trans) %>% 
+  
+  ##### FOOD DILUTION ####
+  # define upper size WIDTH for ingestion (based on average width:length ratio)
+  mutate(x2M_ingest = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
+                         (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
+                         (max.size.ingest.um * (1/R.ave)) > x2D_set ~ (x2D_set * (1/R.ave))
+  )) %>%  #set to 5000 um for upper limit or max size ingest, whichever is smaller
+   
+   # calculate effect threshold for particles
+  mutate(EC_mono_p.particles.mL_ingest = dose.particles.mL.master) %>% 
+  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
+  mutate(mu.p.poly_ingest = mux.polyfnx(a.x = alpha, #alpha for particles
+                                 x_UL= x2M_ingest, #upper ingestible size limit (width of particle)
+                                 x_LL = x1M_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL_ingest = (EC_mono_p.particles.mL_ingest * mu.p.mono)/mu.p.poly_ingest) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio_ingest = CFfnx(x1M = x1M_set,#lower size bin
+                        x2M = x2M_ingest, #upper ingestible
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default
+                        a = alpha)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL_ingest = EC_poly_p.particles.mL_ingest * CF_bio_ingest) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### volume ERM ####
+#define mu_x_mono for alignment to ERM
+  mutate(mu.v.mono = particle.volume.um3) %>% 
+  #calculate lower ingestible volume 
+  mutate(x_LL_v_ingest = volumefnx(R = R.ave,
+                            L = x1D_set)) %>%
+  #calculate maximum ingestible volume 
+  mutate(x_UL_v_ingest = volumefnx(R = R.ave,
+                            L = x2M_ingest)) %>%  
+  # calculate mu.v.poly
+  mutate(mu.v.poly_ingest = if(a.v == 2){mux.polyfnx.2(x_UL_v_ingest, x_LL_v_ingest)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v_ingest, x_LL_v_ingest)}) %>% 
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_v.particles.mL_ingest = (EC_mono_p.particles.mL_ingest * mu.v.mono)/mu.v.poly_ingest) %>%  
+    #calculate environmentally realistic effect threshold
+  mutate(EC_env_v.particles.mL_ingest = EC_poly_v.particles.mL_ingest * CF_bio_ingest)%>% 
+  
+  ###### CLEANUP #####
+  mutate(particles.mL.ox.stress = EC_env_sa.particles.mL_trans,
+         particles.mL.food.dilution = EC_env_v.particles.mL_ingest)
+```
+
+### Oxidative Stress
+```{r GLM build}
+require(reshape2)
+# data preparation
+df <- aoc_final %>% 
+ #filter data select predictor variables#
+  dplyr::select(c(
+    ### DOSE METRICS ####
+                  particles.mL.ox.stress,
+                 # particles.mL.food.dilution,
+                  #dose.mg.L.master, 
+                  #dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
+                  #dose.particles.mL.master, 
+    ### Organism characteristics ###
+                  life.stage, #use adults for prediction
+                  species_f, 
+                  max.size.ingest.mm,
+                  organism.group, 
+    ### Exposure Conditions ####              
+                  bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
+                  exposure.route, #train on all, but only use "aquatic" for build
+                  environment, #train on all, buit only use "marine" for SSD Build
+                  acute.chronic_f, #use 'chronic' for SSD build
+                  exposure.duration.d, 
+    ### Particle characteristics ####
+                  polymer, 
+                  shape,
+                  #density.g.cm3,
+                  #size.length.um.used.for.conversions, 
+    ### Effect data ####
+                  effect, 
+                  effect.metric, #train on all, but only specify "NOEC" for SSD build
+                  lvl1_f, #keep it generic for easy SSD build (use fitness)
+                  lvl2_f,
+                  lvl3_f
+                  )) %>% 
+   rowid_to_column(var = "rowid") %>% 
+  mutate(value = 1) %>% 
+  ###### create new column for polymer percentage #####
+  dcast(... ~ polymer, value.var = c("value")) %>% 
+  # provide 0 for all 'na's'
+  mutate(across(.cols = last_col() + (-11:0),
+                .fns = ~replace(., is.na(.), 0),
+                .names = "{.col}_frac")) %>% 
+###### create new column for shape percentage #####
+mutate(value = 1) %>% 
+  dcast(... ~ shape, value.var = c("value")) %>% 
+  # not all rows have unique identifiers (basically dupes), so need to eliminate values > 1
+  mutate(across(.cols = last_col() + (-2:0),
+                .fns = ~replace(., is.na(.), 0),
+                .names = "{.col}_frac")) %>% 
+  mutate(effect.metric = (case_when(
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+ mutate(effect.metric = as.character(effect.metric)) %>% 
+   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  # make new column for each polymer type for relative percentage
+  #filter(effect.metric != "not_available") %>% 
+  #filter(exposure.route == "water") %>% 
+  mutate(effect.metric = as.factor(effect.metric)) %>% 
+
+#mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+  # mutate(effect_10 = case_when( #convert ordinal to numeric
+  #     effect == "Y" ~ 1,
+  #     effect == "N" ~ 0
+  #   )) %>%
+  # mutate(effect_10 = factor(effect_10)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(rowid, EVA, LTX, PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
+   drop_na()  #drop missing
+
+#ensure completeness
+skim(df)
+```
+
+#### Train models
+##### Split data
+```{r}
+# create train, validation, and test splits
+# Create calibration and validation splits with tidymodels initial_split() function.
+set.seed(4)
+df_split <- df %>%
+  initial_split(prop = 0.75)
+# default is 3/4ths split (but 75% training, 25% testing).
+
+# Create a training data set with the training() function
+# Pulls from training and testing sets created by initial_split()
+train <- training(df_split)
+test <- testing(df_split)
+
+# variable names for response & features
+y <- "particles.mL.ox.stress"
+x <- setdiff(names(df), y) 
+
+## subset for ebm syntax
+train_x <- as.data.frame(train %>% dplyr::select(- particles.mL.ox.stress))
+train_y <- as.numeric(as.vector(train$particles.mL.ox.stress))
+
+test_x <- as.data.frame(test %>% dplyr::select(- particles.mL.ox.stress))
+test_y <- as.numeric(as.vector(test$particles.mL.ox.stress))
+```
+
+
+```{r All Model Training, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
+# Examine the environment to be sure # of observations looks like the 75/25 split. 3199:1066.
+
+####build explainable boosting machine model #####
+ebm <- ebm_classify(train_x, #features
+                    train_y, #target,
+                            ## hyper-parameters, currently in default state:
+                            max_bins = 255,
+                            outer_bags = 16,
+                            inner_bags = 0,
+                            learning_rate = 0.01,
+                            validation_size = 0.15,
+                            early_stopping_rounds = 50,
+                            early_stopping_tolerance = 1e-4,
+                            max_rounds = 5000,
+                            max_leaves = 3,
+                            min_samples_leaf = 2,
+                            random_state = 42)
+
+#####build additional models using caret package and expain using DALEX package #####
+classif_rf <- train(particles.mL.ox.stress~., data = train, method = "rf", ntree = 100, tuneLength = 1)
+
+#classif_glm <- train( particles.mL.ox.stress~., data = train, method = "glmStepAIC")
+
+# classif_svm <- train(particles.mL.ox.stress~., data = train, method = "svmLinear", #prob.model = TRUE, 
+                     # tuneLength = 1, preProcess = c("pca","scale","center"))
+
+classif_lasso <- train(particles.mL.ox.stress~., data = train, method = "lasso")
+
+classif_knn <- train(particles.mL.ox.stress ~ ., data = train, method = "knn")
+
+classif_ridge <- train(particles.mL.ox.stress ~ ., data = train, method = "ridge")
+
+# classif_decTree <- train( particles.mL.ox.stress~., data = train, method = "C5.0", preProcess = c("scale","center")) 
+
+classif_nnet <- train( particles.mL.ox.stress~., data = train, method = "nnet", preProcess=c("scale","center"))
+
+classif_xgbTree <- train( particles.mL.ox.stress~., data = train, method = "xgbTree")
+
+
+##### build explainers ####
+# extract test data#
+yTest <- test_y
+
+#explainer_classif_ebm <- DALEX::explain(classif_ebm,
+ #                                      label = "EBM",
+  #                                     data = subset(test, select = -c( particles.mL.ox.stress)), 
+   #                                    y = yTest)
+
+
+explainer_classif_rf <- DALEX::explain(classif_rf,
+                                       label = "rf",
+                                       data = test_x, 
+                                       y = yTest)
+                                       
+# explainer_classif_glm <- DALEX::explain(classif_glm, label = "glm", 
+                                        #data = test_x, y = yTest)
+                                       
+# explainer_classif_svm <- DALEX::explain(classif_svm,  label = "svm", 
+#                                         data = test_x, y = yTest)
+
+explainer_classif_knn <- DALEX::explain(classif_knn, label = "k-Nearest Neighbor", 
+                                        data = test_x, y = yTest)
+
+# explainer_classif_decTree <- DALEX::explain(classif_rf, label = "Decision Tree",
+#                                        data = test_x, 
+#                                        y = yTest)
+#                                        
+explainer_classif_nnet <- DALEX::explain(classif_glm, label = "Neural Net", 
+                                        data = test_x, y = yTest)
+                                       
+explainer_classif_xgbTree <- DALEX::explain(classif_xgbTree,  label = "eXtreme Gradient Boosting Trees", 
+                                        data = test_x, y = yTest)
+```
+# Modelling
+## Model Performance
+```{r model performance, include=FALSE}
+### EBM model ###
+proba_test <- ebm_predict_proba(ebm, test_x) #keeps giving NA's for some reason...
+
+#### Caret models ####
+mp_classif_rf <- model_performance(explainer_classif_rf)
+# mp_classif_glm <- model_performance(explainer_classif_glm)
+mp_classif_knn <- model_performance(explainer_classif_knn)
+# mp_classif_svm <- model_performance(explainer_classif_svm)
+# mp_classif_decTree <- model_performance(explainer_classif_decTree)
+mp_classif_nnet <- model_performance(explainer_classif_nnet)
+mp_classif_xgbTree <- model_performance(explainer_classif_xgbTree)
+```
+
+### Histogram of Residuals
+```{r}
+plot(mp_classif_rf, mp_classif_glm, geom ="histogram")
+```
+```{r}
+plot(mp_classif_svm, mp_classif_decTree, geom ="histogram")
+```
+
+```{r}
+plot(mp_classif_nnet, mp_classif_xgbTree, geom ="histogram")
+```
+### Precision Recall Curves
+```{r}
+plot(mp_classif_rf, mp_classif_glm, mp_classif_svm, mp_classif_decTree, mp_classif_nnet, mp_classif_xgbTree, geom ="prc")
+```
+
+
+### Reverse Cumulative Distribution of Residuals
+```{r}
+# compare residuals plots
+resid_dist <- plot(mp_classif_rf, mp_classif_glm, mp_classif_svm, mp_classif_decTree, mp_classif_nnet,
+                   mp_classif_xgbTree) + #, mp_classif_logicBag) +
+  theme_minimal() +
+        theme(legend.position = 'bottom',
+              plot.title = element_text(hjust = 0.5)) + 
+        labs(y = '')
+resid_dist
+```
+#### Residuals
+```{r}
+resid_box <- plot(mp_classif_rf, mp_classif_glm, mp_classif_svm, mp_classif_decTree, mp_classif_nnet, mp_classif_xgbTree,
+     #mp_classif_logicBag, 
+     geom = "boxplot") +
+  theme_minimal() +
+        theme(legend.position = 'bottom',
+              plot.title = element_text(hjust = 0.5)) 
+resid_box
+```
+```{r}
+require(gridExtra)
+grid.arrange(resid_box,resid_dist, ncol=2)
+```
+
+### Lift Curves
+
+Lift curves describe a performance coefficient (lift) over the cumulative proportion of a population. Lift is calculated as the ratio of "yes's" on a certain sample point (for toxicity) divided by the ratio of "yes's" on the whole dataset. $Lift = Predicted Rate/Average Rate$. 
+
+
+```{r eval=FALSE, include=FALSE}
+#### DO NOT RUN - MAKES WEIRD PLOT###
+
+# #recode class as character
+# df2 <- df %>% 
+#  mutate(effect = factor(case_when( #convert ordinal to numeric
+#        particles.mL.ox.stress == "1" ~ "Y",
+#        particles.mL.ox.stress == "0" ~ "N"
+#     )))
+# #split test/train
+# set.seed(4)
+# df2_split <- df2 %>%
+#   initial_split(prop = 0.75)
+# train2 <- training(df2_split)
+# test2 <- testing(df2_split)
+# 
+# #set controls
+# ctrl <- trainControl(method = "cv", classProbs = TRUE,
+#                      summaryFunction = twoClassSummary)
+# #create models for lift plots
+# lift_rf <- train(effect ~., data = train2, method = "rf", ntree = 100, tuneLength = 1,
+#                     trControl = ctrl)
+# 
+# lift_glm <- train(effect~., data = train2, method = "glm", family = "binomial", 
+#                      trControl = ctrl)
+# 
+# lift_svm <- train(effect~., data = train2, method = "svmRadial", prob.model = TRUE, 
+#                      tuneLength = 1, trControl = ctrl)#,
+#                     # preProcess = c("pca","scale","center"))
+# 
+# lift_decTree <- train(effect~., data = train2, method = "C5.0", 
+#                          preProcess =c("scale","center"), trControl = ctrl) 
+# 
+# lift_nnet <- train(effect~., data = train2, method = "nnet", preProcess=c("scale","center"),
+#                       trControl = ctrl)
+# 
+# lift_xgbTree <- train(effect~., data = train2, method = "xgbTree", trControl = ctrl)
+# 
+# 
+# ## Generate the test set results
+# lift_results <- data.frame(effect = test2$effect)
+# lift_results$rf <- predict(lift_rf, test, type = "prob")[,"Y"]
+# lift_results$glm <- predict(lift_glm, test, type = "prob")[,"Y"]
+# lift_results$svm <- predict(lift_svm, test, type = "prob")[,"Y"]
+# lift_results$decTree <- predict(lift_decTree, test, type = "prob")[,"Y"]
+# lift_results$nnet <- predict(lift_nnet, test, type = "prob")[,"Y"]
+# lift_results$xgbTree <- predict(lift_xgbTree, test, type = "prob")[,"Y"]
+# head(lift_results)
+# 
+# #plot results
+# trellis.par.set(caretTheme())
+# lift_obj <- lift(effect ~ rf + glm + svm + decTree + nnet + xgbTree, data = lift_results)
+# plot(lift_obj, values = 60, auto.key = list(columns = 3,
+#                                             lines = TRUE,
+#                                             points = FALSE))
+```
+##### ALT METHOD
+http://rstudio-pubs-static.s3.amazonaws.com/436131_3212dcf341cc422590f1a9f52830cfd6.html
+
+```{r}
+# transform datasets and model objects into scored data and calculate deciles 
+scores_and_ntiles <- prepare_scores_and_ntiles(datasets=list("train","test"),
+                                               dataset_labels = list("train data","test data"),
+                                               models = list("classif_rf", "classif_decTree",
+                                                             "classif_glm", "classif_nnet",
+                                                             "classif_svm", "classif_xgbTree"),
+                                               model_labels = list("random forest", "Decision
+                                                                   tree", "General linear model",
+                                                                   "Neural net", "Support Vector
+                                                                   machine", "eXtreme Gradient
+                                                                   Boosting Trees"),
+                                               target_column=" particles.mL.ox.stress",
+                                               ntiles = 100)
+
+
+# transform data generated with prepare_scores_and_deciles into aggregated data for chosen plotting scope 
+plot_input <- plotting_scope(prepared_input = scores_and_ntiles, scope = 'compare_models')
+plot_cumgains(data = plot_input, custom_line_colors = RColorBrewer::brewer.pal(2,'Accent'))
+```
+
+```{r}
+plot_cumlift(data = plot_input,custom_line_colors = RColorBrewer::brewer.pal(2,'Accent'))
+```
+```{r}
+plot_cumresponse(data = plot_input,highlight_ntile = 20, 
+                 custom_line_colors = RColorBrewer::brewer.pal(2,'Accent'))
+```
+```{r}
+plot_multiplot(data = plot_input,  custom_line_colors = RColorBrewer::brewer.pal(2,'Accent'))
+```
+
+
+### Roc Curves
+```{r}
+plot(mp_classif_rf, 
+     #mp_classif_glm, 
+     mp_classif_svm, 
+     #mp_classif_decTree, 
+     mp_classif_nnet,
+     #mp_classif_xgbTree,
+     geom = "roc") +
+  ggtitle("ROC Curves - All Models",  
+          paste("AUC_rf = ",round(mp_classif_rf$measures$auc,3), 
+                paste("AUC_svm = ",round(mp_classif_svm$measures$auc,3)),
+          paste("AUC_nnet = ",round(mp_classif_nnet$measures$auc,3))
+          )) +
+#,  "AUC_glm = 0.799  AUC_svm = 0.798 AUC_decTree = AUC_nnet = AUC_xgbTree = ") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+### Variable Importance
+```{r fig.height=7, fig.width=5, warning=FALSE}
+vi_classif_rf <- model_parts(explainer_classif_rf, loss_function = loss_root_mean_square)
+vi_classif_glm <- model_parts(explainer_classif_glm, loss_function = loss_root_mean_square)
+vi_classif_svm <- model_parts(explainer_classif_svm, loss_function = loss_root_mean_square)
+vi_classif_decTree <- model_parts(explainer_classif_decTree, loss_function = loss_root_mean_square)
+vi_classif_nnet <- model_parts(explainer_classif_nnet, loss_function = loss_root_mean_square)
+vi_classif_xgbTree <- model_parts(explainer_classif_xgbTree, loss_function = loss_root_mean_square)
+#vi_classif_logicBag <- model_parts(explainer_classif_logicBag, loss_function = loss_root_mean_square)
+
+plot(vi_classif_rf, vi_classif_glm, vi_classif_svm)#, #vi_classif_logicBag)
+```
+```{r}
+plot(vi_classif_decTree, vi_classif_nnet, vi_classif_xgbTree)
+```
+#### EBM
+```{r}
+ebm_show(ebm, "dose.surface.area.um2.mL.master")
+```
+```{r}
+ebm_show(ebm, "dose.um3.mL.master")
+```
+
+
+### Partial Dependence Plot
+```{r}
+pdp_classif_rf  <- model_profile(explainer_classif_rf, variable = "dose.um3.mL.master", type = "partial")
+pdp_classif_glm  <- model_profile(explainer_classif_glm, variable = "dose.um3.mL.master", type = "partial")
+pdp_classif_svm  <- model_profile(explainer_classif_svm, variable = "dose.um3.mL.master", type = "partial")
+pdp_classif_decTree  <- model_profile(explainer_classif_decTree, variable = "dose.um3.mL.master", type = "partial")
+pdp_classif_nnet  <- model_profile(explainer_classif_nnet, variable = "dose.um3.mL.master", type = "partial")
+pdp_classif_xgbTree  <- model_profile(explainer_classif_xgbTree, variable = "dose.um3.mL.master", type = "partial")
+#pdp_classif_logicBag  <- model_profile(explainer_classif_logicBag, variable = "dose.um3.mL.master", type = "partial")
+
+plot(pdp_classif_rf, pdp_classif_glm, pdp_classif_svm, pdp_classif_decTree, pdp_classif_nnet, pdp_classif_xgbTree)#, pdp_classif_logicBag)
+```
+
+```{r}
+#Partial Dependence organism type
+pdp_classif_rf  <- model_profile(explainer_classif_rf, variable = "organism.group", type = "partial")
+pdp_classif_glm  <- model_profile(explainer_classif_glm, variable = "organism.group", type = "partial")
+pdp_classif_svm  <- model_profile(explainer_classif_svm, variable = "organism.group", type = "partial")
+pdp_classif_decTree  <- model_profile(explainer_classif_decTree, variable = "organism.group", type = "partial")
+pdp_classif_nnet  <- model_profile(explainer_classif_nnet, variable = "organism.group", type = "partial")
+pdp_classif_xgbTree  <- model_profile(explainer_classif_xgbTree, variable = "organism.group", type = "partial")
+#pdp_classif_logicBag  <- model_profile(explainer_classif_logicBag, variable = "dose.um3.mL.master", type = "partial")
+
+
+plot(pdp_classif_rf$agr_profiles, pdp_classif_glm$agr_profiles, pdp_classif_svm$agr_profiles, pdp_classif_decTree$agr_profiles, pdp_classif_nnet$agr_profiles, pdp_classif_xgbTree$agr_profiles) +
+  ggtitle("Contrastive Partial Dependence Profiles", "") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+##### Grouped Partial Dependence Plots
+```{r include=FALSE}
+plot(pdp_classif_rf)
+#Partial Dependence by dose.surface.area.um2.mL.master and bio.org
+pdp_classif_rf  <- model_profile(explainer_classif_rf, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_glm  <- model_profile(explainer_classif_glm, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_svm  <- model_profile(explainer_classif_svm, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_decTree  <- model_profile(explainer_classif_decTree, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_nnet  <- model_profile(explainer_classif_nnet, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+pdp_classif_xgbTree  <- model_profile(explainer_classif_xgbTree, variable = "dose.surface.area.um2.mL.master", 
+                                 groups = "bio.org")
+```
+
+```{r}
+#plot neural net and glm
+glm <- plot(pdp_classif_glm$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
+  xlab("dose.surface.area.um2.mL.master)") +
+  ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+nnet <- plot(pdp_classif_nnet$agr_profiles) +
+  ggtitle("Neural Net: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
+  xlab("dose.surface.area.um2.mL.master") +
+  ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+grid.arrange(glm, nnet)
+```
+
+```{r}
+#plot rf and decision tree
+rf <- plot(pdp_classif_rf$agr_profiles) +
+  ggtitle("Random Forest:Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
+  xlab("dose.surface.area.um2.mL.master") +
+  ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+decTree <- plot(pdp_classif_decTree$agr_profiles) +
+  ggtitle("Decision Tree: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
+  xlab("dose.surface.area.um2.mL.master") +
+  ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+grid.arrange(rf, decTree)
+```
+
+```{r}
+#plot rf and decision tree
+svm <- plot(pdp_classif_svm$agr_profiles) +
+  ggtitle("Support Vector Machine:Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
+  xlab("dose.surface.area.um2.mL.master") +
+  ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+xgbTree <- plot(pdp_classif_xgbTree$agr_profiles) +
+  ggtitle("eXtreme Gradient Boosing Trees: Partial Dependence Profiles by Dose and Level of Biological Organization", "") +
+  xlab("dose.surface.area.um2.mL.master") +
+  ylab("Average Prediction for Effect (1 = yes, 0 = no)") +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+grid.arrange(svm, xgbTree)
+```
+
+### Confusion Matrices
+
+```{r include=FALSE}
+#predict test data
+pred_rf <- predict(classif_rf, newdata = test)
+pred_glm <- predict(classif_glm, newdata = test)
+pred_svm <- predict(classif_svm, newdata = test)
+pred_decTree <- predict(classif_decTree, newdata = test)
+pred_nnet <- predict(classif_nnet, newdata = test)
+pred_xgbTree <- predict(classif_xgbTree, newdata = test)
+
+#build confusion matrices
+table_rf <- data.frame(confusionMatrix(pred_rf, test$particles.mL.ox.stress)$table)
+table_glm <- data.frame(confusionMatrix(pred_glm, test$particles.mL.ox.stress)$table)
+table_svm <- data.frame(confusionMatrix(pred_svm, test$particles.mL.ox.stress)$table)
+table_decTree <- data.frame(confusionMatrix(pred_decTree, test$particles.mL.ox.stress)$table)
+table_nnet <- data.frame(confusionMatrix(pred_nnet, test$particles.mL.ox.stress)$table)
+table_xgbTree <- data.frame(confusionMatrix(pred_xgbTree, test$particles.mL.ox.stress)$table)
+
+#build plots
+plotTable_rf <- table_rf %>% mutate(goodbad = ifelse(table_rf$Prediction == table_rf$Reference, "good", "bad")) %>%
+  group_by(Reference) %>% mutate(prop = Freq/sum(Freq))
+
+plotTable_glm <- table_glm %>% mutate(goodbad = ifelse(table_glm$Prediction == table_glm$Reference, "good", "bad")) %>%
+  group_by(Reference) %>% mutate(prop = Freq/sum(Freq))
+
+plotTable_svm <- table_svm %>% mutate(goodbad = ifelse(table_svm$Prediction == table_svm$Reference, "good", "bad")) %>%
+  group_by(Reference) %>% mutate(prop = Freq/sum(Freq))
+
+plotTable_decTree <- table_decTree %>% mutate(goodbad = ifelse(table_decTree$Prediction == table_decTree$Reference, "good", "bad")) %>%
+  group_by(Reference) %>% mutate(prop = Freq/sum(Freq))
+
+plotTable_nnet <- table_nnet %>% mutate(goodbad = ifelse(table_nnet$Prediction == table_nnet$Reference, "good", "bad")) %>%
+  group_by(Reference) %>% mutate(prop = Freq/sum(Freq))
+
+plotTable_xgbTree <- table_xgbTree %>% mutate(goodbad = ifelse(table_xgbTree$Prediction == table_xgbTree$Reference, "good", "bad")) %>%
+  group_by(Reference) %>% mutate(prop = Freq/sum(Freq))
+```
+
+Confusion Matrices for the six tested models are below.
+```{r}
+# fill alpha relative to sensitivity/specificity by proportional outcomes within reference groups (see dplyr code above as well as original confusion matrix for comparison)
+CM_rf <- ggplot(data = plotTable_rf, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  ggtitle("Random Forest",
+          paste("Accuracy = ", 100 * round(mp_classif_rf$measures$accuracy,3), "%")) +
+  theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "none")
+
+CM_glm <- ggplot(data = plotTable_glm, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  ggtitle("General Linear Model",
+          paste("Accuracy = ", 100 * round(mp_classif_glm$measures$accuracy,3), "%")) +
+  theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "none")
+
+CM_svm <- ggplot(data = plotTable_svm, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  ggtitle("Support Vector Machine",
+          paste("Accuracy = ", 100 * round(mp_classif_svm$measures$accuracy,3), "%")) +
+  theme_bw() +
+ theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "none")
+
+CM_decTree <- ggplot(data = plotTable_decTree, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  ggtitle("Decision Tree",
+          paste("Accuracy = ", 100 * round(mp_classif_decTree$measures$accuracy,3), "%")) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "none")
+
+CM_nnet <- ggplot(data = plotTable_nnet, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  ggtitle("Neural Net",
+          paste("Accuracy = ", 100 * round(mp_classif_nnet$measures$accuracy,3), "%")) +
+  theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "none")
+
+CM_xgbTree <- ggplot(data = plotTable_xgbTree, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  ggtitle("eXtreme Gradient Boosting Trees",
+          paste("Accuracy = ", 100 * round(mp_classif_xgbTree$measures$accuracy,3), "%")) +
+  theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5),
+          legend.position = "none")
+
+grid.arrange(CM_rf, CM_glm, CM_svm, CM_decTree, CM_nnet, CM_xgbTree,
+             ncol = 2, top = "Confusion Matrices for ML Models")
+```
+
+### Breakdown
+
+```{r}
+# create a single observation
+new_cust <- test$particles.mL.ox.stress %>% as.data.frame()
+
+
+# compute breakdown distances
+new_cust_glm <- predict_parts(explainer_classif_glm, new_observation = test, type = "break_down")
+new_cust_rf <- predict_parts(explainer_classif_rf, new_observation = test, type = "break_down")
+new_cust_svm <- predict_parts(explainer_classif_svm, new_observation = test, type = "break_down")
+new_cust_decTree <- predict_parts(explainer_classif_decTree, new_observation = test, type = "break_down")
+new_cust_nnet <- predict_parts(explainer_classif_nnet, new_observation = test, type = "break_down")
+new_cust_xgbTree <- predict_parts(explainer_classif_xgbTree, new_observation = test, type = "break_down")
+#new_cust_logicBag <- predict_parts(explainer_classif_logicBag, new_observation = test, type = "break_down")
+
+# class of prediction_breakdown output
+class(new_cust_rf)
+
+# check out the top 10 influential variables for this observation
+new_cust_rf[1:10, 1:5]
+```
+
+```{r}
+plot(new_cust_glm, new_cust_rf, new_cust_svm, new_cust_decTree, new_cust_nnet, new_cust_xgbTree)#,
+     #new_cust_logicBag)
+```
+```{r}
+library(ggplot2)
+
+# filter for top 10 influential variables for each model and plot
+list(new_cust_glm, new_cust_rf) %>%
+  purrr::map(~ top_n(., 11, wt = abs(contribution))) %>%
+  do.call(rbind, .) %>%
+  mutate(variable = paste0(variable, " (", label, ")")) %>%
+  ggplot(aes(contribution, reorder(variable, contribution))) +
+  geom_point() +
+  geom_vline(xintercept = 0, size = 3, color = "white") +
+  facet_wrap(~ label, scales = "free_y", ncol = 1) +
+  ylab(NULL)
+```
+
+```{r}
+library(ggplot2)
+
+# filter for top 10 influential variables for each model and plot
+list(new_cust_svm, new_cust_decTree) %>%
+  purrr::map(~ top_n(., 11, wt = abs(contribution))) %>%
+  do.call(rbind, .) %>%
+  mutate(variable = paste0(variable, " (", label, ")")) %>%
+  ggplot(aes(contribution, reorder(variable, contribution))) +
+  geom_point() +
+  geom_vline(xintercept = 0, size = 3, color = "white") +
+  facet_wrap(~ label, scales = "free_y", ncol = 1) +
+  ylab(NULL)
+```
+
+```{r}
+library(ggplot2)
+
+# filter for top 10 influential variables for each model and plot
+list(new_cust_nnet,new_cust_xgbTree) %>%
+  purrr::map(~ top_n(., 11, wt = abs(contribution))) %>%
+  do.call(rbind, .) %>%
+  mutate(variable = paste0(variable, " (", label, ")")) %>%
+  ggplot(aes(contribution, reorder(variable, contribution))) +
+  geom_point() +
+  geom_vline(xintercept = 0, size = 3, color = "white") +
+  facet_wrap(~ label, scales = "free_y", ncol = 1) +
+  ylab(NULL)
+```
+#Save Models
+
+Final models are saved in the folder: ML Models/FinalModels
+```{r}
+saveRDS(classif_glm, "ML Models/FinalModels/glm.rds")
+saveRDS(classif_nnet, "ML Models/FinalModels/neuralNet.rds")
+saveRDS(ebm, file="ML Models/ebm_model.rds")
+saveRDS(classif_decTree, "ML Models/decisionTree.rds")
+```
+
+
+# Random Forest Tuning
+All in all random forest is my final model of choice: it appears the more balanced and is the most accurate overall. This model will now be tuned and refined for maximum performance.
+
+## Data selection
+
+First, let's feed the random forest model as many variables as we believe to be reasonable. Later, we will perform recursive feature selection to allow the model to show us which variables are best predictors.
+```{r}
+kitchenSink <- aoc_z %>% 
+  filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
+  dplyr::select(c(organism.group, 
+                  exposure.duration.d, 
+                  lvl1_f, 
+                  dose.um3.mL.master, 
+                  dose.mg.L.master, 
+                  dose.particles.mL.master, 
+                  life.stage,
+                  bio.org, 
+                  polymer, 
+                  shape,
+                  size.length.um.used.for.conversions, 
+                  treatments, 
+                  effect, 
+                  effect.metric,
+                  particle.volume.um3,
+                  density.mg.um.3,
+                  environment,
+                  exposure.route,
+                  dose.surface.area.um2.mL.master,
+                  lvl2_f
+                  )) %>% 
+  mutate(effect.metric = as.character(effect.metric)) %>% 
+  mutate(effect.metric = (case_when(
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+  mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  #filter(effect.metric != "not_available") %>% 
+  mutate(effect.metric = as.factor(effect.metric)) %>% 
+  drop_na() %>%  #drop missing
+mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>%
+  mutate(effect_10 = factor(effect_10)) %>% 
+  dplyr::select(-c(effect, effect.metric))
+
+#ensure completeness
+skim(kitchenSink)
+```
+
+```{r}
+# create train, validation, and test splits
+# Create calibration and validation splits with tidymodels initial_split() function.
+set.seed(4)
+ks_split <- kitchenSink %>%
+  initial_split(prop = 0.75)
+# default is 3/4ths split (but 75% training, 25% testing).
+
+# Create a training data set with the training() function
+# Pulls from training and testing sets created by initial_split()
+train_ks <- training(ks_split)
+test_ks <- testing(ks_split)
+
+# variable names for response & features
+y <- "particles.mL.ox.stress"
+x <- setdiff(names(kitchenSink), y) 
+
+## subset for ebm syntax
+train_x_ks <- as.data.frame(train_ks %>% dplyr::select(-particles.mL.ox.stress))
+train_y_ks <- as.numeric(as.vector(train_ks$particles.mL.ox.stress))
+
+test_x_ks <- as.data.frame(test_ks %>% dplyr::select(-particles.mL.ox.stress))
+test_y_ks <- as.numeric(as.vector(test_ks$particles.mL.ox.stress))
+```
+
+## Tuning
+http://rstudio-pubs-static.s3.amazonaws.com/480890_237ad52b09b6440e9c849a3c07a04d2f.html
+```{r Tuning, include=FALSE}
+cache = TRUE
+set.seed(1000)
+train_control <- trainControl(method = "repeatedcv", 
+                              number = 10,
+                              repeats = 5,
+                              verboseIter = TRUE,
+                              allowParallel = TRUE,
+                              summaryFunction = multiClassSummary)
+cache = TRUE
+set.seed(1000)
+
+start_time <- Sys.time() # Start timer
+
+my_grid1 <- expand.grid(mtry = 1:17)
+
+rf1 <- train(particles.mL.ox.stress ~ .,
+             data = train_ks,
+             method = "rf",
+             metric = "Accuracy",
+             tuneGrid = my_grid1,
+             trControl = train_control)
+rf1
+```
+
+Plot tuning.
+
+```{r}
+cache = TRUE
+
+my_plot <- function(model) {
+    theme_set(theme_minimal())
+    u <- model$results %>%
+        select(mtry, Accuracy, Kappa, F1, Sensitivity,
+              Specificity,Pos_Pred_Value, Neg_Pred_Value, 
+               Precision, Recall, Detection_Rate) %>%
+        gather(a, b, -mtry)
+    
+    u %>% ggplot(aes(mtry, b)) + geom_line() + geom_point() + 
+        facet_wrap(~ a, scales = "free") + 
+        labs(x = "Number of mtry", y = NULL, 
+             title = "The Relationship between Model Performance and mtry")
+}
+
+rf1 %>% my_plot()
+```
+
+
+I will further refine this model using recursive feature elimination and compare accuracy with the other models.
+
+```{r Recursive Feature Elimination}
+
+my_ctrl <- rfeControl(functions = rfFuncs, #random forests
+                      method = "repeatedcv",
+                      verbose = FALSE,
+                      repeats = 5,
+                      returnResamp = "all")
+
+rfProfile <- rfe(y = train_ks$particles.mL.ox.stress, # set dependent variable
+              x = train_ks %>% 
+                dplyr::select(-particles.mL.ox.stress),
+              rfeControl = my_ctrl,
+               size = c(1:2, 4, 6, 8, 10, 12, 13))
+rfProfile
+```
+
+## Predictor Selection
+The following variables are those that were picked in the final (most accurate) model. 
+```{r}
+#get variable names picked in the final model
+predictors(rfProfile)
+```
+The first 6 models are shown below with their corresponding accuracy and kappa values. 
+```{r}
+head(rfProfile$resample)
+```
+
+```{r}
+trellis.par.set(caretTheme())
+#plot(rfProfile, type = c("g", "o"), metric = "Accuracy")
+ggplot(rfProfile) + theme_bw()
+```
+```{r}
+plot1 <- xyplot(rfProfile, type = c("g", "p", "smooth"), main = "Accuracy of individual resampling results")
+plot2 <- densityplot(rfProfile, 
+                     subset = Variables < 5, 
+                     adjust = 1.25, 
+                     as.table = TRUE, 
+                     xlab = "Accuracy Estimates", 
+                     pch = "|")
+print(plot1, split=c(1,1,1,2), more=TRUE)
+print(plot2, split=c(1,2,1,2))
+```
+
+
+
+### Final Predictor Selection
+```{r}
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Accuracy", tol = 1, maximize = TRUE)
+# higher tol (~10) gives you less variables
+# lower tol (~1) gives you more variables - "I'd like the simplest model within 1% of the best model."
+accuracy1 <- pickVars(rfProfile$variables, size = my_size)
+accuracy1
+```
+A random forest model with the above four predictors is within 1% of the best model. If a more accurate model is desired, and data is available, additional factors can be included in the model. Shown below are factors that should be included for a model that is within 0.5% accuracy of the best model.
+
+```{r}
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Accuracy", tol = 0.5, maximize = TRUE)
+# higher tol (~10) gives you less variables
+# lower tol (~1) gives you more variables - "I'd like the simplest model within 1% of the best model."
+accuracy0.5 <- pickVars(rfProfile$variables, size = my_size)
+accuracy0.5
+```
+Below is a table showing which variables are included in models of varying accuracies.
+
+```{r}
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Accuracy", tol = 0.1, maximize = TRUE)
+accuracy0.1 <- pickVars(rfProfile$variables, size = my_size)
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Accuracy", tol = 0.3, maximize = TRUE)
+accuracy0.3 <- pickVars(rfProfile$variables, size = my_size)
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Accuracy", tol = 5, maximize = TRUE)
+accuracy5 <- pickVars(rfProfile$variables, size = my_size)
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Accuracy", tol = 10, maximize = TRUE)
+accuracy10 <- pickVars(rfProfile$variables, size = my_size)
+
+varsTable = list('0.1%' =accuracy0.1, '1%' = accuracy1, '5%' = accuracy5, '10%' = accuracy10)
+
+#$make padded dataframe
+na.pad <- function(x,len){
+    x[1:len]
+}
+
+makePaddedDataFrame <- function(l,...){
+    maxlen <- max(sapply(l,length))
+    data.frame(lapply(l,na.pad,len=maxlen),...)
+}
+#fancy print
+kable(makePaddedDataFrame(
+  list('Accuracy (0.1)' = accuracy0.1, 'Accuracy (0.3)' = accuracy0.3, "Accuracy (1)" = accuracy1, 'Accuracy (5)' = accuracy5, 'Accuracy (10)' = accuracy10)
+  ),
+      caption = "Variables to include in Random Forest to achieve Model Accuracy (within x% of best model)",
+    footnote = "Random Forest Recursive Feature Elimination")
+```
+### Final Model Tuning
+While the absolute best model contains 18 variables with an estimated accuracy of 93.89%, it is possible to achieve ~93% accuracy with just eight variables, as displayed in the above table. The advantage of including fewer variables is that less information is needed to accurately predict toxicity. The final model with these eight variables will be further refined through an iterative tuning process to determine the optimal number of variables to be randomly collected for sampling at each split (mtry), and the number of branches to grow after each split.Code for the following section is inspired from https://rpubs.com/phamdinhkhanh/389752. 
+```{r}
+final_df <-df %>% 
+  dplyr::select(c(#effect.metric, 
+                  lvl2_f, 
+                  dose.surface.area.um2.mL.master, 
+                  particles.mL.ox.stress, 
+                  dose.um3.mL.master, 
+                  organism.group,
+                  exposure.duration.d#, 
+                  #treatments
+                  )) %>% 
+  droplevels()
+ 
+#ensure completeness
+skim(final_df)
+```
+
+```{r}
+# create train, validation, and test splits
+# Create calibration and validation splits with tidymodels initial_split() function.
+set.seed(4)
+df_final_split <- final_df %>%
+  initial_split(prop = 0.75)
+# default is 3/4ths split (but 75% training, 25% testing).
+
+# Create a training data set with the training() function
+# Pulls from training and testing sets created by initial_split()
+train_final <- training(df_final_split)
+test_final <- testing(df_final_split)
+
+# variable names for resonse & features
+y <- "particles.mL.ox.stress"
+x <- setdiff(names(final_df), y) 
+```
+
+The mtry parameter will be optimized below:
+
+```{r}
+tunegrid <- expand.grid(.mtry=(1:6))
+                       # , .ntree=c(500, 1000, 1500, 2000, 2500)) #would like to optimize but can't figure out how!
+
+fitControl <- trainControl(## 10-fold CV
+                           method = "repeatedcv",
+                           number = 10,
+                           ## repeat 3 times
+                           repeats = 3)
+                        
+nrow(tunegrid)
+
+set.seed(825)
+tuneFit <- train(particles.mL.ox.stress ~ ., data = train_final, 
+                 method = "rf", 
+                 trControl = fitControl, 
+                 verbose = FALSE, 
+                 ## Now specify the exact models 
+                 ## to evaluate:
+                 metric = 'Accuracy',
+                 tuneGrid = tunegrid)
+tuneFit
+```
+
+```{r}
+plot(tuneFit)
+```
+Now that mtry is optimized, the number of trees will be optimized, holding mtry constant.
+
+```{r}
+# Manual Search
+control <- trainControl(method="repeatedcv", number=10, repeats=3, search="grid")
+tunegrid <- expand.grid(.mtry=c(7)) #replace with optimal value from previous chunk
+modellist <- list()
+for (ntree in c(1000, 1500, 2000, 2500)) {
+	set.seed(123)
+	fit <- train(particles.mL.ox.stress~., data=train_final, method="rf", metric='Accuracy', 
+	             tuneGrid=tunegrid, trControl=control, ntree=ntree)
+	key <- toString(ntree)
+	modellist[[key]] <- fit
+}
+# compare results
+results <- resamples(modellist)
+summary(results)
+```
+
+```{r}
+dotplot(results)
+```
+
+
+
+### Final Model
+Now that we have optimized the variables for our final model, we will build and save the final simplified model that has the highest accuracy.
+```{r Final Model}
+tunegrid <- expand.grid(.mtry=c(6))
+
+final_model <- train(particles.mL.ox.stress~., data = train_final, method = "rf", ntree = 2500, tuneLength = 5)
+
+# explain
+yTest <- as.numeric(as.character(test_final$particles.mL.ox.stress))
+
+explainer_final_model <- DALEX::explain(final_model, label = "rf",
+                                       data = test_final, 
+                                       y = yTest)
+
+mp_classif_final_model <- model_performance(explainer_final_model)
+mp_classif_final_model
+```
+
+```{r final model save}
+#save model
+saveRDS(final_rf_model, file="ML Models/FinalModels/final_rf_model.rds")
+#load model
+# final_model <- readRDS("final_rf_model.rds")
+```
+
+#### Performance
+Performance metrics for the final model are below.
+
+##### ROC Curve
+
+```{r}
+plot(mp_classif_final_model,
+     geom = "roc") +
+  ggtitle("ROC Curve - Final Model",  
+          paste("AUC = ",round(mp_classif_final_model$measures$auc,2),
+                paste("Accuracy = ", 100 * round(mp_classif_final_model$measures$accuracy,3), "%")
+          )) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
+```
+
+##### Confusion Matrix
+The tuned, final, simplified model is now validated using test set data.
+```{r}
+test_pred <- predict(final_model, newdata = test_final)
+confusionMatrix(table(test_pred, test_final$particles.mL.ox.stress))
+```
+This confusion matrix is plotted below.
+```{r}
+table <- data.frame(confusionMatrix(test_pred, test_final$particles.mL.ox.stress)$table)
+
+plotTable <- table %>%
+  mutate(goodbad = ifelse(table$Prediction == table$Reference, "good", "bad")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+# fill alpha relative to sensitivity/specificity by proportional outcomes within reference groups (see dplyr code above as well as original confusion matrix for comparison)
+ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  theme_bw()
+```
+
+##### What parameters bias the model?
+Test residuals for size, dose, etc.
+
+# Decision Tree
+
+Decision trees are highly interpretable. An alternative package will be used to build and display a decision tree.
+
+```{r, echo = FALSE}
+#get column index of predicted variable in dataset
+typeColNum <- grep("effect",names(all))
+
+#build tree
+require(rpart)
+set.seed(15097)
+t1 <- rpart(particles.mL.ox.stress ~ dose.surface.area.um2.mL.master + lvl2_f + 
+              #exposure.route + 
+              effect.metric +
+              dose.um3.mL.master + bio.org + organism.group,
+            method = "class", #classification because response is discrete
+            control = rpart.control(minbucket = 20, cp=0.008), #requires that there be at least 19 cases (responded + nonrespondents) in the final grouping of variable values of the terminal node of the tre..
+            data = train)
+print(t1, digits=4)
+```
+
+
+Plot an interpretable tree.
+```{r, echo = FALSE}
+require(rpart.plot)
+cols <- ifelse(t1$frame$yval == 1, "gray50", "black")
+prp(t1, main="Tree for Effect",
+    extra=106, # display prob of survival and percent of obs
+    nn=TRUE, # display node numbers
+    fallen.leaves=TRUE, # put leaves on the bottom of page
+    branch=.5, # change angle of branch lines
+    faclen=0, # do not abbreviate factor levels
+    trace=1, # print automatically calculated cex
+    shadow.col="gray", # shadows under the leaves
+    branch.lty=1, # draw branches using solid lines
+    branch.type=5, # branch lines width = weight(frame$wt), no. of cases here
+    split.cex=1.2, # make split text larger than node text
+    split.prefix="is ", # put "is " before split text
+    split.suffix="?", # put "?" after split text
+    col=cols, border.col=cols, # cols[2] if survived
+    split.box.col="lightgray", # lightgray split boxes (default is white)
+    split.border.col="darkgray", # darkgray border on split boxes
+    split.round=0.5) # round the split box corners a tad
+```
+## Confusion matrix
+```{r}
+#make prediction
+t1_pred <- predict(t1, test, type = "class")
+#build confusion matrix
+confMat <- data.frame(confusionMatrix(t1_pred, test$particles.mL.ox.stress)$table)
+#get accuracy
+table <- table(test$particles.mL.ox.stress, t1_pred)
+decTreeAccuracy <- sum(diag(table))/sum(table)
+
+plotTable <- confMat %>%
+  mutate(goodbad = ifelse(confMat$Prediction == confMat$Reference, "good", "bad")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+# fill alpha relative to sensitivity/specificity by proportional outcomes within reference groups (see dplyr code above as well as original confusion matrix for comparison)
+ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  ggtitle(paste("Decision Tree Confusion Matrix (Accuracy = ", 100 * round(decTreeAccuracy,3), "%)")) +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  theme_bw()
+```
+
+
+# Machine Settings
+Time to knit:
+```{r}
+all_times
+```
+
+
+Machine Info:
+```{r}
+Sys.info()[c(1:3,5)]
+```
+
+
+Session Info:
+```{r}
+sessionInfo()
+```

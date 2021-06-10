@@ -270,9 +270,7 @@ require(reshape2)
 # data preparation
 df_oxidative.stress <- aoc_final %>% 
  #filter data select predictor variables#
-  dplyr::select(c(#organism.group, 
-                  #exposure.duration.d, 
-                  #lvl1_f, 
+  dplyr::select(c(
     ### DOSE METRICS ####
                   particles.mL.ox.stress,
                  # particles.mL.food.dilution,
@@ -280,6 +278,7 @@ df_oxidative.stress <- aoc_final %>%
                   #dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
                   #dose.particles.mL.master, 
     ### Organism characteristics ###
+                  organism.group, 
                   life.stage, #use adults for prediction
                   species_f, 
                   max.size.ingest.mm,
@@ -288,19 +287,22 @@ df_oxidative.stress <- aoc_final %>%
                   exposure.route, #train on all, but only use "aquatic" for build
                   environment, #train on all, buit only use "marine" for SSD Build
                   acute.chronic_f, #use 'chronic' for SSD build
+                  exposure.duration.d, 
     ### Particle characteristics ####
                   polymer, 
                   shape,
                   #density.g.cm3,
                   #size.length.um.used.for.conversions, 
     ### Effect data ####
-                  #effect, 
+                 # effect, 
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
-                  lvl2_f
+                  lvl2_f,
+                  lvl3_f
                   )) %>% 
    rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
+  mutate(particles.mL.ox.stress = log10(particles.mL.ox.stress)) %>% 
   ###### create new column for polymer percentage #####
   dcast(... ~ polymer, value.var = c("value")) %>% 
   # provide 0 for all 'na's'
@@ -390,6 +392,8 @@ test_y <- as.numeric(as.vector(test$particles.mL.ox.stress))
 
 #####build additional models using caret package and expain using DALEX package #####
 classif_rf_oxidative.stress <- train(particles.mL.ox.stress ~ ., data = train, method = "rf", ntree = 100, tuneLength = 1)
+classif_xgbTree_oxidative.stress <- train( particles.mL.ox.stress~., data = train, method = "xgbTree")#, preProcess = c("scale","center"))
+#classif_nnet_oxidative.stress <- train(particles.mL.ox.stress ~., data = train, method = "nnet")
 classif_glm_oxidative.stress <- train(particles.mL.ox.stress ~., data = train, method = "lm")
 ```
 
@@ -403,20 +407,57 @@ explainer_classif_rf_oxidative.stress <- DALEX::explain(classif_rf_oxidative.str
                                        label = "rf",
                                        data = test_x, 
                                        y = yTest)
+
+explainer_classif_xgbTree_oxidative.stress <- DALEX::explain(classif_xgbTree_oxidative.stress,
+                                       label = "xgbTree",
+                                       data = test_x,
+                                       y = yTest)
                                        
 explainer_classif_glm_oxidative.stress <- DALEX::explain(classif_glm_oxidative.stress, label = "glm", 
                                         data = test_x, y = yTest)
+
+#explainer_classif_nnet_oxidative.stress <- DALEX::explain(classif_nnet_oxidative.stress, label = "nnet", 
+ #                                       data = test_x, y = yTest)
 ### EBM model ###
 #proba_test_oxidative.stress <- ebm_predict_proba(ebm_oxidative.stress, test_x) #keeps giving NA's for some reason...
 
 #### Caret models ####
 mp_classif_rf_oxidative.stress <- model_performance(explainer_classif_rf_oxidative.stress)
+mp_classif_xgbTree_oxidative.stress <- model_performance(explainer_classif_xgbTree_oxidative.stress)
 mp_classif_glm_oxidative.stress <- model_performance(explainer_classif_glm_oxidative.stress)
+#mp_classif_nnet_oxidative.stress <- model_performance(explainer_classif_nnet_oxidative.stress)
 
-plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress)
+plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress, mp_classif_xgbTree_oxidative.stress
+     #, mp_classif_nnet_oxidative.stress
+)
 ```
 ```{r}
-plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress, geom = "boxplot")
+plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress, mp_classif_xgbTree_oxidative.stress,
+     #mp_classif_nnet_oxidative.stress, 
+     geom = "boxplot")
+```
+```{r}
+resid <- rbind(mp_classif_rf_oxidative.stress$residuals, mp_classif_glm_oxidative.stress$residuals, mp_classif_xgbTree_oxidative.stress$residuals)
+
+resid %>% 
+ggplot(aes(x = diff, y = label, fill = label)) +
+  geom_boxplot() +
+  scale_x_log10() +
+  scale_fill_tron(name = "Model",
+                  labels = c("Extreme Gradient Boosting Trees", "Random Forest", "Linear Model")) +
+  labs(title = "Model Performance",
+       subtitle = "Residuals") +
+  theme.type +
+  color.type
+
+```
+
+
+###### R-squared
+```{r}
+tibble(mp_classif_glm_oxidative.stress$measures$r2, mp_classif_rf_oxidative.stress$measures$r2, mp_classif_xgbTree_oxidative.stress$measures$r2#,
+       #mp_classif_nnet_oxidative.stress$measures$r2
+       )
 ```
 
 ###### RoC Curves
@@ -437,18 +478,41 @@ plot(mp_classif_rf_oxidative.stress,
 ```{r fig.height=7, fig.width=5, warning=FALSE}
 vi_classif_rf_oxidative.stress <- model_parts(explainer_classif_rf_oxidative.stress, loss_function = loss_root_mean_square)
 vi_classif_glm_oxidative.stress <- model_parts(explainer_classif_glm_oxidative.stress, loss_function = loss_root_mean_square)
+vi_classif_xgbTree_oxidative.stress <- model_parts(explainer_classif_xgbTree_oxidative.stress, loss_function = loss_root_mean_square)
 
-plot(vi_classif_rf_oxidative.stress, vi_classif_glm_oxidative.stress)
+plot(vi_classif_rf_oxidative.stress, 
+     vi_classif_xgbTree_oxidative.stress, 
+     vi_classif_glm_oxidative.stress
+     )
 ```
+###### LIME
+```{r}
+require(lime)
+model_type.gbm <- function(x, ...) {
+  return("regression")
+}
+
+predict_model.gbm <- function(x, newdata, ...) {
+  pred <- predict(x, newdata, n.trees = x$n.trees)
+  return(as.data.frame(pred))
+}
+
+# get a few observations to perform local interpretation on
+local_obs <- test[1:2, ]
+
+# apply LIME
+explainer <- lime(train, classif_xgbTree)
+explanation <- explain(local_obs, explainer, n_features = 5)
+plot_features(explanation)
+```
+
 ### Food Dilution
 ```{r GLM build}
 require(reshape2)
 # data preparation
 df_food.dilution <- aoc_final %>% 
  #filter data select predictor variables#
-  dplyr::select(c(#organism.group, 
-                  #exposure.duration.d, 
-                  #lvl1_f, 
+  dplyr::select(c(
     ### DOSE METRICS ####
                  # particles.mL.ox.stress,
                   particles.mL.food.dilution,
@@ -459,21 +523,24 @@ df_food.dilution <- aoc_final %>%
                   life.stage, #use adults for prediction
                   species_f, 
                   max.size.ingest.mm,
+                  organism.group, 
     ### Exposure Conditions ####              
                   bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
                   exposure.route, #train on all, but only use "aquatic" for build
                   environment, #train on all, buit only use "marine" for SSD Build
                   acute.chronic_f, #use 'chronic' for SSD build
+                  exposure.duration.d, 
     ### Particle characteristics ####
                   polymer, 
                   shape,
                   #density.g.cm3,
                   #size.length.um.used.for.conversions, 
     ### Effect data ####
-                  #effect, 
+                  effect, 
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
-                  lvl2_f
+                  lvl2_f,
+                  lvl3_f
                   )) %>% 
    rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
@@ -566,6 +633,7 @@ ebm_food.dilution <- ebm_classify(train_x, #features
 
 #####build additional models using caret package and expain using DALEX package #####
 classif_rf_food.dilution <- train(particles.mL.food.dilution~., data = train, method = "rf", ntree = 100, tuneLength = 1)
+classif_xgbTree_food.dilution <- train(particles.mL.food.dilution~., data = train, method = "xgbTree")#, preProcess = c("scale","center"))
 classif_glm_food.dilution <- train(particles.mL.food.dilution~., data = train, method = "lm")
 ```
 
@@ -579,6 +647,9 @@ explainer_classif_rf_food.dilution <- DALEX::explain(classif_rf_food.dilution,
                                        label = "rf",
                                        data = test_x, 
                                        y = yTest)
+
+explainer_classif_xgbTrees_food.dilution <- DALEX::explain(classif_xgbTrees_food.dilution, label = "xgbTrees", 
+                                        data = test_x, y = yTest)
                                        
 explainer_classif_glm_food.dilution <- DALEX::explain(classif_glm_food.dilution, label = "glm", 
                                         data = test_x, y = yTest)
@@ -587,11 +658,18 @@ proba_test_food.dilution <- ebm_predict_proba(ebm_food.dilution, test_x) #keeps 
 
 #### Caret models ####
 mp_classif_rf_food.dilution <- model_performance(explainer_classif_rf_food.dilution)
+mp_classif_xgbTrees_food.dilution <- model_performance(explainer_classif_xgbTrees_food.dilution)
 mp_classif_glm_food.dilution <- model_performance(explainer_classif_glm_food.dilution)
+```
+###### R-squared
+```{r}
+tibble(mp_classif_glm_food.dilution$measures$r2, mp_classif_rf_food.dilution$measures$r2, mp_classif_xgbTree_food.dilution$measures$r2#,
+       #mp_classif_nnet_food.dilution$measures$r2
+       )
 ```
 
 ##### RoC Curves
-```{r}
+```{r eval=FALSE, include=FALSE}
 #plot ROC curves
 plot(mp_classif_rf_food.dilution, 
      mp_classif_glm_food.dilution, 
@@ -608,8 +686,9 @@ plot(mp_classif_rf_food.dilution,
 ```{r eval=FALSE, fig.height=7, fig.width=5, warning=FALSE, include=FALSE}
 vi_classif_rf_food.dilution <- model_parts(explainer_classif_rf_food.dilution, loss_function = loss_root_mean_square)
 vi_classif_glm_food.dilution <- model_parts(explainer_classif_glm_food.dilution, loss_function = loss_root_mean_square)
+vi_classif_xgbTrees_food.dilution <- model_parts(explainer_classif_xgbTrees_food.dilution, loss_function = loss_root_mean_square)
 
-plot(vi_classif_rf_food.dilution, vi_classif_glm_food.dilution)
+plot(vi_classif_rf_food.dilution, vi_classif_glm_food.dilution, vi_classif_xgbTrees_food.dilution)
 ```
 
 
@@ -880,7 +959,7 @@ Abundance of most commonly found polymers based on Table S3 of kooi and Kolemans
 #define base parameters for all SSDs
 composition <- df_oxidative.stress %>% 
   # make entry for each species
-  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f) %>% 
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f, lvl3_f, exposure.duration.d, organism.group) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
   EVA_frac = 0.06,
@@ -956,6 +1035,123 @@ ggplot(ox.t1.preds, aes_string(x = "est")) +
   theme.type #user theme
 ```
 
+####Comparison to empirical
+##### Empirical alone
+```{r}
+ox.1.emp <- df_oxidative.stress %>% 
+  filter(lvl1_f %in% c("Fitness")) %>% 
+  rename(Species = species_f) %>% 
+  rename(Group = organism.group) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(particles.mL.ox.stress, 0.25))
+
+## SSD build
+ox.t1.emp.ssd <- SSD_function_t1(filtered.data = ox.1.emp, hcxlcl = 5)
+
+#extract data frames from object
+ox.t1.emp.preds <- as.data.frame(ox.t1.emp.ssd[1])
+ox.t1.emp.points <- as.data.frame(ox.t1.emp.ssd[2])
+
+#ggplot
+ggplot(ox.t1.emp.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = ox.t1.emp.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+##### Overlay
+```{r}
+# give uniq id
+t1.x.e <- ox.t1.emp.preds %>% 
+  mutate(type = "Empirical")
+t1.x.p <-  ox.t1.preds %>% 
+  mutate(type = "Predicted") %>% 
+  mutate(est = est/1000) %>% 
+  mutate(lcl = lcl/1000) %>% 
+  mutate(ucl = ucl/1000)
+t1.x.1.e <- ox.t1.points %>% 
+  mutate(type = "Empirical") %>% 
+  mutate(Conc= Conc/1000)
+t1.x.1.p <-  ox.t1.emp.points %>% 
+  mutate(type = "Predicted")
+#join dataframes
+t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
+t1.ox.points.j <- rbind(t1.x.1.e, t1.x.1.p)
+
+#ggplot
+ggplot() +#, aes_string(x = "est")) +
+  geom_xribbon(data = t1.ox.preds.j, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.4) +
+  geom_line(data = t1.ox.preds.j, aes_string(x = "est", y = "percent/100", fill = "type")) +
+  geom_point(data = t1.ox.points.j, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+##### Residuals
+```{r}
+# give uniq id
+t1.x.e <- ox.t1.emp.preds %>% 
+  mutate(type = "Empirical")
+t1.x.p <-  ox.t1.preds %>% 
+  mutate(type = "Predicted") %>% 
+  mutate(est = est/1000) %>% 
+  mutate(lcl = lcl/1000) %>% 
+  mutate(ucl = ucl/1000)
+
+#plot residuals
+t1.x.1.e <- ox.t1.points %>% 
+  mutate(type = "Empirical") %>% 
+  mutate(Conc.e= Conc/1000)
+t1.x.1.p <-  ox.t1.emp.points %>% 
+  mutate(type = "Predicted")
+###join dataframes
+#t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
+compare <- left_join(t1.x.1.e, t1.x.1.p, by = "Species") %>% 
+    mutate(diff = Conc.e - Conc.x)
+
+compare %>% 
+  ggplot(aes(x = diff, y = Species)) +
+  geom_boxplot(fill = "black", color = "black") +
+  geom_point() +
+  scale_x_continuous(limits = c(-100000,10000)) +
+   #coord_trans(x = "log10") +
+  #scale_x_log10(limits = c(-50000000,50000000)) +
+  theme.type
+
+
+#t1.ox.points.j <- rbind(t1.x.1.e, t1.x.1.p)
+```
+```{r}
+compare %>% 
+  #group_by(Group.x) %>% 
+  ggplot(aes(x = diff, y = Group.x)) +
+  geom_boxplot() +
+  #geom_point() +
+  scale_x_continuous(limits = c(-100000,10000)) +
+  # coord_trans(x = "log10") +
+  #scale_x_log10(limits = c(-50000000,50000000)) +
+  theme.type
+```
+
+
 ### Tier 3/4
 
 ```{r}
@@ -970,7 +1166,7 @@ ox.3 <- composition %>%
   left_join(groups)
   
 # predict NOEC
-ox.3$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.3, type = "raw")
+ox.3$particles.mL.ox.stress <- predict(classif_xgbTree_oxidative.stress, ox.3, type = "raw")
 
 #Data collapse
 ox3.summary <- ox.3 %>%
@@ -993,7 +1189,7 @@ ggplot(ox.t3.preds, aes_string(x = "est")) +
   geom_text_repel(data = ox.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
-       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       subtitle = "Tier 3/4, 1 - 83 µm; ERM = Surface Area ",
        x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
@@ -1029,7 +1225,7 @@ food.1 <- composition %>%
   left_join(groups)
   
 # predict NOEC
-food.1$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.1, type = "raw")
+food.1$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.1, type = "raw")
 
 #Data collapse
 food1.summary <- food.1 %>%
@@ -1052,8 +1248,8 @@ ggplot(food.t1.preds, aes_string(x = "est")) +
   geom_text_repel(data = food.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
-       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
-       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+       subtitle = "Tier 1/2, 1 - 5,000 µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
@@ -1076,7 +1272,7 @@ food.3 <- composition %>%
   left_join(groups)
   
 # predict NOEC
-food.3$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.3, type = "raw")
+food.3$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.3, type = "raw")
 
 #Data collapse
 food3.summary <- food.3 %>%
