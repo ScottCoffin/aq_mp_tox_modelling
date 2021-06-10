@@ -1008,7 +1008,7 @@ ox.1$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.1, type =
 ox1.summary <- ox.1 %>%
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(particles.mL.ox.stress, 0.25))
+  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.25)) #convert from log10
 
 ## SSD build
 ox.t1.ssd <- SSD_function_t1(filtered.data = ox1.summary, hcxlcl = 5)
@@ -1043,7 +1043,7 @@ ox.1.emp <- df_oxidative.stress %>%
   rename(Species = species_f) %>% 
   rename(Group = organism.group) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(particles.mL.ox.stress, 0.25))
+  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.25)) #convert from log10
 
 ## SSD build
 ox.t1.emp.ssd <- SSD_function_t1(filtered.data = ox.1.emp, hcxlcl = 5)
