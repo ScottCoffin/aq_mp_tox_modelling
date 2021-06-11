@@ -265,7 +265,7 @@ aoc_final <- aoc_intermediate  %>%
 ```
 
 ### Oxidative Stress
-```{r GLM build}
+```{r GLM build 1}
 require(reshape2)
 # data preparation
 df_oxidative.stress <- aoc_final %>% 
@@ -298,7 +298,7 @@ df_oxidative.stress <- aoc_final %>%
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
                   lvl2_f,
-                  lvl3_f
+                  #lvl3_f
                   )) %>% 
    rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
@@ -473,8 +473,110 @@ plot(mp_classif_rf_oxidative.stress,
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 ```
+##### Recursive Feature Elimination
 
-###### Variable Importance
+*WARNING* This chunk takes a very long time to run!
+```{r Recursive Feature Elimination}
+#first we need to remove species with just a single data point because we need less than 53 levels
+n_species <- train %>% group_by(species_f) %>% summarize(count = n())
+train_trim <- left_join(train, n_species) %>% 
+  filter(count >= 5) %>% 
+  #dplyr::select(-lvl2_f) %>% 
+  droplevels()
+
+my_ctrl <- rfeControl(functions = rfFuncs, #random forests
+                      method = "repeatedcv",
+                      verbose = FALSE,
+                      repeats = 5,
+                      returnResamp = "all")
+
+rfProfile <- rfe(y = train_trim$particles.mL.ox.stress, # set dependent variable
+              x = train_trim %>% 
+                dplyr::select(-particles.mL.ox.stress),
+              rfeControl = my_ctrl,
+               size = c(1:4, 8, 12, 16, 20, 24, 27))
+rfProfile
+```
+
+###### Predictor Selection
+The following variables are those that were picked in the final (most accurate) model. 
+```{r}
+#get variable names picked in the final model
+predictors(rfProfile)
+```
+The first 6 models are shown below with their corresponding accuracy and kappa values. 
+```{r}
+head(rfProfile$resample)
+```
+
+```{r}
+trellis.par.set(caretTheme())
+plot(rfProfile, type = c("g", "o"), metric = "Rsquared")
+#ggplot(rfProfile) + theme_bw()
+```
+```{r}
+plot1 <- xyplot(rfProfile, type = c("g", "p", "smooth"), main = "Accuracy of individual resampling results")
+plot2 <- densityplot(rfProfile, 
+                     subset = Variables < 5, 
+                     adjust = 1.25, 
+                     as.table = TRUE, 
+                     xlab = "Accuracy Estimates", 
+                     pch = "|")
+print(plot1, split=c(1,1,1,2), more=TRUE)
+print(plot2, split=c(1,2,1,2))
+```
+
+###### Final Predictor Selection
+```{r}
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.01, maximize = TRUE)
+# higher tol (~10) gives you less variables
+# lower tol (~1) gives you more variables - "I'd like the simplest model within 1% of the best model."
+accuracy1 <- pickVars(rfProfile$variables, size = my_size)
+accuracy1
+```
+A random forest model with the above four predictors is within 1% of the best model. If a more accurate model is desired, and data is available, additional factors can be included in the model. Shown below are factors that should be included for a model that is within 0.5% accuracy of the best model.
+
+```{r}
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.05, maximize = TRUE)
+# higher tol (~10) gives you less variables
+# lower tol (~1) gives you more variables - "I'd like the simplest model within 1% of the best model."
+accuracy0.5 <- pickVars(rfProfile$variables, size = my_size)
+accuracy0.5
+```
+Below is a table showing which variables are included in models of varying accuracies.
+
+```{r}
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.1, maximize = TRUE)
+accuracy0.1 <- pickVars(rfProfile$variables, size = my_size)
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.3, maximize = TRUE)
+accuracy0.3 <- pickVars(rfProfile$variables, size = my_size)
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 5, maximize = TRUE)
+accuracy5 <- pickVars(rfProfile$variables, size = my_size)
+my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 10, maximize = TRUE)
+accuracy10 <- pickVars(rfProfile$variables, size = my_size)
+
+varsTable = list('0.1%' =accuracy0.1, '1%' = accuracy1, '5%' = accuracy5, '10%' = accuracy10)
+
+#$make padded dataframe
+na.pad <- function(x,len){
+    x[1:len]
+}
+
+makePaddedDataFrame <- function(l,...){
+    maxlen <- max(sapply(l,length))
+    data.frame(lapply(l,na.pad,len=maxlen),...)
+}
+#fancy print
+kable(makePaddedDataFrame(
+  list('Rsquared (0.1)' = accuracy0.1, 'Rsquared (0.3)' = accuracy0.3, "Rsquared (1)" = accuracy1, 'Rsquared (5)' = accuracy5, 'Rsquared (10)' = accuracy10)
+  ),
+      caption = "Variables to include in Random Forest to achieve Rsquared (within x% of best model)",
+    footnote = "Random Forest Recursive Feature Elimination")
+```
+
+
+#### Interpretation
+##### Variable Importance
 ```{r fig.height=7, fig.width=5, warning=FALSE}
 vi_classif_rf_oxidative.stress <- model_parts(explainer_classif_rf_oxidative.stress, loss_function = loss_root_mean_square)
 vi_classif_glm_oxidative.stress <- model_parts(explainer_classif_glm_oxidative.stress, loss_function = loss_root_mean_square)
@@ -485,7 +587,302 @@ plot(vi_classif_rf_oxidative.stress,
      vi_classif_glm_oxidative.stress
      )
 ```
-###### LIME
+
+##### Partial Dependence
+###### Organism Group and Exposure Duration
+```{r}
+#Partial Dependence by dose.surface.area.um2.mL.master and bio.org
+pdp_classif_rf  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "exposure.duration.d", 
+                                 groups = "organism.group")
+# #rearrange factors in order
+# rf_pdp <- pdp_classif_rf$agr_profiles %>%
+#   tibble() %>%
+#   arrange(`_yhat_`)
+# #change levels
+# rf_pdp$`_x_` <- factor(rf_pdp$`_x_`)
+# 
+# plot(rf_pdp)
+#      %>%
+#   plot()
+#   mutate(bio.org = fct_reorder(`_x_`,`_yhat_`)) %>%
+#   ggplot(aes(x = bio.org, y = `_yhat_`, fill= bio.org)) +
+#  geom_point() +
+#   #geom_
+#   #geom_col() +
+#   labs(title = "Partial Dependence Profile by Level of Biological Organization",
+#        subtitle = "Random Forest") +
+#   xlab("Level of Biological Organization") +
+#   ylab("Average Prediction for Exposure Concentration (log10(particles/mL))") +
+#   #coord_cartesian(ylim = c(3.45, 3.60)) +
+#   scale_color_discrete(name = "Model x Level of Biological Organization") +
+#   fill.type +
+#   dark_theme_bw(base_size = 14) +
+#   theme(plot.title = element_text(hjust = 0.5),
+#         plot.subtitle = element_text(hjust = 0.5),
+#         legend.position = "none")
+
+plot(pdp_classif_rf)
+```
+###### Life Stage and Organism Group
+```{r}
+#Partial Dependence by dose.surface.area.um2.mL.master and bio.org
+pdp_classif_rf  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "life.stage")#, 
+                               #  groups = "organism.group")
+#rearrange factors in order
+rf_pdp <- pdp_classif_rf$agr_profiles %>%
+  tibble() %>%
+  arrange(`_yhat_`)
+#change levels
+rf_pdp$`_x_` <- factor(rf_pdp$`_x_`)
+
+rf_pdp %>%
+  mutate(bio.org = fct_reorder(`_x_`,`_yhat_`)) %>%
+  ggplot(aes(x = bio.org, y = `_yhat_`, fill= bio.org)) +
+   geom_col() +
+  labs(title = "Partial Dependence Profile by Level of Biological Organization",
+       subtitle = "Random Forest") +
+  xlab("Life Stage") +
+  ylab("Average Prediction for Exposure Concentration (log10(particles/mL))") +
+  coord_cartesian(ylim = c(3.45, 4.40)) +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  fill.type +
+  dark_theme_bw(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
+
+#plot(pdp_classif_rf)
+```
+###### Bio org and organism group
+```{r}
+#Partial Dependence by dose.surface.area.um2.mL.master and bio.org
+pdp_classif_rf  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "bio.org")#, 
+                                # groups = "organism.group")
+pdp_classif_glm  <- model_profile(explainer_classif_glm_oxidative.stress, variable = "bio.org")#, 
+                                 #groups = "organism.group")
+pdp_classif_xgbTree  <- model_profile(explainer_classif_xgbTree_oxidative.stress, variable = "bio.org")#, 
+                                 #groups = "organism.group")
+
+#plot together
+# glm <- plot(pdp_classif_glm$agr_profiles) +
+#   ggtitle("GLM: Partial Dependence Profiles by Taxa and Level of Biological Organization", "") +
+#   xlab("Level of Biological Organization") +
+#   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+#   coord_cartesian(ylim = c(3.45, 3.60)) +
+#   scale_color_discrete(name = "Model x Level of Biological Organization") +
+#   theme_minimal() +
+#   theme(plot.title = element_text(hjust = 0.5))
+
+#rearrange factors in order
+rf_pdp <- pdp_classif_rf$agr_profiles %>% 
+  tibble() %>% 
+  arrange(`_yhat_`)
+#change levels
+rf_pdp$`_x_` <- factor(rf_pdp$`_x_`)
+
+rf_pdp %>% 
+  mutate(bio.org = fct_reorder(`_x_`,`_yhat_`)) %>% 
+  ggplot(aes(x = bio.org, y = `_yhat_`, fill= bio.org)) +
+  geom_col() +
+  labs(title = "Partial Dependence Profile by Level of Biological Organization",
+       subtitle = "Random Forest") +
+  xlab("Level of Biological Organization") +
+  ylab("Average Prediction for Exposure Concentration (log10(particles/mL))") +
+  coord_cartesian(ylim = c(3.0, 3.60)) +
+  scale_color_discrete(name = "Model x Level of Biological Organization") +
+  fill.type +
+  dark_theme_bw(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5),
+        plot.subtitle = element_text(hjust = 0.5),
+        legend.position = "none")
+
+# xgbTree <- plot(pdp_classif_xgbTree$agr_profiles) +
+#   ggtitle("GLM: Partial Dependence Profiles by Taxa and Level of Biological Organization", "") +
+#   xlab("Level of Biological Organization") +
+#   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+#   coord_cartesian(ylim = c(3.45, 3.60)) +
+#   scale_color_discrete(name = "Model x Level of Biological Organization") +
+#   theme_minimal() +
+#   theme(plot.title = element_text(hjust = 0.5))
+# #pllot togeher
+# grid.arrange(glm, rf, xgbTree)
+```
+
+
+###### Fiber
+```{r}
+#Partial Dependence by effect metric and Fiber fraction
+pdp_classif_rf_fiber  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "fiber_frac", 
+                                 groups = "effect.metric")
+pdp_classif_glm_fiber  <- model_profile(explainer_classif_glm_oxidative.stress, variable = "fiber_frac", 
+                                 groups = "effect.metric")
+pdp_classif_xgbTree_fiber  <- model_profile(explainer_classif_xgbTree_oxidative.stress, variable = "fiber_frac", 
+                                 groups = "effect.metric")
+
+#plot together
+glm_fiber <- plot(pdp_classif_glm_fiber$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+  xlab("Fiber Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  #scale_y_continuous(trans = "exp", limits = c(.001,2)) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rf_fiber <- plot(pdp_classif_rf_fiber$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+  xlab("Fiber Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+xgbTree_fiber <- plot(pdp_classif_xgbTree_fiber$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+   xlab("Fiber Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#pllot togeher
+grid.arrange(glm_fiber, rf_fiber, xgbTree_fiber)
+```
+
+
+###### Fragment
+```{r}
+#Partial Dependence by effect metric and fragment fraction
+pdp_classif_rf_fragment  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "fragment_frac", 
+                                 groups = "effect.metric")
+pdp_classif_glm_fragment  <- model_profile(explainer_classif_glm_oxidative.stress, variable = "fragment_frac", 
+                                 groups = "effect.metric")
+pdp_classif_xgbTree_fragment  <- model_profile(explainer_classif_xgbTree_oxidative.stress, variable = "fragment_frac", 
+                                 groups = "effect.metric")
+
+#plot together
+glm_fragment <- plot(pdp_classif_glm_fragment$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by fragment Fraction and Effect Metric", "") +
+  xlab("fragment Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  #scale_y_continuous(trans = "exp", limits = c(.001,2)) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rf_fragment <- plot(pdp_classif_rf_fragment$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by fragment Fraction and Effect Metric", "") +
+  xlab("fragment Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+xgbTree_fragment <- plot(pdp_classif_xgbTree_fragment$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by fragment Fraction and Effect Metric", "") +
+   xlab("fragment Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#pllot togeher
+grid.arrange(glm_fragment, rf_fragment, xgbTree_fragment)
+```
+###### Sphere
+```{r}
+#Partial Dependence by effect metric and sphere fraction
+pdp_classif_rf_sphere  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "sphere_frac", 
+                                 groups = "effect.metric")
+pdp_classif_glm_sphere  <- model_profile(explainer_classif_glm_oxidative.stress, variable = "sphere_frac", 
+                                 groups = "effect.metric")
+pdp_classif_xgbTree_sphere  <- model_profile(explainer_classif_xgbTree_oxidative.stress, variable = "sphere_frac", 
+                                 groups = "effect.metric")
+
+#plot together
+glm_sphere <- plot(pdp_classif_glm_sphere$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by sphere Fraction and Effect Metric", "") +
+  xlab("sphere Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  #scale_y_continuous(trans = "exp", limits = c(.001,2)) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rf_sphere <- plot(pdp_classif_rf_sphere$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by sphere Fraction and Effect Metric", "") +
+  xlab("sphere Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+xgbTree_sphere <- plot(pdp_classif_xgbTree_sphere$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by sphere Fraction and Effect Metric", "") +
+   xlab("sphere Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#pllot togeher
+grid.arrange(glm_sphere, rf_sphere, xgbTree_sphere)
+```
+
+###### Polyethylene
+```{r}
+#Partial Dependence by effect metric and PE fraction
+pdp_classif_rf_PE  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "PE_frac", 
+                                 groups = "effect.metric")
+pdp_classif_glm_PE  <- model_profile(explainer_classif_glm_oxidative.stress, variable = "PE_frac", 
+                                 groups = "effect.metric")
+pdp_classif_xgbTree_PE  <- model_profile(explainer_classif_xgbTree_oxidative.stress, variable = "PE_frac", 
+                                 groups = "effect.metric")
+
+#plot together
+glm_PE <- plot(pdp_classif_glm_PE$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
+  xlab("PE Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  #scale_y_continuous(trans = "exp", limits = c(.001,2)) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rf_PE <- plot(pdp_classif_rf_PE$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
+  xlab("PE Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+xgbTree_PE <- plot(pdp_classif_xgbTree_PE$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
+   xlab("PE Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+#pllot togeher
+grid.arrange(glm_PE, rf_PE, xgbTree_PE)
+```
+
+##### LIME (Local Interpretable Model-Agnostic Explanations)
+Behind the workings of lime lies the (big) assumption that every complex model is linear on a local scale. While this is not justified in the paper it is not difficult to convince yourself that this is generally sound — you usually expect two very similar observations to behave predictably even in a complex model. lime then takes this assumption to its natural conclusion by asserting that it is possible to fit a simple model around a single observation that will mimic how the global model behaves at that locality. The simple model can then be used to explain the predictions of the more complex model locally.
+
+The general approach lime takes to achieving this goal is as follows:
+
+* For each prediction to explain, permute the observation n times.
+* Let the complex model predict the outcome of all permuted observations.
+* Calculate the distance from all permutations to the original observation.
+* Convert the distance to a similarity score.
+* Select m features best describing the complex model outcome from the permuted data.
+* Fit a simple model to the permuted data, explaining the complex model outcome with the m features from the permuted data weighted by its     similarity to the original observation.
+* Extract the feature weights from the simple model and use these as explanations for the complex models local behavior.
+
+
 ```{r}
 require(lime)
 model_type.gbm <- function(x, ...) {
@@ -498,16 +895,16 @@ predict_model.gbm <- function(x, newdata, ...) {
 }
 
 # get a few observations to perform local interpretation on
-local_obs <- test[1:2, ]
+local_obs <- test_x[1:4, ]
 
 # apply LIME
-explainer <- lime(train, classif_xgbTree)
-explanation <- explain(local_obs, explainer, n_features = 5)
-plot_features(explanation)
+explainer <- lime(train_x, classif_xgbTree_oxidative.stress)
+explanation <- lime::explain(local_obs, explainer, n_features = 10, n_labels = 5)
+plot_features(explanation, ncol = 2)
 ```
 
 ### Food Dilution
-```{r GLM build}
+```{r GLM build 2}
 require(reshape2)
 # data preparation
 df_food.dilution <- aoc_final %>% 
@@ -539,11 +936,12 @@ df_food.dilution <- aoc_final %>%
                   effect, 
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
-                  lvl2_f,
-                  lvl3_f
+                  lvl2_f#,
+                 # lvl3_f
                   )) %>% 
    rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
+   mutate(particles.mL.food.dilution = log10(particles.mL.food.dilution)) %>% 
   ###### create new column for polymer percentage #####
   dcast(... ~ polymer, value.var = c("value")) %>% 
   # provide 0 for all 'na's'
@@ -616,20 +1014,20 @@ test_y <- as.numeric(as.vector(test$particles.mL.food.dilution))
 #### Build GLM and EBM
 ```{r}
 ###build explainable boosting machine model #####
-ebm_food.dilution <- ebm_classify(train_x, #features
-                    train_y, #target,
-                            ## hyper-parameters, currently in default state:
-                            max_bins = 255,
-                            outer_bags = 16,
-                            inner_bags = 0,
-                            learning_rate = 0.01,
-                            validation_size = 0.15,
-                            early_stopping_rounds = 50,
-                            early_stopping_tolerance = 1e-4,
-                            max_rounds = 5000,
-                            max_leaves = 3,
-                            min_samples_leaf = 2,
-                            random_state = 42)
+# ebm_food.dilution <- ebm_classify(train_x, #features
+#                     train_y, #target,
+#                             ## hyper-parameters, currently in default state:
+#                             max_bins = 255,
+#                             outer_bags = 16,
+#                             inner_bags = 0,
+#                             learning_rate = 0.01,
+#                             validation_size = 0.15,
+#                             early_stopping_rounds = 50,
+#                             early_stopping_tolerance = 1e-4,
+#                             max_rounds = 5000,
+#                             max_leaves = 3,
+#                             min_samples_leaf = 2,
+#                             random_state = 42)
 
 #####build additional models using caret package and expain using DALEX package #####
 classif_rf_food.dilution <- train(particles.mL.food.dilution~., data = train, method = "rf", ntree = 100, tuneLength = 1)
@@ -648,17 +1046,17 @@ explainer_classif_rf_food.dilution <- DALEX::explain(classif_rf_food.dilution,
                                        data = test_x, 
                                        y = yTest)
 
-explainer_classif_xgbTrees_food.dilution <- DALEX::explain(classif_xgbTrees_food.dilution, label = "xgbTrees", 
+explainer_classif_xgbTree_food.dilution <- DALEX::explain(classif_xgbTree_food.dilution, label = "xgbTrees", 
                                         data = test_x, y = yTest)
                                        
 explainer_classif_glm_food.dilution <- DALEX::explain(classif_glm_food.dilution, label = "glm", 
                                         data = test_x, y = yTest)
 ### EBM model ###
-proba_test_food.dilution <- ebm_predict_proba(ebm_food.dilution, test_x) #keeps giving NA's for some reason...
+#proba_test_food.dilution <- ebm_predict_proba(ebm_food.dilution, test_x) #keeps giving NA's for some reason...
 
 #### Caret models ####
 mp_classif_rf_food.dilution <- model_performance(explainer_classif_rf_food.dilution)
-mp_classif_xgbTrees_food.dilution <- model_performance(explainer_classif_xgbTrees_food.dilution)
+mp_classif_xgbTree_food.dilution <- model_performance(explainer_classif_xgbTree_food.dilution)
 mp_classif_glm_food.dilution <- model_performance(explainer_classif_glm_food.dilution)
 ```
 ###### R-squared
@@ -683,12 +1081,12 @@ plot(mp_classif_rf_food.dilution,
 ```
 
 ##### Variable Importance
-```{r eval=FALSE, fig.height=7, fig.width=5, warning=FALSE, include=FALSE}
+```{r echo=TRUE, fig.height=7, fig.width=5, warning=FALSE}
 vi_classif_rf_food.dilution <- model_parts(explainer_classif_rf_food.dilution, loss_function = loss_root_mean_square)
 vi_classif_glm_food.dilution <- model_parts(explainer_classif_glm_food.dilution, loss_function = loss_root_mean_square)
-vi_classif_xgbTrees_food.dilution <- model_parts(explainer_classif_xgbTrees_food.dilution, loss_function = loss_root_mean_square)
+vi_classif_xgbTree_food.dilution <- model_parts(explainer_classif_xgbTree_food.dilution, loss_function = loss_root_mean_square)
 
-plot(vi_classif_rf_food.dilution, vi_classif_glm_food.dilution, vi_classif_xgbTrees_food.dilution)
+plot(vi_classif_rf_food.dilution, vi_classif_glm_food.dilution, vi_classif_xgbTree_food.dilution)
 ```
 
 
@@ -731,7 +1129,7 @@ Particle mass is estimated as follows:
 $m = pV*\frac{1}{1e12}*1000$
 
 Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the length (um) of each particle, and additional conversion factors for mg to g (x1000) and cm^3 to um^3 (1e-12).
-```{r, include=FALSE}
+```{r}
 #variables to set for funcions
       xmin = 1 #UM
       alpha = alpha #2.07 is preferred in unpublished Kooi et al.
@@ -866,8 +1264,8 @@ count10000 <- synthetic_distributed_data_builder(count = 10000,
 ## Quick check results
 ##++++++++++++++++++++++++++++++++++++++++
 skim(synthetic_distributed_data_builder(count = 10000, 
-                                    volume_l = 1, 
-                                    addedfactors = possible_variables[488,]
+                                    volume_l = 1#, 
+                               #     addedfactors = possible_variables[488,]
                                     ))
 ```
 
@@ -935,7 +1333,7 @@ SSD_function_t1 <- function(filtered.data, hcxlcl){
   #data collapse
 collapsed <- filtered.data %>% 
   group_by(Species, Group) %>% 
-  summarize(Conc = quantile(dose_new, 0.25))
+  summarize(Conc = quantile(dose_new, 0.50))
 #fit distributions
 dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
 #use average distribution with weighthing based on AICC
@@ -953,16 +1351,63 @@ return(list(preds, ssd_frame))
 
 Part of me just wants to set the uniform distribution to the distinct version of the dataset. That way we can define uncertainty for each dose response curve and are not extrapolating within ranges (sometimes people just get data for the max and min in a distribution that doesn't mean that we know what the middle should be.)
 
+### COMPOSITION
 
+#### Polymer/Shape Agnostic
+
+```{r}
+#define base parameters for all SSDs
+composition_agnostic <- df_oxidative.stress %>% 
+  # make entry for each species
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f, 
+           #lvl3_f, 
+           exposure.duration.d, organism.group,
+           # make synonymous with training data for true comparison
+          EVA_frac, LTX_frac, PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+           ) %>% 
+  #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
+  mutate(
+  #       EVA_frac = 0.06,
+  #       LTX_frac = 0,
+  #       PA_frac = 0.12,
+  #       PC_frac = 0,
+  #       PE_frac = 0.25,
+  #       PET_frac = 0.165,
+  #       PLA_frac = 0,
+  #       PMMA_frac = 0,
+  #       PP_frac = 0.145,
+  #       PS_frac = 0.085,
+  #       PUR_frac = 0,
+  #       PVC_frac = 0.02,
+  #       fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
+  #       fragment_frac = 0.31 * 1.1627,
+  #       sphere_frac = 0.065 * 1.1627,
+  effect = "N",
+  #common metrics for all SSDs
+  #lvl1_f = "Fitness",
+ # life.stage = "Adult",
+  exposure.route = "water",
+  environment = "Marine",
+  acute.chronic_f = "Chronic",
+  effect.metric = "NOEC"
+  )
+```
+
+#### Realistic Polymers and Shapes in Environment
 Abundance of most commonly found polymers based on Table S3 of kooi and Kolemans 2019. Shape abundance based on the main text of Kooi and Koelmans 2019. Since there are no training data for films (5.5% in envirnoment) or foam (3.5% in environment), they were omitted from this synthetic dataset and all other categories were increased by a factor of 1.16 to reach 100%. https://pubs.acs.org/doi/suppl/10.1021/acs.estlett.9b00379/suppl_file/ez9b00379_si_001.pdf
 ```{r}
 #define base parameters for all SSDs
-composition <- df_oxidative.stress %>% 
+composition_realistic <- df_oxidative.stress %>% 
   # make entry for each species
-  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f, lvl3_f, exposure.duration.d, organism.group) %>% 
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f,
+           #lvl3_f, 
+           exposure.duration.d, organism.group,
+           # make synonymous with training data for true comparison
+          # EVA_frac, LTX_frac, PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+           ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
-  EVA_frac = 0.06,
+        EVA_frac = 0.06,
         LTX_frac = 0,
         PA_frac = 0.12,
         PC_frac = 0,
@@ -977,6 +1422,7 @@ composition <- df_oxidative.stress %>%
         fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
         fragment_frac = 0.31 * 1.1627,
         sphere_frac = 0.065 * 1.1627,
+  effect = "N",
   #common metrics for all SSDs
   #lvl1_f = "Fitness",
  # life.stage = "Adult",
@@ -986,17 +1432,16 @@ composition <- df_oxidative.stress %>%
   effect.metric = "NOEC"
   )
 ```
-
 ## Oxidative Stress
 ### Tier 1/2
-
+#### Polymer/Shape Agnostic
 ```{r}
 #Get organism group for each species
 groups <- aoc_z %>% 
   distinct(species_f, Group)
 
 #assign groups
-ox.1 <- composition %>% 
+ox.1 <- composition_agnostic %>% 
   filter(#bio.org %in% c("tissue", "organism", "population"),
          lvl1_f %in% c("Fitness")) %>%
   left_join(groups)
@@ -1008,23 +1453,23 @@ ox.1$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.1, type =
 ox1.summary <- ox.1 %>%
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.25)) #convert from log10
+  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.50)) #convert from log10
 
 ## SSD build
 ox.t1.ssd <- SSD_function_t1(filtered.data = ox1.summary, hcxlcl = 5)
 
 #extract data frames from object
-ox.t1.preds <- as.data.frame(ox.t1.ssd[1])
-ox.t1.points <- as.data.frame(ox.t1.ssd[2])
+ox.t1.preds.agnostic <- as.data.frame(ox.t1.ssd[1])
+ox.t1.points.agnostic <- as.data.frame(ox.t1.ssd[2])
 
 #ggplot
-ggplot(ox.t1.preds, aes_string(x = "est")) +
+ggplot(ox.t1.preds.agnostic, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = ox.t1.points,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = ox.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = ox.t1.points.agnostic,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t1.points.agnostic, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Polymer/Shape Agnostic)",
        subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
        x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
   coord_trans(x = "log10") +
@@ -1035,15 +1480,15 @@ ggplot(ox.t1.preds, aes_string(x = "est")) +
   theme.type #user theme
 ```
 
-####Comparison to empirical
-##### Empirical alone
+#####Comparison to empirical
+###### Empirical alone
 ```{r}
 ox.1.emp <- df_oxidative.stress %>% 
   filter(lvl1_f %in% c("Fitness")) %>% 
   rename(Species = species_f) %>% 
   rename(Group = organism.group) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.25)) #convert from log10
+  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.50)) #convert from log10
 
 ## SSD build
 ox.t1.emp.ssd <- SSD_function_t1(filtered.data = ox.1.emp, hcxlcl = 5)
@@ -1074,15 +1519,11 @@ ggplot(ox.t1.emp.preds, aes_string(x = "est")) +
 # give uniq id
 t1.x.e <- ox.t1.emp.preds %>% 
   mutate(type = "Empirical")
-t1.x.p <-  ox.t1.preds %>% 
-  mutate(type = "Predicted") %>% 
-  mutate(est = est/1000) %>% 
-  mutate(lcl = lcl/1000) %>% 
-  mutate(ucl = ucl/1000)
-t1.x.1.e <- ox.t1.points %>% 
-  mutate(type = "Empirical") %>% 
-  mutate(Conc= Conc/1000)
-t1.x.1.p <-  ox.t1.emp.points %>% 
+t1.x.p <-  ox.t1.preds.agnostic %>% 
+  mutate(type = "Predicted")
+t1.x.1.e <- ox.t1.emp.points %>% 
+  mutate(type = "Empirical") 
+t1.x.1.p <-  ox.t1.points.agnostic %>% 
   mutate(type = "Predicted")
 #join dataframes
 t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
@@ -1095,12 +1536,13 @@ ggplot() +#, aes_string(x = "est")) +
   geom_point(data = t1.ox.points.j, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
   #geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
-       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (polymer/shape - agnostic)",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area",
        x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
   #fill.type + #user-selected
   #color.type + #user-selected
   theme.type #user theme
@@ -1110,36 +1552,63 @@ ggplot() +#, aes_string(x = "est")) +
 # give uniq id
 t1.x.e <- ox.t1.emp.preds %>% 
   mutate(type = "Empirical")
-t1.x.p <-  ox.t1.preds %>% 
-  mutate(type = "Predicted") %>% 
-  mutate(est = est/1000) %>% 
-  mutate(lcl = lcl/1000) %>% 
-  mutate(ucl = ucl/1000)
+t1.x.p <-  ox.t1.preds.agnostic #%>% 
+  # mutate(type = "Predicted") %>% 
+  # mutate(est = est/1000) %>% 
+  # mutate(lcl = lcl/1000) %>% 
+  # mutate(ucl = ucl/1000)
 
 #plot residuals
-t1.x.1.e <- ox.t1.points %>% 
+t1.x.1.e <- ox.t1.points.agnostic %>% 
   mutate(type = "Empirical") %>% 
-  mutate(Conc.e= Conc/1000)
+  mutate(Conc.e= Conc)
 t1.x.1.p <-  ox.t1.emp.points %>% 
   mutate(type = "Predicted")
 ###join dataframes
 #t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
 compare <- left_join(t1.x.1.e, t1.x.1.p, by = "Species") %>% 
-    mutate(diff = Conc.e - Conc.x)
+    mutate(diff = Conc.e - Conc.y)
 
+# Make color scale for speceis on y axis
+# library(scales)
+# numColors <- length(levels(compare$Group.x)) # How many colors you need
+# getColors <- scales::brewer_pal(name = "Dark2") # Create a function that takes a number and returns a qualitative palette of that length (from the scales package)
+# myPalette <- getColors(n = 13)#numColors)
+# names(myPalette) <- levels(compare$Group.x) # Give every color an appropriate name
+
+#library(RColorBrewer)
+#brewer.pal(n = 13, name = "Dark2")
+
+## Plot Residuals
 compare %>% 
-  ggplot(aes(x = diff, y = Species)) +
-  geom_boxplot(fill = "black", color = "black") +
-  geom_point() +
-  scale_x_continuous(limits = c(-100000,10000)) +
-   #coord_trans(x = "log10") +
-  #scale_x_log10(limits = c(-50000000,50000000)) +
-  theme.type
+  mutate(Species = fct_reorder(Species, abs(diff))) %>% 
+  ggplot(aes(x = -log10(abs(diff)), y = Species, color = Group.x)) +
+ # geom_boxplot() +
+  geom_boxplot(fill = "red", color = "black") +
+  geom_point(size = 2.5) +
+ # scale_x_log10() +
+ # scale_x_continuous(limits = c(-1,10)) +
+  labs(title = "Residuals for Predicted NOECs"#,
+     # subtitle = "Random Forest Predicted NOECs"
+       ) +
+  xlab("Empirical - Predicted NOEC (log10 scale)") +
+  ylab("Species") +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1.5, alpha = 0.4) +
+ # scale_color_manual(values = rainbow(13)) +
+  #scale_color_brewer()
+  scale_color_futurama(name = "Taxa") +
+ # coord_trans(x = "log10") +
+  dark_theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)#,
+#    axis.text.y = element_text(colour=rainbow(13)[compare$Group.x])
+    )
 
 
 #t1.ox.points.j <- rbind(t1.x.1.e, t1.x.1.p)
 ```
-```{r}
+```{r eval=FALSE, include=FALSE}
 compare %>% 
   #group_by(Group.x) %>% 
   ggplot(aes(x = diff, y = Group.x)) +
@@ -1150,7 +1619,181 @@ compare %>%
   #scale_x_log10(limits = c(-50000000,50000000)) +
   theme.type
 ```
+#### Realistic Environmental Polymers and Shapes
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
 
+#assign groups
+ox.1.real <- composition_realistic %>% 
+  filter(#bio.org %in% c("tissue", "organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+ox.1.real$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.1.real, type = "raw")
+
+#Data collapse
+ox1.summary.real <- ox.1.real %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.50)) #convert from log10
+
+## SSD build
+ox.t1.ssd.real <- SSD_function_t1(filtered.data = ox1.summary.real, hcxlcl = 5)
+
+#extract data frames from object
+ox.t1.preds.real <- as.data.frame(ox.t1.ssd.real[1])
+ox.t1.points.real <- as.data.frame(ox.t1.ssd.real[2])
+
+#ggplot
+ggplot(ox.t1.preds.real, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = ox.t1.points.real,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t1.points.real, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Realistic Shapes and Polymers)",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+
+#####Comparison to empirical
+
+##### Overlay
+```{r}
+# give uniq id
+t1.x.e <- ox.t1.emp.preds %>% 
+  mutate(type = "Empirical")
+t1.x.p.real <-  ox.t1.preds.real %>% 
+  mutate(type = "Predicted")
+t1.x.1.e <- ox.t1.emp.points %>% 
+  mutate(type = "Empirical") 
+t1.x.1.p.real <-  ox.t1.points.real %>% 
+  mutate(type = "Predicted")
+
+#join dataframes
+t1.ox.preds.j.real <- rbind(t1.x.e, t1.x.p.real)
+t1.ox.points.j.real <- rbind(t1.x.1.e, t1.x.1.p.real)
+
+#ggplot
+ggplot() +#, aes_string(x = "est")) +
+  geom_xribbon(data = t1.ox.preds.j.real, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.4) +
+  geom_line(data = t1.ox.preds.j.real, aes_string(x = "est", y = "percent/100", fill = "type")) +
+  geom_point(data = t1.ox.points.j.real, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (Realistic Environmental Polymers and Shapes)",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+
+##### Comparison of Realistic, empirical, and Agnostic SSDs
+```{r}
+# give uniq id
+t1.x.p.agnostic <-  ox.t1.preds.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic")
+t1.x.p.real <-  ox.t1.preds.real %>% 
+  mutate(type = "Environmentally Realistic")
+t1.x.1.p.agnostic <- ox.t1.points.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic") 
+t1.x.1.p.real <-  ox.t1.points.real %>% 
+  mutate(type = "Environmentally Realistic")
+#join dataframes
+t1.ox.preds.j.real.agonstic <- rbind(t1.x.p.agnostic, t1.x.p.real, t1.x.e)
+t1.ox.points.j.real.agonstic <- rbind(t1.x.1.p.agnostic, t1.x.1.p.real, t1.x.1.e)
+
+#ggplot
+ggplot() +
+  geom_xribbon(data = t1.ox.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
+  geom_line(data = t1.ox.preds.j.real.agonstic, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  #geom_point(data = t1.ox.points.j.real.agonstic, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+
+##### Residuals
+```{r}
+# give uniq id
+t1.x.e <- ox.t1.emp.preds %>% 
+  mutate(type = "Empirical")
+t1.x.p <-  ox.t1.preds.agnostic %>% 
+  mutate(type = "Predicted")
+
+#plot residuals
+t1.x.1.e <- ox.t1.emp.points %>% 
+  mutate(type = "Empirical") %>% 
+  mutate(Conc.e= Conc)
+t1.x.1.p <-  ox.t1.points.agnostic %>% 
+  mutate(type = "Predicted")
+###join dataframes
+#t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
+compare <- left_join(t1.x.1.e, t1.x.1.p, by = "Species") %>% 
+    mutate(diff = Conc.e - Conc.y)
+
+# Make color scale for speceis on y axis
+# library(scales)
+# numColors <- length(levels(compare$Group.x)) # How many colors you need
+# getColors <- scales::brewer_pal(name = "Dark2") # Create a function that takes a number and returns a qualitative palette of that length (from the scales package)
+# myPalette <- getColors(n = 13)#numColors)
+# names(myPalette) <- levels(compare$Group.x) # Give every color an appropriate name
+
+#library(RColorBrewer)
+#brewer.pal(n = 13, name = "Dark2")
+
+## Plot Residuals
+compare %>% 
+  mutate(Species = fct_reorder(Species, diff)) %>% 
+  ggplot(aes(x = -log10(abs(diff)), y = Species, color = Group.x)) +
+ # geom_boxplot() +
+  geom_boxplot(fill = "red", color = "black") +
+  geom_point(size = 2.5) +
+ # scale_x_log10() +
+ # scale_x_continuous(limits = c(-7500,100)) +
+  labs(title = "Residuals for Predicted NOECs"#,
+     # subtitle = "Random Forest Predicted NOECs"
+       ) +
+  xlab("Empirical - Predicted NOEC (log10 scale)") +
+  ylab("Species") +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1.5, alpha = 0.4) +
+ # scale_color_manual(values = rainbow(13)) +
+  #scale_color_brewer()
+  scale_color_futurama(name = "Taxa") +
+ # coord_trans(x = "log10") +
+  dark_theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)#,
+#    axis.text.y = element_text(colour=rainbow(13)[compare$Group.x])
+    )
+
+
+#t1.ox.points.j <- rbind(t1.x.1.e, t1.x.1.p)
+```
 
 ### Tier 3/4
 
@@ -1160,7 +1803,7 @@ groups <- aoc_z %>%
   distinct(species_f, Group)
 
 #assign groups
-ox.3 <- composition %>% 
+ox.3 <- composition_agnostic %>% 
   filter(bio.org %in% c("organism", "population"),
          lvl1_f %in% c("Fitness")) %>%
   left_join(groups)
@@ -1170,6 +1813,7 @@ ox.3$particles.mL.ox.stress <- predict(classif_xgbTree_oxidative.stress, ox.3, t
 
 #Data collapse
 ox3.summary <- ox.3 %>%
+  mutate(particles.mL.ox.stress = 10 ^particles.mL.ox.stress) %>% 
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
   summarise(dose_new = quantile(particles.mL.ox.stress, 0.50))
@@ -1185,8 +1829,8 @@ ox.t3.points <- as.data.frame(ox.t3.ssd[2])
 ggplot(ox.t3.preds, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = ox.t1.points,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = ox.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = ox.t3.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t3.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
        subtitle = "Tier 3/4, 1 - 83 µm; ERM = Surface Area ",
@@ -1206,8 +1850,8 @@ tier 3: 3,097 (hc5; organism and above, median)
 tier 4: 14,397 (hc10; organism and above, median)
 
 ```{r}
-ox.t1.preds$lcl[5]
-ox.t1.preds$est[5]
+ox.t1.preds.agnostic$lcl[5]
+ox.t1.preds.agnostic$est[5]
 ox.t3.preds$est[5]
 ox.t3.preds$est[10]
 ```
@@ -1219,33 +1863,34 @@ ox.t3.preds$est[10]
 
 ```{r}
 #assign groups
-food.1 <- composition %>% 
+food.1 <- composition_agnostic %>% 
   filter(bio.org %in% c("tissue", "organism", "population"),
-         lvl1_f %in% c("fitness")) %>%
+         lvl1_f %in% c("Fitness")) %>%
   left_join(groups)
   
 # predict NOEC
-food.1$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.1, type = "raw")
+food.1$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.1, type = "raw") 
 
 #Data collapse
 food1.summary <- food.1 %>%
+  mutate(particles.mL.food.dilution = 10 ^particles.mL.food.dilution) %>% #make linear
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quartile(particles.mL.food.dilution, 0.25))
+  summarise(dose_new = quantile(particles.mL.food.dilution, 0.50)) 
 
 ## SSD build
 food.t1.ssd <- SSD_function_t1(filtered.data = food1.summary, hcxlcl = 5)
 
 #extract data frames from object
-food.t1.preds <- as.data.frame(food.t1.ssd[1])
-food.t1.points <- as.data.frame(food.t1.ssd[2])
+food.t1.preds.agnostic <- as.data.frame(food.t1.ssd[1])
+food.t1.points.agnostic <- as.data.frame(food.t1.ssd[2])
 
 #ggplot
-ggplot(food.t1.preds, aes_string(x = "est")) +
+ggplot(food.t1.preds.agnostic, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = food.t1.points,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = food.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = food.t1.points.agnostic,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t1.points.agnostic, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
        subtitle = "Tier 1/2, 1 - 5,000 µm; ERM = Volume",
@@ -1258,15 +1903,163 @@ ggplot(food.t1.preds, aes_string(x = "est")) +
   theme.type #user theme
 
 ```
-### Tier 3/4
 
+####Comparison to empirical
+##### Empirical alone
+```{r}
+food.1.emp <- df_food.dilution %>% 
+  filter(lvl1_f %in% c("Fitness")) %>% 
+  rename(Species = species_f) %>% 
+  rename(Group = organism.group) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(10 ^ particles.mL.food.dilution, 0.50)) #convert from log10
+
+## SSD build
+food.t1.emp.ssd <- SSD_function_t1(filtered.data = food.1.emp, hcxlcl = 5)
+
+#extract data frames from object
+food.t1.emp.preds <- as.data.frame(food.t1.emp.ssd[1])
+food.t1.emp.points <- as.data.frame(food.t1.emp.ssd[2])
+
+#ggplot
+ggplot(food.t1.emp.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = food.t1.emp.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Polymer and Shape Agnostic)",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+##### Overlay
+```{r}
+# give uniq id
+t1.x.e <- food.t1.emp.preds %>% 
+  mutate(type = "Empirical")
+t1.x.p.agnostic <-  food.t1.preds.agnostic %>% 
+  mutate(type = "Predicted")
+t1.x.1.e <- food.t1.emp.points %>% 
+  mutate(type = "Empirical") 
+t1.x.1.p.agnostic <-  food.t1.points.agnostic %>% 
+  mutate(type = "Predicted")
+
+#join dataframes
+t1.food.preds.j <- rbind(t1.x.e, t1.x.p.agnostic)
+t1.food.points.j <- rbind(t1.x.1.e, t1.x.1.p.agnostic)
+
+#ggplot
+ggplot() +#, aes_string(x = "est")) +
+  geom_xribbon(data = t1.food.preds.j, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.4) +
+  geom_line(data = t1.food.preds.j, aes_string(x = "est", y = "percent/100", fill = "type")) +
+  geom_point(data = t1.food.points.j, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (Polymer and Shape Agnostic)",
+       subtitle = "Tier 1/2, 1 - 5,000 µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+#### Realistic Environmental Polymers and Shapes
 ```{r}
 #Get organism group for each species
 groups <- aoc_z %>% 
   distinct(species_f, Group)
 
 #assign groups
-food.3 <- composition %>% 
+food.1.real <- composition_realistic %>% 
+  filter(#bio.org %in% c("tissue", "organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+food.1.real$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.1.real, type = "raw")
+
+#Data collapse
+food1.summary.real <- food.1.real %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(10 ^ particles.mL.food.dilution, 0.50)) #convert from log10
+
+## SSD build
+food.t1.ssd.real <- SSD_function_t1(filtered.data = food1.summary.real, hcxlcl = 5)
+
+#extract data frames from object
+food.t1.preds.real <- as.data.frame(food.t1.ssd.real[1])
+food.t1.points.real <- as.data.frame(food.t1.ssd.real[2])
+
+#ggplot
+ggplot(food.t1.preds.real, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = food.t1.points.real,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t1.points.real, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Realistic Shapes and Polymers)",
+       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+
+##### Comparison of Realistic, empirical, and Agnostic SSDs
+```{r}
+# give uniq id
+t1.x.p.agnostic <-  food.t1.preds.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic")
+t1.x.p.real <-  food.t1.preds.real %>% 
+  mutate(type = "Environmentally Realistic")
+t1.x.1.p.agnostic <- food.t1.points.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic") 
+t1.x.1.p.real <-  food.t1.points.real %>% 
+  mutate(type = "Environmentally Realistic")
+#join dataframes
+t1.food.preds.j.real.agonstic <- rbind(t1.x.p.agnostic, t1.x.p.real, t1.x.e)
+t1.food.points.j.real.agonstic <- rbind(t1.x.1.p.agnostic, t1.x.1.p.real, t1.x.1.e)
+
+#ggplot
+ggplot() +
+  geom_xribbon(data = t1.food.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
+  geom_line(data = t1.food.preds.j.real.agonstic, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  #geom_point(data = t1.food.points.j.real.agonstic, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+### Tier 3/4
+#### Predicted (agnostic)
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+food.3 <- composition_agnostic %>% 
   filter(bio.org %in% c("organism", "population"),
          lvl1_f %in% c("Fitness")) %>%
   left_join(groups)
@@ -1274,8 +2067,9 @@ food.3 <- composition %>%
 # predict NOEC
 food.3$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.3, type = "raw")
 
-#Data collapse
+#Data collapse %>% 
 food3.summary <- food.3 %>%
+  mutate(particles.mL.food.dilution = 10^particles.mL.food.dilution) %>% 
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
   summarise(dose_new = quantile(particles.mL.food.dilution, 0.50))
@@ -1284,15 +2078,61 @@ food3.summary <- food.3 %>%
 food.t3.ssd <- SSD_function_t1(filtered.data = food3.summary, hcxlcl = 5)
 
 #extract data frames from object
-food.t3.preds <- as.data.frame(food.t3.ssd[1])
-food.t3.points <- as.data.frame(food.t3.ssd[2])
+food.t3.preds.agnostic <- as.data.frame(food.t3.ssd[1])
+food.t3.points.agnostic <- as.data.frame(food.t3.ssd[2])
 
 #ggplot
-ggplot(food.t3.preds, aes_string(x = "est")) +
+ggplot(food.t3.preds.agnostic, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = food.t1.points,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = food.t1.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = food.t3.points.agnostic,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t3.points.agnostic, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+#### Predicted (Realistic)
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+food.3.real <- composition_realistic %>% 
+  filter(bio.org %in% c("organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  left_join(groups)
+  
+# predict NOEC
+food.3.real$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.3.real, type = "raw")
+
+#Data collapse %>% 
+food3.real.summary <- food.3.real %>%
+  mutate(particles.mL.food.dilution = 10^particles.mL.food.dilution) %>% 
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(particles.mL.food.dilution, 0.50))
+
+## SSD build
+food.t3.real.ssd <- SSD_function_t1(filtered.data = food3.real.summary, hcxlcl = 5)
+
+#extract data frames from object
+food.t3.preds.real <- as.data.frame(food.t3.real.ssd[1])
+food.t3.points.real <- as.data.frame(food.t3.real.ssd[2])
+
+#ggplot
+ggplot(food.t3.preds.real, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = food.t3.points.real,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t3.points.real, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
        subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
@@ -1305,6 +2145,46 @@ ggplot(food.t3.preds, aes_string(x = "est")) +
   theme.type #user theme
 ```
 
+#### Empirical
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+food.3.emp <- df_food.dilution %>% 
+  filter(bio.org %in% c("organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%
+  rename(Species = species_f) %>% 
+  rename(Group = organism.group) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(10 ^ particles.mL.food.dilution, 0.50)) #convert from log10  
+  
+## SSD build
+food.t3.ssd <- SSD_function_t1(filtered.data = food.3.emp, hcxlcl = 5)
+
+#extract data frames from object
+food.t3.emp.preds <- as.data.frame(food.t3.ssd[1])
+food.t3.emp.points <- as.data.frame(food.t3.ssd[2])
+
+#ggplot
+ggplot(food.t3.emp.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = food.t3.emp.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = food.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+## HCxx Metrics
 For comparison, the volume particles/L for tiers 1-4 are:
 tier 1: 3 (hc5 lower 95% CI; tissue and above, 1st quantile)
 tier 2: 21 (hc5; tissue and above, 1st quantile)
@@ -1312,16 +2192,32 @@ tier 3: 17 (hc5; organism and above, median)
 tier 4: 105 (hc10; organism and above, median)
 
 ```{r}
-food.t1.preds$lcl[5]
-food.t1.preds$est[5]
-food.t3.preds$est[5]
-food.t3.preds$est[10]
+tibble(
+ "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
+"Empirical" = c(food.t1.emp.preds$lcl[5],  food.t1.emp.preds$est[5],  food.t3.emp.preds$est[5],  food.t3.emp.preds$est[10]),
+"Predicted" = c(
+food.t1.preds.agnostic$lcl[5],
+food.t1.preds.agnostic$est[5],
+food.t3.preds.agnostic$est[5],
+food.t3.preds.agnostic$est[10]),
+"Environmentally Realistic Polymer/Shape Predicted" = c(
+  food.t1.preds.real$lcl[5],
+  food.t1.preds.real$est[5],
+  food.t3.preds.real$est[5],
+  food.t3.preds.real$est[10])
+) %>% 
+  mutate(Empirical = Empirical * 1000,
+         Predicted = Predicted * 1000,
+         `Environmentally Realistic Polymer/Shape Predicted` = `Environmentally Realistic Polymer/Shape Predicted` * 1000) %>% 
+  kable(caption = "Food Dilution Thresholds")
+
+
 ```
 
 
 
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 org_endpoint_comb <- aoc_z %>%
   dplyr::select(organism.group, bio.org, lvl1_f) %>%
   distinct() 
@@ -1356,7 +2252,7 @@ for(row in 1:nrow(org_endpoint_comb)){
 
 # SSD
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 df_expand_sensitivity_distribution <- df_expand %>%
   filter(prob > 0.5) %>%
   group_by(organism.group, bio.org, lvl1_f) %>% #Can add other factors here if we want to flesh this out for each organism.
