@@ -75,17 +75,102 @@ theme(plot.title = element_text(hjust = 0.5),
 
 ```
 
+```{r data import}
+require(readr)
+#load aoc_z into dataframe. This file is generated from RDA_Maker.R
+#source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
+
 The idea here is we want to be able to just change the dataset and model here and then the entire code base will react to the update. The challenge is that making the right synthetic and uniform datasets will differ depending on the column types. Is it safe to assume that there will be no numeric variables in the model besides the concentrations which will be present in the development of the synthetic and uniform datasets?  
+
+# Shape and Polymer Composition in Database vs. Environment
+## Polmyer
+```{r}
+require(reshape2)
+Environment_poly <- tibble(
+        EVA = 0.06,
+        LTX = 0,
+        PA = 0.12,
+        PC = 0,
+        PE = 0.25,
+        PET = 0.165,
+        PLA = 0,
+        PMMA = 0,
+        PP = 0.145,
+        PS = 0.085,
+        PUR = 0,
+        PVC = 0.02
+) %>% 
+  melt() %>% 
+  rename("polymer" = "variable",
+         "freq" = "value") %>% 
+  mutate(type = "environment")
+
+# plot
+aoc_z %>% 
+  filter(polymer != "Not Reported") %>% 
+  group_by(polymer) %>% 
+  summarize(count = n()) %>% 
+  mutate(freq = count / sum(count)) %>% 
+  mutate(polymer = fct_reorder(polymer, freq),
+         type = "tox") %>% 
+  dplyr::select(-count) %>% 
+  rbind(Environment_poly) %>% 
+  ggplot(aes(x = freq, y = polymer, fill = type)) +
+  geom_col(position = "dodge") +
+  labs(title = "Polymers in Environment vs. Tox Database") +
+  scale_x_continuous(labels = scales::percent) +
+  xlab("Relative Frequency") +
+  theme.type +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "top") +
+  scale_fill_d3(labels = c("Environment", "Toxicity Database"))
+```
+## Shape
+```{r}
+Environment_shape <- tibble(
+        fiber = 0.485,
+        fragment = 0.31,
+        sphere = 0.065,
+        film = 0.055,
+        foam = 0.035
+) %>% 
+  melt() %>% 
+  rename("shape" = "variable",
+         "freq" = "value") %>% 
+  mutate(type = "environment")
+
+# plot
+aoc_z %>% 
+  filter(shape != "Not Reported") %>% 
+  group_by(shape) %>% 
+  summarize(count = n()) %>% 
+  mutate(freq = count / sum(count)) %>% 
+  mutate(shape = fct_reorder(shape, freq),
+         type = "tox") %>% 
+  dplyr::select(-count) %>% 
+  rbind(Environment_shape) %>% 
+  ggplot(aes(x = freq, y = shape, fill = type)) +
+  geom_col(position = "dodge") +
+  labs(title = "shapes in Environment vs. Tox Database") +
+  xlab("Relative Frequency") +
+  scale_x_continuous(labels = scales::percent) +
+  theme.type +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.title = element_blank(),
+        legend.position = "top") +
+  scale_fill_d3(labels = c("Environment", "Toxicity Database"))
+
+```
+
 
 # Model Build
 ## Data filtering
 
 To ensure quality data feeds the model, we are filtering for technical red criteria.
 ```{r}
-require(readr)
-#load aoc_z into dataframe. This file is generated from RDA_Maker.R
-#source("Tox Data/RDA_Maker.R")
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
@@ -476,7 +561,7 @@ plot(mp_classif_rf_oxidative.stress,
 ##### Recursive Feature Elimination
 
 *WARNING* This chunk takes a very long time to run!
-```{r Recursive Feature Elimination}
+```{r Recursive Feature Elimination, eval=FALSE, include=FALSE}
 #first we need to remove species with just a single data point because we need less than 53 levels
 n_species <- train %>% group_by(species_f) %>% summarize(count = n())
 train_trim <- left_join(train, n_species) %>% 
@@ -500,21 +585,21 @@ rfProfile
 
 ###### Predictor Selection
 The following variables are those that were picked in the final (most accurate) model. 
-```{r}
+```{r eval=FALSE, include=FALSE}
 #get variable names picked in the final model
 predictors(rfProfile)
 ```
 The first 6 models are shown below with their corresponding accuracy and kappa values. 
-```{r}
+```{r eval=FALSE, include=FALSE}
 head(rfProfile$resample)
 ```
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 trellis.par.set(caretTheme())
 plot(rfProfile, type = c("g", "o"), metric = "Rsquared")
 #ggplot(rfProfile) + theme_bw()
 ```
-```{r}
+```{r eval=FALSE, include=FALSE}
 plot1 <- xyplot(rfProfile, type = c("g", "p", "smooth"), main = "Accuracy of individual resampling results")
 plot2 <- densityplot(rfProfile, 
                      subset = Variables < 5, 
@@ -527,7 +612,7 @@ print(plot2, split=c(1,2,1,2))
 ```
 
 ###### Final Predictor Selection
-```{r}
+```{r eval=FALSE, include=FALSE}
 my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.01, maximize = TRUE)
 # higher tol (~10) gives you less variables
 # lower tol (~1) gives you more variables - "I'd like the simplest model within 1% of the best model."
@@ -536,7 +621,7 @@ accuracy1
 ```
 A random forest model with the above four predictors is within 1% of the best model. If a more accurate model is desired, and data is available, additional factors can be included in the model. Shown below are factors that should be included for a model that is within 0.5% accuracy of the best model.
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.05, maximize = TRUE)
 # higher tol (~10) gives you less variables
 # lower tol (~1) gives you more variables - "I'd like the simplest model within 1% of the best model."
@@ -545,7 +630,7 @@ accuracy0.5
 ```
 Below is a table showing which variables are included in models of varying accuracies.
 
-```{r}
+```{r eval=FALSE, include=FALSE}
 my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.1, maximize = TRUE)
 accuracy0.1 <- pickVars(rfProfile$variables, size = my_size)
 my_size <- pickSizeTolerance(rfProfile$results, metric = "Rsquared", tol = 0.3, maximize = TRUE)
@@ -587,6 +672,9 @@ plot(vi_classif_rf_oxidative.stress,
      vi_classif_glm_oxidative.stress
      )
 ```
+```{r}
+plot(vi_classif_rf_oxidative.stress)
+```
 
 ##### Partial Dependence
 ###### Organism Group and Exposure Duration
@@ -623,6 +711,15 @@ pdp_classif_rf  <- model_profile(explainer_classif_rf_oxidative.stress, variable
 
 plot(pdp_classif_rf)
 ```
+
+```{r}
+#Partial Dependence by dose.surface.area.um2.mL.master a
+pdp_classif_rf  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "exposure.duration.d")#, 
+                                # groups = "organism.group")
+
+plot(pdp_classif_rf)
+```
+
 ###### Life Stage and Organism Group
 ```{r}
 #Partial Dependence by dose.surface.area.um2.mL.master and bio.org
@@ -688,10 +785,10 @@ rf_pdp %>%
        subtitle = "Random Forest") +
   xlab("Level of Biological Organization") +
   ylab("Average Prediction for Exposure Concentration (log10(particles/mL))") +
-  coord_cartesian(ylim = c(3.0, 3.60)) +
+  coord_cartesian(ylim = c(3.4, 3.55)) +
   scale_color_discrete(name = "Model x Level of Biological Organization") +
   fill.type +
-  dark_theme_bw(base_size = 14) +
+  dark_theme_bw(base_size = 15) +
   theme(plot.title = element_text(hjust = 0.5),
         plot.subtitle = element_text(hjust = 0.5),
         legend.position = "none")
@@ -868,6 +965,25 @@ xgbTree_PE <- plot(pdp_classif_xgbTree_PE$agr_profiles) +
 #pllot togeher
 grid.arrange(glm_PE, rf_PE, xgbTree_PE)
 ```
+```{r}
+#Partial Dependence by effect metric and PE fraction
+pdp_classif_rf_PE  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "fiber_frac", 
+                                 groups = "effect.metric")
+
+
+rf_PE <- plot(pdp_classif_rf_PE$agr_profiles) +
+  ggtitle("GLM: Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
+  xlab("PE Fraction") +
+  ylab("Average Prediction for Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+
+#pllot togeher
+grid.arrange(rf_PE)
+```
+
 
 ##### LIME (Local Interpretable Model-Agnostic Explanations)
 Behind the workings of lime lies the (big) assumption that every complex model is linear on a local scale. While this is not justified in the paper it is not difficult to convince yourself that this is generally sound — you usually expect two very similar observations to behave predictably even in a complex model. lime then takes this assumption to its natural conclusion by asserting that it is possible to fit a simple model around a single observation that will mimic how the global model behaves at that locality. The simple model can then be used to explain the predictions of the more complex model locally.
@@ -1088,6 +1204,7 @@ vi_classif_xgbTree_food.dilution <- model_parts(explainer_classif_xgbTree_food.d
 
 plot(vi_classif_rf_food.dilution, vi_classif_glm_food.dilution, vi_classif_xgbTree_food.dilution)
 ```
+
 
 
 
@@ -1733,7 +1850,8 @@ ggplot() +
   #scale_fill_manual(name = "SSD Data") +
   #fill.type + #user-selected
   #color.type + #user-selected
-  theme.type #user theme
+  theme.type + #user theme
+  theme(legend.position = "top")
 ```
 
 ##### Residuals
@@ -2049,7 +2167,8 @@ ggplot() +
   #scale_fill_manual(name = "SSD Data") +
   #fill.type + #user-selected
   #color.type + #user-selected
-  theme.type #user theme
+  theme.type + #user theme
+  theme(legend.position = "top")
 ```
 ### Tier 3/4
 #### Predicted (agnostic)
