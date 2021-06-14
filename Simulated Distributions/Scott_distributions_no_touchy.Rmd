@@ -1554,13 +1554,12 @@ composition_realistic <- df_oxidative.stress %>%
 #### Polymer/Shape Agnostic
 ```{r}
 #Get organism group for each species
-groups <- aoc_z %>% 
+groups <- aoc_final %>% 
   distinct(species_f, Group)
 
 #assign groups
 ox.1 <- composition_agnostic %>% 
-  filter(#bio.org %in% c("tissue", "organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+  filter(bio.org %in% c("tissue", "organism", "population")) %>% 
   left_join(groups)
   
 # predict NOEC
@@ -1600,12 +1599,15 @@ ggplot(ox.t1.preds.agnostic, aes_string(x = "est")) +
 #####Comparison to empirical
 ###### Empirical alone
 ```{r}
-ox.1.emp <- df_oxidative.stress %>% 
-  filter(lvl1_f %in% c("Fitness")) %>% 
-  rename(Species = species_f) %>% 
-  rename(Group = organism.group) %>% 
+ox.1.emp <- aoc_final %>%
+  filter(!environment == "Marine",
+         effect.metric != "HONEC",
+         tier_zero_tech_f == "Red Criteria Passed",
+         between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+      mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.50)) #convert from log10
+  summarise(dose_new = quantile(dose_new, 0.50))
 
 ## SSD build
 ox.t1.emp.ssd <- SSD_function_t1(filtered.data = ox.1.emp, hcxlcl = 5)
@@ -1744,8 +1746,7 @@ groups <- aoc_z %>%
 
 #assign groups
 ox.1.real <- composition_realistic %>% 
-  filter(#bio.org %in% c("tissue", "organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+  filter(bio.org %in% c("tissue", "organism", "population")) %>% 
   left_join(groups)
   
 # predict NOEC
@@ -1982,8 +1983,7 @@ ox.t3.preds$est[10]
 ```{r}
 #assign groups
 food.1 <- composition_agnostic %>% 
-  filter(bio.org %in% c("tissue", "organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+ filter(bio.org %in% c("tissue", "organism", "population")) %>% 
   left_join(groups)
   
 # predict NOEC
@@ -2025,12 +2025,15 @@ ggplot(food.t1.preds.agnostic, aes_string(x = "est")) +
 ####Comparison to empirical
 ##### Empirical alone
 ```{r}
-food.1.emp <- df_food.dilution %>% 
-  filter(lvl1_f %in% c("Fitness")) %>% 
-  rename(Species = species_f) %>% 
-  rename(Group = organism.group) %>% 
+food.1.emp <- aoc_final %>%
+  filter(!environment == "Marine",
+         effect.metric != "HONEC",
+         tier_zero_tech_f == "Red Criteria Passed",
+         between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+      mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.food.dilution, 0.50)) #convert from log10
+  summarise(dose_new = quantile(dose_new, 0.50))
 
 ## SSD build
 food.t1.emp.ssd <- SSD_function_t1(filtered.data = food.1.emp, hcxlcl = 5)
@@ -2098,8 +2101,7 @@ groups <- aoc_z %>%
 
 #assign groups
 food.1.real <- composition_realistic %>% 
-  filter(#bio.org %in% c("tissue", "organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+   filter(bio.org %in% c("tissue", "organism", "population")) %>% 
   left_join(groups)
   
 # predict NOEC
@@ -2155,7 +2157,7 @@ t1.food.points.j.real.agonstic <- rbind(t1.x.1.p.agnostic, t1.x.1.p.real, t1.x.1
 ggplot() +
   geom_xribbon(data = t1.food.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
   geom_line(data = t1.food.preds.j.real.agonstic, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
-  #geom_point(data = t1.food.points.j.real.agonstic, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_point(data = t1.food.points.j.real.agonstic, aes(x = Conc, y =frac, color = type), alpha = 0.2) + 
   #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
@@ -2266,18 +2268,19 @@ ggplot(food.t3.preds.real, aes_string(x = "est")) +
 
 #### Empirical
 ```{r}
-#Get organism group for each species
-groups <- aoc_z %>% 
-  distinct(species_f, Group)
-
-#assign groups
-food.3.emp <- df_food.dilution %>% 
-  filter(bio.org %in% c("organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
-  rename(Species = species_f) %>% 
-  rename(Group = organism.group) %>% 
+#Filter empirical data
+food.3.emp <- aoc_final %>% 
+  filter(!environment == "Marine",
+         effect.metric != "HONEC",
+         tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria 
+         between(size.length.um.used.for.conversions, 1, 5000),
+         bio.org %in% c("organism", "population"),
+          lvl1_f %in% c("Fitness")) %>%  
+  mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
+    drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.food.dilution, 0.50)) #convert from log10  
+  summarise(dose_new = quantile(dose_new, 0.50)) #convert from log10  
   
 ## SSD build
 food.t3.ssd <- SSD_function_t1(filtered.data = food.3.emp, hcxlcl = 5)
@@ -2303,6 +2306,97 @@ ggplot(food.t3.emp.preds, aes_string(x = "est")) +
   color.type + #user-selected
   theme.type #user theme
 ```
+
+##### Comparison of Realistic, empirical, and Agnostic SSDs
+```{r}
+# give uniq id
+t3.x.p.agnostic <-  food.t3.preds.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic")
+t3.x.p.real <-  food.t3.preds.real %>% 
+  mutate(type = "Environmentally Realistic")
+t3.x.1.p.agnostic <- food.t3.points.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic") 
+t3.x.1.p.real <-  food.t3.points.real %>% 
+  mutate(type = "Environmentally Realistic")
+t3.x.e <- food.t3.emp.preds %>% 
+  mutate(type = "Empirical") 
+t3.x.1.e <- food.t3.emp.points %>% 
+  mutate(type = "Empirical") 
+
+#join dataframes
+t3.food.preds.j.real.agonstic <- rbind(t3.x.p.agnostic, t3.x.p.real, t3.x.e)
+t3.food.points.j.real.agonstic <- rbind(t3.x.1.p.agnostic, t3.x.1.p.real, t3.x.1.e)
+
+#ggplot
+ggplot() +
+  geom_xribbon(data = t3.food.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
+  geom_line(data = t3.food.preds.j.real.agonstic, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  #geom_point(data = t3.food.points.j.real.agonstic, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = food.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type + #user theme
+  theme(legend.position = "top")
+```
+
+Sample plot but displaying all points and only showing empirical vs. agnostic to demonstrate more data points on predicted.
+
+```{r}
+t3.compare.preds <- t3.food.preds.j.real.agonstic %>% filter(type != "Environmentally Realistic")
+t3.compare.points <- t3.food.points.j.real.agonstic %>% filter(type != "Environmentally Realistic")
+
+#ggplot
+ggplot() +
+  # geom_xribbon(data = t3.food.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
+  geom_line(data = t3.compare, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  geom_point(data = t3.compare.points, aes(x = Conc, y =frac, color = type), alpha = 0.7) + 
+  #geom_text_repel(data = food.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type + #user theme
+  theme(legend.position = "top")
+```
+#####Compare summary statistics
+```{r}
+t3.compare.points %>% 
+  group_by(type) %>% 
+  summarize(species = n(),
+            taxa = n_distinct(Group),
+            min = min(Conc),
+            median = median(Conc),
+            max = max(Conc))
+```
+
+Relative Uncertainty of Tier 3 Food Dilution SSDs (mean(predicted / standard error))
+```{r}
+t3.food.preds.j.real.agonstic %>% 
+  group_by(type) %>% 
+  summarize(relative.uncertainty = mean(se / est))
+```
+```{r}
+t3.food.preds.j.real.agonstic %>% 
+  group_by(type) %>% 
+  summarize(HC5 = est[5],
+            se = se[5]) 
+```
+
+
 ## HCxx Metrics
 For comparison, the volume particles/L for tiers 1-4 are:
 tier 1: 3 (hc5 lower 95% CI; tissue and above, 1st quantile)
