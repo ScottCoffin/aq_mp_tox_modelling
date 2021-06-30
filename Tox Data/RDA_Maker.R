@@ -819,7 +819,8 @@ aoc_setup <- aoc_v1 %>% # start with original dataset
   mutate(tier_zero_tech_f = factor(case_when(tech.tier.zero == "Fail" ~ "Red Criteria Failed",
                                              tech.tier.zero == "Pass" ~ "Red Criteria Passed"))) %>% 
   mutate(tier_zero_risk_f = factor(case_when(risk.tier.zero == "Fail" ~ "Red Criteria Failed",
-                                             risk.tier.zero == "Pass" ~ "Red Criteria Passed")))
+                                             risk.tier.zero == "Pass" ~ "Red Criteria Passed"))) %>%
+  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm)
 
 #### Particle Characteristics Equations ####
 #surface area equation for elongated spheres (fragments)
