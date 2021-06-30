@@ -3472,9 +3472,8 @@ d <- tier3_4_small %>%
          "Dose_SurfaceArea_Aligned_particles_mL" = EC_env_sa.particles.mL, 
          "Aligned_Dose_AF_Applied_particles_L" = dose_new) 
 
-list_of_datasets <- list("Tier 1_2, 1-5000um, Volume Aligned" = a, "Tier 3_4, 1-5000um, Volume Aligned" = b, "Tier 1_2, 1-83um, Surface Area Aligned" = c, "Tier 3_4, 1-83um, Surface Area Aligned" = d)
-write.xlsx(list_of_datasets, file = "SSD_rawdata.xlsx")
-
+list_of_datasets <- list("Tier 1_2,1-5000um,Volume" = a, "Tier 3_4,1-5000um,Volume" = b, "Tier 1_2,1-83um,Surface Area" = c, "Tier 3_4, 1-83um,Surface Area" = d)
+#write.xlsx(list_of_datasets, file = "SSD_rawdata.xlsx")
 ```
 
 ## ERM = Mass
@@ -4978,6 +4977,17 @@ gt(ERM_large) %>%
     #as_raw_html() # return as html
 ```
 ## SIMPLE Summary Table
+Thresholds are presented in multiple exposure metrics, aligned to ERMs of interest (surface area for translocatable particles, volume for ingestible particles). Data are aligned using the methods described in Kooi et al 2021. 
+
+The environmentally-relevant, ERM-aligned threshold in particles/L is converted to surface area (um2/L) and mass (ug/L) using equations 5 and 4 from Kooi et al 2021.
+
+$EC_{env,ERM, x} = \mu_{x,poly} * EC_{env}$
+
+Where  $\mu_{x,poly}$ is derived using the following equation:
+$\mu_{x,poly} = \frac{1 - a_{x}}{2 - a_{x}}  \frac{X^{2-a_x}_{UL} - X^{2-a_x}_{LL}}{X^{1-a_x}_{UL} - X^{1-a_x}_{LL}}$
+
+In this case, the limits LL and UL in  $\mu_{x,poly}$ relate to the values of the ERM at the 1 and 5,000 um size limits, respectively, rather than to bioavailability limits. Compartment-specific alpha values are used based on Table S4 of Kooi et al 2021. Marine surface water values are used. For converting to surface area, an alpha value of 1.50 is used, 1.48 for volume, and 1.32 for mass.
+
 ```{r}
 # Steve wants thresholds reported in the units they're aligned to (um3/L and um2/L)
 oxidative.stress.tiers <- ERM_small %>% 
@@ -4985,7 +4995,11 @@ oxidative.stress.tiers <- ERM_small %>%
                                        x_UL = 5000, #upper limit of default range
                                        x_LL = 1 # lower limit of default range
                                        )) %>% 
-  dplyr::select(EC_env_sa_um2.L, `Surface Area`)
+  mutate(EC_env_mass_ug.L.SA =  `Surface Area` * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_sa_um2.L, EC_env_mass_ug.L.SA, `Surface Area`)
 
 # calculate food dilution tiers with surface area and in particles/L
 food.dilution.tiers <- ERM_large %>% 
@@ -4993,7 +5007,11 @@ food.dilution.tiers <- ERM_large %>%
                                        x_UL = 5000, #upper limit of default range
                                        x_LL = 1 # lower limit of default range
                                        )) %>% 
-  dplyr::select(EC_env_volume_um3.L, Volume)
+  mutate(EC_env_mass_ug.L.V =  `Surface Area` * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_volume_um3.L, EC_env_mass_ug.L.V, Volume)
 
 simple.summary <- bind_cols(oxidative.stress.tiers, food.dilution.tiers)
 
@@ -5001,8 +5019,10 @@ simple.summary <- simple.summary %>%
   mutate("Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4')) %>% 
   rename("um2/L" = EC_env_sa_um2.L,
          "surface area (particles/L)" = 'Surface Area',
+         "ug/L (SA)" = EC_env_mass_ug.L.SA,
          "um3/L" = EC_env_volume_um3.L,
-        "volume (particles/L)" =  Volume) %>% 
+        "volume (particles/L)" =  Volume,
+        "ug/L (V)" = EC_env_mass_ug.L.V,) %>% 
   relocate(Tier)
 
 full_val_range <- simple.summary %>% 
@@ -5012,14 +5032,14 @@ full_val_range <- simple.summary %>%
 
 gt(simple.summary) %>% 
   tab_header(title = "Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
-  fmt_number(columns = vars(names(simple.summary)[2:5]), 
+  fmt_number(columns = vars(names(simple.summary)[2:7]), 
              decimals = 0,
              use_seps = TRUE) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
   tab_spanner(label = "Surface Area ERM",
-              columns = vars(names(simple.summary)[2:3])) %>% 
+              columns = vars(names(simple.summary)[2:4])) %>% 
   tab_spanner(label = "Volume ERM",
-              columns = vars(names(simple.summary)[4:5]))
+              columns = vars(names(simple.summary)[5:7]))
 ```
 
 
@@ -5648,7 +5668,7 @@ tier3_4_large_V %>%
   theme(legend.position = 'none')
 ```
 ## Export to Excel
-```{r}
+```{r eval=FALSE, include=FALSE}
 library(openxlsx)
 write.xlsx(t1_2_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
 write.xlsx(t3_4_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
