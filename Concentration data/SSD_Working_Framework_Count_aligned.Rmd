@@ -1859,6 +1859,30 @@ tier1_2_large <- aoc_final_large %>%
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
+#Study list for manuscript
+study_list_fooddilution_1_2 <-tier1_2_large %>% 
+  select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f,
+         size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
+  rename("DOI" = doi,
+         "First Author" = authors,
+         "Particle Morphology" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Exposure Duration" = acute.chronic_f,
+         "Polymer" = poly_f,
+         "Original Dose (Particles/mL)" = dose.particles.mL.master, 
+         "Original Dose (Particles/mL), Reported or Converted" = dose.particles.mL.master.converted.reported,
+         "Original Dose (mg/L)" = dose.mg.L.master,
+         "Original Dose (mg/L), Reported or Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Endpoint Category" = lvl1_f,
+         "Measured Endpoint" = lvl3_f,
+         "Biological Level of Organization" = bio_f,
+         "Particle Size (µm)" = size.length.um.used.for.conversions, 
+         "Aligned Dose, Volume (Particles/mL)" = EC_env_v.particles.mL, 
+         "Aligned Dose, Volume, Assessment Factors Applied (Particles/mL)" = dose_new)
+
 #Translocation
 tier1_2_small <- aoc_final_small %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
@@ -1970,6 +1994,12 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
           theme.type 
 
 plot(tier1_2_large_1q_ggplot)
+
+#Export for manuscript
+ggsave(filename = "FoodDilution_Tier1_2_SSD.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = tier1_2_large_1q_ggplot, width = 10, height = 6, units = "in")
+
 ```
 
 Is body size related to effect threshold for Volume?
@@ -2133,6 +2163,30 @@ tier3_4_large <-  aoc_final_large %>%
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
 
+#Study list for manuscript
+study_list_fooddilution_3_4 <-tier3_4_large %>% 
+  select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f,
+         size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
+  rename("DOI" = doi,
+         "First Author" = authors,
+         "Particle Morphology" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Exposure Duration" = acute.chronic_f,
+         "Polymer" = poly_f,
+         "Original Dose (Particles/mL)" = dose.particles.mL.master, 
+         "Original Dose (Particles/mL), Reported or Converted" = dose.particles.mL.master.converted.reported,
+         "Original Dose (mg/L)" = dose.mg.L.master,
+         "Original Dose (mg/L), Reported or Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Endpoint Category" = lvl1_f,
+         "Measured Endpoint" = lvl3_f,
+         "Biological Level of Organization" = bio_f,
+         "Particle Size (µm)" = size.length.um.used.for.conversions, 
+         "Aligned Dose, Volume (Particles/mL)" = EC_env_v.particles.mL, 
+         "Aligned Dose, Volume, Assessment Factors Applied (Particles/mL)" = dose_new)
+
 #Translocation
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
@@ -2242,6 +2296,11 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
       theme.type 
 
 plot(tier3_4_large_median_ggplot)
+
+#Export for manuscript
+ggsave(filename = "FoodDilution_Tier3_4_SSD.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = tier3_4_large_median_ggplot, width = 10, height = 6, units = "in")
 ```
 
 ##### Translocation (1 - 83 µm) 
@@ -2379,6 +2438,31 @@ tier1_2_small <- aoc_final_small %>%
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
+
+#Study list for manuscript
+study_list_translocation_1_2 <-tier1_2_small %>% 
+  select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f,
+         size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
+  rename("DOI" = doi,
+         "First Author" = authors,
+         "Particle Morphology" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Exposure Duration" = acute.chronic_f,
+         "Polymer" = poly_f,
+         "Original Dose (Particles/mL)" = dose.particles.mL.master, 
+         "Original Dose (Particles/mL), Reported or Converted" = dose.particles.mL.master.converted.reported,
+         "Original Dose (mg/L)" = dose.mg.L.master,
+         "Original Dose (mg/L), Reported or Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Endpoint Category" = lvl1_f,
+         "Measured Endpoint" = lvl3_f,
+         "Biological Level of Organization" = bio_f,
+         "Particle Size (µm)" = size.length.um.used.for.conversions, 
+         "Aligned Dose, Surface Area (Particles/mL)" = EC_env_sa.particles.mL, 
+         "Aligned Dose, Surface Area, Assessment Factors Applied (Particles/mL)" = dose_new)
+
 ```
 
 #### Endpoint Representation
@@ -2524,6 +2608,11 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
            theme.type 
 
 plot(tier1_2_small_1q_ggplot)
+
+#Export for manuscript
+ggsave(filename = "Translocation_Tier1_2_SSD.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = tier1_2_small_1q_ggplot, width = 10, height = 6, units = "in")
 ```
 
 #### Tier 1 & 2 Summary Table
@@ -2617,6 +2706,30 @@ tier3_4_small <- aoc_final_small %>%
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
+
+#Study list for manuscript
+study_list_translocation_3_4 <-tier3_4_small %>% 
+  select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f,
+         size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
+  rename("DOI" = doi,
+         "First Author" = authors,
+         "Particle Morphology" = shape_f,
+         "Effect Metric" = effect.metric,
+         "Exposure Duration" = acute.chronic_f,
+         "Polymer" = poly_f,
+         "Original Dose (Particles/mL)" = dose.particles.mL.master, 
+         "Original Dose (Particles/mL), Reported or Converted" = dose.particles.mL.master.converted.reported,
+         "Original Dose (mg/L)" = dose.mg.L.master,
+         "Original Dose (mg/L), Reported or Converted" = dose.mg.L.master.converted.reported,
+         "Organism Group" = org_f,
+         "Species" = species_f,
+         "Endpoint Category" = lvl1_f,
+         "Measured Endpoint" = lvl3_f,
+         "Biological Level of Organization" = bio_f,
+         "Particle Size (µm)" = size.length.um.used.for.conversions, 
+         "Aligned Dose, Surface Area (Particles/mL)" = EC_env_sa.particles.mL, 
+         "Aligned Dose, Surface Area, Assessment Factors Applied (Particles/mL)" = dose_new)
 ```
 
 #### Endpoint Representation
@@ -2758,6 +2871,11 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
           theme.type 
 
 plot(tier3_4_small_median_ggplot)
+
+#Export for manuscript
+ggsave(filename = "Translocation_Tier3_4_SSD.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = tier3_4_small_median_ggplot, width = 10, height = 6, units = "in")
 ```
 
 ##### Tier 3 & 4 Summary Table
@@ -3751,6 +3869,20 @@ gt(smallsdf) %>%
   fmt_number(columns = vars(Tier_3, Tier_4),decimals = 2, use_seps = TRUE)
 
 ```
+
+#Study List Export for Manuscript
+
+```{r}
+
+list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution_1_2, 
+                         "Thresholds 3_4,1-5000um,Vol" = study_list_fooddilution_3_4, 
+                         "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
+                         "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
+
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata.xlsx")
+
+```
+
 
 ## Multi plots
 ### Larges
