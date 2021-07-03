@@ -34,6 +34,7 @@ library(scales)
 library(gt)
 library(ggsci)
 library(openxlsx)
+library(ggpubr)
 
 ```
 
@@ -1931,6 +1932,87 @@ plot(endpoints_tier1_2_small)
 ```
 
 #### SSD Build
+
+##### Data Collapse Comparison - Food Dilution - Tiers 1 & 2
+
+```{r, include = TRUE, warning = FALSE, message = FALSE, fig.height = 6, fig.width = 10}
+
+#Create data frame with all data collapsing methods
+data_collapse <- tier1_2_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Mean = mean(dose_new),
+            Median = median(dose_new),
+            Minimum = min(dose_new),
+            Quartile = quantile(dose_new, 0.25)) %>% 
+  ungroup()
+
+#Output dataframe from loop iterations
+SSD_List <- NULL;
+Prediction_List <- NULL;
+
+#Loop to generate figures SSD for each data collapsing method
+for (i in 1:4)
+
+{ #Open loop
+
+Conc_Type <- case_when(i == 1 ~ "Mean",
+                       i == 2 ~ "Median",
+                       i == 3 ~ "Minimum",
+                       i == 4 ~ "Quartile")
+
+#Give generic name to data collapsing method
+data_collapse$Conc <- data_collapse[[Conc_Type]]
+
+data_collapse_select <- data_collapse %>% 
+  select(Group, Species, Conc) 
+    
+###### Modelling ####
+distribution <- ssd_fit_dists(data_collapse_select, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(distribution) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof <- as.data.frame(ssd_gof(distribution)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+prediction <- predict(distribution, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD <- data_collapse_select[order(data_collapse_select$Conc), ]
+SSD$frac <- ppoints(data_collapse_select$Conc, 0.5)
+
+lcl <- c(prediction$lcl[5]) #CI95
+hc5 <- c(prediction$est[5]) #HC5
+prediction$est_format <-format(prediction$est, digits = 3, scientific = TRUE)
+
+#Save the results of each iteration needed for plots
+tmp_SSD <- SSD %>% 
+  mutate(method = paste(Conc_Type))
+SSD_List <- rbind(SSD_List, tmp_SSD)
+
+tmp_pred <- prediction %>% 
+  mutate(method = paste(Conc_Type))
+Prediction_List <- rbind(Prediction_List, tmp_pred)
+
+} #Close loop
+
+FoodDilution_Tier1_2_DataCollapse <- ggplot(Prediction_List, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", color = "method", fill = "method"), alpha = 0.2) +
+      geom_line(aes_string(y = "percent/100", color = "method")) +
+      # geom_point(data = SSD_tier1_2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+      labs(x = "particles/L", fill = "Data Collapse Method", color = "Data Collapse Method") +
+          fill.type + 
+          color.type + 
+          theme.type 
+
+plot(FoodDilution_Tier1_2_DataCollapse)
+
+```
+
 ##### Data Collapse
 
 ```{r, include = TRUE, warning = FALSE, message = FALSE}
@@ -1947,7 +2029,7 @@ tier1_2_small_1q <- tier1_2_small %>%
 
 ```
 
-##### Food Dilution (10 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include = TRUE, warning = FALSE, fig.height = 6, fig.width = 10}
 ###### Modelling ####
@@ -1976,10 +2058,10 @@ SSD_tier1_2_large_1q_volume <- SSD_tier1_2_large_1q
 
 #ggplot
 tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
-      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
       geom_line(aes_string(y = "percent/100"), color = "gray") +
       geom_point(data = SSD_tier1_2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
-      geom_text_repel(data = SSD_tier1_2_large_1q, aes(x = Conc, y = frac, label = Species), color = "black", size = 3.5, segment.alpha = 0.5, min.segment.length = 0, direction = "x", hjust = -1) +
+      geom_text_repel(data = SSD_tier1_2_large_1q, aes(x = Conc, y = frac, label = Species), color = "black", size = 3.5, segment.alpha = 0.5, min.segment.length = 0, direction = "x", hjust = -1) + 
       scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
       # labs(title = "Microplastics Species Sensitivity Distribution",
       #      subtitle = paste("(ERM = ",ERM,")")) +
@@ -1995,10 +2077,8 @@ tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
 
 plot(tier1_2_large_1q_ggplot)
 
-#Export for manuscript
-ggsave(filename = "FoodDilution_Tier1_2_SSD.tiff",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       plot = tier1_2_large_1q_ggplot, width = 10, height = 6, units = "in")
+#Save to unique name for export
+FoodDilution_Tier1_2_SSD <- tier1_2_large_1q_ggplot
 
 ```
 
@@ -2238,6 +2318,86 @@ plot(endpoints_tier3_4_small)
 
 #### SSD Build
 
+##### Data Collapse Comparison - Food Dilution - Tiers 3 & 4
+
+```{r, include = TRUE, warning = FALSE, message = FALSE, fig.height = 6, fig.width = 10}
+
+#Create data frame with all data collapsing methods
+data_collapse <- tier3_4_large %>% 
+  group_by(Species, Group) %>% 
+  summarize(Mean = mean(dose_new),
+            Median = median(dose_new),
+            Minimum = min(dose_new),
+            Quartile = quantile(dose_new, 0.25)) %>% 
+  ungroup()
+
+#Output dataframe from loop iterations
+SSD_List <- NULL;
+Prediction_List <- NULL;
+
+#Loop to generate figures SSD for each data collapsing method
+for (i in 1:4)
+
+{ #Open loop
+
+Conc_Type <- case_when(i == 1 ~ "Mean",
+                       i == 2 ~ "Median",
+                       i == 3 ~ "Minimum",
+                       i == 4 ~ "Quartile")
+
+#Give generic name to data collapsing method
+data_collapse$Conc <- data_collapse[[Conc_Type]]
+
+data_collapse_select <- data_collapse %>% 
+  select(Group, Species, Conc) 
+    
+###### Modelling ####
+distribution <- ssd_fit_dists(data_collapse_select, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(distribution) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof <- as.data.frame(ssd_gof(distribution)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+prediction <- predict(distribution, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD <- data_collapse_select[order(data_collapse_select$Conc), ]
+SSD$frac <- ppoints(data_collapse_select$Conc, 0.5)
+
+lcl <- c(prediction$lcl[5]) #CI95
+hc5 <- c(prediction$est[5]) #HC5
+prediction$est_format <-format(prediction$est, digits = 3, scientific = TRUE)
+
+#Save the results of each iteration needed for plots
+tmp_SSD <- SSD %>% 
+  mutate(method = paste(Conc_Type))
+SSD_List <- rbind(SSD_List, tmp_SSD)
+
+tmp_pred <- prediction %>% 
+  mutate(method = paste(Conc_Type))
+Prediction_List <- rbind(Prediction_List, tmp_pred)
+
+} #Close loop
+
+FoodDilution_Tier3_4_DataCollapse <- ggplot(Prediction_List, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", color = "method", fill = "method"), alpha = 0.2) +
+      geom_line(aes_string(y = "percent/100", color = "method")) +
+      # geom_point(data = SSD_tier1_2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+      labs(x = "particles/L", fill = "Data Collapse Method", color = "Data Collapse Method") +
+          fill.type + 
+          color.type + 
+          theme.type 
+
+plot(FoodDilution_Tier3_4_DataCollapse)
+
+```
+
 ##### Data Collapse
 
 ```{r, include = TRUE, warning = FALSE, message = FALSE}
@@ -2254,7 +2414,7 @@ tier3_4_small_median <- tier3_4_small %>%
 
 ```
 
-##### Food Dilution (10 - 5000 µm) 
+##### Food Dilution (1 - 5000 µm) 
 
 ```{r include = TRUE, warning = FALSE, fig.height = 6, fig.width = 10}
 ###### --modelling ####
@@ -2297,10 +2457,9 @@ tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "
 
 plot(tier3_4_large_median_ggplot)
 
-#Export for manuscript
-ggsave(filename = "FoodDilution_Tier3_4_SSD.tiff",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       plot = tier3_4_large_median_ggplot, width = 10, height = 6, units = "in")
+#Save to unique name for export
+FoodDilution_Tier3_4_SSD <- tier3_4_large_median_ggplot
+
 ```
 
 ##### Translocation (1 - 83 µm) 
@@ -2502,6 +2661,87 @@ plot(endpoints_tier1_2_small)
 ```
 
 #### SSD Build
+
+##### Data Collapse Comparison - Translocation - Tiers 1 & 2
+
+```{r, include = TRUE, warning = FALSE, message = FALSE, fig.height = 6, fig.width = 10}
+
+#Create data frame with all data collapsing methods
+data_collapse <- tier1_2_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Mean = mean(dose_new),
+            Median = median(dose_new),
+            Minimum = min(dose_new),
+            Quartile = quantile(dose_new, 0.25)) %>% 
+  ungroup()
+
+#Output dataframe from loop iterations
+SSD_List <- NULL;
+Prediction_List <- NULL;
+
+#Loop to generate figures SSD for each data collapsing method
+for (i in 1:4)
+
+{ #Open loop
+
+Conc_Type <- case_when(i == 1 ~ "Mean",
+                       i == 2 ~ "Median",
+                       i == 3 ~ "Minimum",
+                       i == 4 ~ "Quartile")
+
+#Give generic name to data collapsing method
+data_collapse$Conc <- data_collapse[[Conc_Type]]
+
+data_collapse_select <- data_collapse %>% 
+  select(Group, Species, Conc) 
+    
+###### Modelling ####
+distribution <- ssd_fit_dists(data_collapse_select, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(distribution) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof <- as.data.frame(ssd_gof(distribution)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+prediction <- predict(distribution, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD <- data_collapse_select[order(data_collapse_select$Conc), ]
+SSD$frac <- ppoints(data_collapse_select$Conc, 0.5)
+
+lcl <- c(prediction$lcl[5]) #CI95
+hc5 <- c(prediction$est[5]) #HC5
+prediction$est_format <-format(prediction$est, digits = 3, scientific = TRUE)
+
+#Save the results of each iteration needed for plots
+tmp_SSD <- SSD %>% 
+  mutate(method = paste(Conc_Type))
+SSD_List <- rbind(SSD_List, tmp_SSD)
+
+tmp_pred <- prediction %>% 
+  mutate(method = paste(Conc_Type))
+Prediction_List <- rbind(Prediction_List, tmp_pred)
+
+} #Close loop
+
+Translocation_Tier1_2_DataCollapse <- ggplot(Prediction_List, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", color = "method", fill = "method"), alpha = 0.2) +
+      geom_line(aes_string(y = "percent/100", color = "method")) +
+      # geom_point(data = SSD_tier1_2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+      labs(x = "particles/L", fill = "Data Collapse Method", color = "Data Collapse Method") +
+          fill.type + 
+          color.type + 
+          theme.type 
+
+plot(Translocation_Tier1_2_DataCollapse)
+
+```
+
 ##### Data Collapse
 
 ```{r, include = TRUE, warning = FALSE, message = FALSE}
@@ -2609,10 +2849,9 @@ tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
 
 plot(tier1_2_small_1q_ggplot)
 
-#Export for manuscript
-ggsave(filename = "Translocation_Tier1_2_SSD.tiff",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       plot = tier1_2_small_1q_ggplot, width = 10, height = 6, units = "in")
+#Save to unique name for export
+Translocation_Tier1_2_SSD <- tier1_2_small_1q_ggplot
+
 ```
 
 #### Tier 1 & 2 Summary Table
@@ -2769,7 +3008,88 @@ plot(endpoints_tier3_4_small)
 ```
 
 #### SSD Build
-#### Data Collapse
+
+##### Data Collapse Comparison - Translocation - Tiers 3 & 4
+
+```{r, include = TRUE, warning = FALSE, message = FALSE, fig.height = 6, fig.width = 10}
+
+#Create data frame with all data collapsing methods
+data_collapse <- tier3_4_small %>% 
+  group_by(Species, Group) %>% 
+  summarize(Mean = mean(dose_new),
+            Median = median(dose_new),
+            Minimum = min(dose_new),
+            Quartile = quantile(dose_new, 0.25)) %>% 
+  ungroup()
+
+#Output dataframe from loop iterations
+SSD_List <- NULL;
+Prediction_List <- NULL;
+
+#Loop to generate figures SSD for each data collapsing method
+for (i in 1:4)
+
+{ #Open loop
+
+Conc_Type <- case_when(i == 1 ~ "Mean",
+                       i == 2 ~ "Median",
+                       i == 3 ~ "Minimum",
+                       i == 4 ~ "Quartile")
+
+#Give generic name to data collapsing method
+data_collapse$Conc <- data_collapse[[Conc_Type]]
+
+data_collapse_select <- data_collapse %>% 
+  select(Group, Species, Conc) 
+    
+###### Modelling ####
+distribution <- ssd_fit_dists(data_collapse_select, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+
+#autoplot(distribution) #plots the distribution in ggplotier2
+#### Goodness of fit ####
+gof <- as.data.frame(ssd_gof(distribution)) %>% mutate_if(is.numeric, ~ signif(., 3))
+
+#### Prediction ####
+set.seed(99)
+prediction <- predict(distribution, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+
+#order data
+SSD <- data_collapse_select[order(data_collapse_select$Conc), ]
+SSD$frac <- ppoints(data_collapse_select$Conc, 0.5)
+
+lcl <- c(prediction$lcl[5]) #CI95
+hc5 <- c(prediction$est[5]) #HC5
+prediction$est_format <-format(prediction$est, digits = 3, scientific = TRUE)
+
+#Save the results of each iteration needed for plots
+tmp_SSD <- SSD %>% 
+  mutate(method = paste(Conc_Type))
+SSD_List <- rbind(SSD_List, tmp_SSD)
+
+tmp_pred <- prediction %>% 
+  mutate(method = paste(Conc_Type))
+Prediction_List <- rbind(Prediction_List, tmp_pred)
+
+} #Close loop
+
+Translocation_Tier3_4_DataCollapse <- ggplot(Prediction_List, aes_string(x = "est")) +
+      geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", color = "method", fill = "method"), alpha = 0.2) +
+      geom_line(aes_string(y = "percent/100", color = "method")) +
+      # geom_point(data = SSD_tier1_2_large_1q,aes(x = Conc, y =frac, color = Group)) + 
+      scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+      coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                         labels = trans_format("log10", scales::math_format(10^.x))) + 
+      labs(x = "particles/L", fill = "Data Collapse Method", color = "Data Collapse Method") +
+          fill.type + 
+          color.type + 
+          theme.type 
+
+plot(Translocation_Tier3_4_DataCollapse)
+
+```
+
+##### Data Collapse
 
 ```{r, include = TRUE, warning = FALSE, message = FALSE}
 
@@ -2872,10 +3192,9 @@ tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "
 
 plot(tier3_4_small_median_ggplot)
 
-#Export for manuscript
-ggsave(filename = "Translocation_Tier3_4_SSD.tiff",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       plot = tier3_4_small_median_ggplot, width = 10, height = 6, units = "in")
+#Save to unique name for export
+Translocation_Tier3_4_SSD <- tier3_4_small_median_ggplot
+
 ```
 
 ##### Tier 3 & 4 Summary Table
@@ -3870,16 +4189,42 @@ gt(smallsdf) %>%
 
 ```
 
-#Study List Export for Manuscript
+#Study List & Figure Export for Manuscript
 
-```{r}
-
+```{r, fig.height = 12, fig.width = 14}
+#Study Lists
 list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution_1_2, 
                          "Thresholds 3_4,1-5000um,Vol" = study_list_fooddilution_3_4, 
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
 write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata.xlsx")
+
+#Data Collapse
+
+Data_Collapse_Figure <- ggarrange(FoodDilution_Tier1_2_DataCollapse, FoodDilution_Tier3_4_DataCollapse,
+                                  Translocation_Tier1_2_DataCollapse, Translocation_Tier3_4_DataCollapse,
+                        labels = c("A", "B", "C", "D"), common.legend = TRUE, legend = "bottom",
+                        ncol = 2, nrow = 2)
+
+plot(Data_Collapse_Figure)
+
+ggsave(filename = "Data_Collapse_Figure_SI2.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = Data_Collapse_Figure, width = 12, height = 8, units = "in")
+
+#SSDs
+
+SSD_Figure <- ggarrange(FoodDilution_Tier1_2_SSD, FoodDilution_Tier3_4_SSD,
+                        Translocation_Tier1_2_SSD,Translocation_Tier3_4_SSD,
+                        labels = c("A", "B", "C", "D"), common.legend = TRUE, legend = "bottom",
+                        ncol = 2, nrow = 2)
+
+plot(SSD_Figure)
+
+ggsave(filename = "SSD_Figure_Fig2.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = SSD_Figure, width = 14, height = 12, units = "in")
 
 ```
 
