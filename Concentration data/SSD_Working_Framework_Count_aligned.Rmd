@@ -52,7 +52,7 @@ large_tier_upper_size <- 5000 #um
 ```{r Aesthetics, include = FALSE}
 
 #Theme
-theme.type <- theme_bw(base_size = 12) +
+theme.type <- theme_bw(base_size = 15) +
               theme(plot.title = element_text(hjust = 0.5),
                     plot.subtitle = element_text(hjust = 0.5))
 
@@ -4211,7 +4211,7 @@ plot(Data_Collapse_Figure)
 
 ggsave(filename = "Data_Collapse_Figure_SI2.tiff",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       plot = Data_Collapse_Figure, width = 12, height = 8, units = "in")
+       plot = Data_Collapse_Figure, width = 14, height = 12, units = "in")
 
 #SSDs
 
