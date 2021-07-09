@@ -99,6 +99,13 @@ kable(data.frame(
   "lower_size_range_microns" = x1D_set,
   "upper_size_range_microns" = x2D_set))
 ```
+To compare thresholds to concentrations observed in the environment, datasets compiled in previous meta-analyses were collated (Covernton et al. 2019; Adam, Yang, and Nowack 2019).
+
+Adam, Véronique, Tong Yang, and Bernd Nowack. 2019. “Toward an Ecotoxicological Risk Assessment of Microplastics: Comparison of Available Hazard and Exposure Data in Freshwaters.” Environmental Toxicology and Chemistry 38 (2): 436–47. https://doi.org/10.1002/etc.4323.
+
+Covernton, Garth A., Christopher M. Pearce, Helen J. Gurney-Smith, Stephen G. Chastain, Peter S. Ross, John F. Dower, and Sarah E. Dudas. 2019. “Size and Shape Matter: A Preliminary Analysis of Microplastic Sampling Technique in Seawater Studies with Implications for Ecological Risk Assessment.” Science of The Total Environment 667 (June): 124–32. https://doi.org/10.1016/j.scitotenv.2019.02.346.
+
+
 
 ```{r}
 #data import
@@ -116,6 +123,10 @@ sfBay <- read.csv("Concentration Data/Datasets/SFBayData.csv", na.strings = "NA"
          x2M = Max.particle.size.um) %>% 
   mutate(Sample.Type = "sample")
 
+covernton <- read.csv("Concentration Data/Datasets/Covernton.csv", na.strings = "NA", stringsAsFactors = TRUE) %>%
+  rename(x1M = Min.particle.size.um,
+         x2M = Max.particle.size.um) %>% 
+  mutate(Sample.Type = "sample")
 ```
 
 
@@ -161,6 +172,22 @@ sfBay <- sfBay %>%
   rename(Sampling.location = general.location) %>% 
   select(-c(particles.L.blank.corrected, particles.kg.blank.corrected, particles.fish.blank.corrected))
 
+# correct aquatic concentrations for Ocean Samples
+covernton <- covernton %>% 
+  mutate(CF = CFfnx(x1M = x1M, x2M = x2M)) %>%  #create new column with correction factor 
+  mutate(particle.L.master = conc....m3. * CF) %>% 
+  mutate(source = "Covernton") %>% 
+  rename(Reference = study) %>% 
+  rename(Sampling.location = Sampling.Location) %>% 
+  select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, CF,particle.L.master, source, Reference)) %>% 
+   mutate(sampleID = NA,
+         specific.location = NA,
+         latitude = NA,
+         longitude = NA,
+         sample.matrix = "water",
+         sample.matrix.specific = "surface water"
+         )
+
 ## join datasets ##
 #first ensure that both datasets share all columns
 adam_sub <- adam %>% 
@@ -174,7 +201,7 @@ adam_sub <- adam %>%
          )
 
 #join data
-globalData <- rbind(adam_sub, sfBay) %>% 
+globalData <- rbind(adam_sub, sfBay, covernton) %>% 
   mutate(Conc = particle.L.master) %>% 
   mutate_if(is.character, as.factor)
 ```
@@ -224,14 +251,18 @@ globalData %>%
   #                alpha = 0.9,
   #                position = "stack") +
   geom_density( alpha = 0.6, lwd = 0.8, adjust = 0.6) +
-  scale_fill_manual(name = "Location", labels = c("Global (no CA data)", "San Francisco Bay"),
-                   values = c("#00798c", "#d1495b")) +
+  scale_fill_manual(name = "Location", labels = c("Rivers and Lakes",
+                                                  "Oceans",
+                                                  "San Francisco Bay"
+                                                  ),
+                    values = cal_palette("superbloom3")) + 
+                   #values = c("#00798c", "#d1495b", "black")) +
   scale_x_continuous(name = "Particles/L",breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
   ylab("Normalized Abundance") +
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
-  labs(title = "Global Surface Water Marine Microplastics Concentrations",
+  labs(title = "Global Surface Water Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("n = 24 studies, 77 sampling locations, n_samples = 484; corrected for size, blanks. Alpha = ",alpha))+
+       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha))+
   dark_theme_minimal(base_size = 25) +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
@@ -252,13 +283,17 @@ globalData %>%
             # color = source, 
              binwidth = binwidth)) +
  geom_boxplot() +
-  scale_fill_manual(name = "Location", labels = c("Global (no CA data)", "San Francisco Bay"),
-                    values = c("#00798c", "#d1495b")) +
+   scale_fill_manual(name = "Location", labels = c("Rivers and Lakes",
+                                                  "Oceans",
+                                                  "San Francisco Bay"
+                                                  ),
+                    values = cal_palette("superbloom3")) + 
+                    #values = c("#00798c", "#d1495b")) +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("n = 24 studies, 77 sampling locations, n_samples = 559; corrected for size, blanks. Alpha = ",alpha))+
+       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha))+
   theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
@@ -300,7 +335,7 @@ dfADAM_exceedance %>%
                                "above Threshold 4" = "gray33")) +
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from 24 studies, 77 sampling locations, n = 559; corrected for size, blanks. Alpha = ",alpha))+
+       caption = paste("Concentration data from n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha))+
   theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),

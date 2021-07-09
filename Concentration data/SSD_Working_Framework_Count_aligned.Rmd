@@ -696,26 +696,66 @@ SSAfnx = function(sa, #surface area, calcaulted elsewhere
 
 ## parametrization ##
 # Define params for correction #
-alpha = 2.07 #table s4 for marine surface water. length
+alpha.marine = 2.07 #table s4 for marine surface water. length
+alpha.freshwater = 2.64 #table s4 for freshwater surface water. length
 # define parameters for power law coefficients
-a.sa = 1.5 #marine surface area power law
-a.v = 1.48 #a_V for marine surface water volume
-a.m = 1.32 # upper limit fora_m for mass for marine surface water in table S4 
-a.ssa = 1.98 # A_SSA for marine surface water
+a.sa.marine = 1.5 #marine surface area power law
+a.sa.freshwater = 2.00 #freshwater surface area power law
+a.v.marine = 1.48 #a_V for marine surface water volume
+a.v.freshwater = 1.68 #a_V for Freshwater surface water volume
+a.m.marine = 1.32 # upper limit fora_m for mass for marine surface water in table S4
+a.m.freshwater = 1.65 # upper limit fora_m for mass for freshwater surface water in table S4 
+a.ssa.marine = 1.98 # A_SSA for marine surface water
+a.ssa.freshwater = 2.71 # A_SSA for freshwater surface water
 
 #define additional parameters for calculations based on averages in the environment
-R.ave = 0.77 #average width to length ratio for microplastics in marine enviornment
-p.ave = 1.10 #average density in marine surface water
+R.ave.marine = 0.77 #average width to length ratio for microplastics in marine enviornment
+p.ave.marine = 1.10 #average density in marine surface water
+R.ave.freshwater = 0.67 #average width to length ratio for microplastics in surface freshwater
+p.ave.freshwater = 1.04 #average density in freshwater surface water
 
+#join alpha values for each data point
+aoc_intermediate_alphas <- aoc_intermediate %>% 
+  mutate(alpha = case_when(
+    environment == "Marine" ~ alpha.marine,
+    environment == "Freshwater" ~ alpha.freshwater
+  )) %>% 
+  mutate(a.sa = case_when(
+    environment == "Marine" ~ a.sa.marine,
+    environment == "Freshwater" ~ a.sa.freshwater
+  )) %>% 
+   mutate(a.v = case_when(
+    environment == "Marine" ~ a.v.marine,
+    environment == "Freshwater" ~ a.v.freshwater
+  )) %>% 
+   mutate(a.m = case_when(
+    environment == "Marine" ~ a.m.marine,
+    environment == "Freshwater" ~ a.m.freshwater
+  )) %>% 
+   mutate(a.ssa = case_when(
+    environment == "Marine" ~ a.ssa.marine,
+    environment == "Freshwater" ~ a.ssa.freshwater
+  )) %>% 
+   mutate(R.ave = case_when(
+    environment == "Marine" ~ R.ave.marine,
+    environment == "Freshwater" ~ R.ave.freshwater
+  )) %>% 
+   mutate(p.ave = case_when(
+    environment == "Marine" ~ p.ave.marine,
+    environment == "Freshwater" ~ p.ave.freshwater
+  ))
+```
 
+```{r}
 ##### SMALL TIER DATA ####
 ### Set size limits for tier
 x2D_set = small_tier_upper_size #upper size range (default)
 x1D_set = small_tier_lower_size #lower size range (default)
 x1M_set = small_tier_lower_size #lower size range for measured
 
+
 # calculate ERM for each species
-aoc_final_small <- aoc_intermediate  %>% 
+aoc_final_small <- aoc_intermediate_alphas  %>% 
    # define upper size length for Translocation
   mutate(x2M = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
                          max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
@@ -810,7 +850,7 @@ x1D_set <- large_tier_lower_size #lower size range (default)
 x1M_set <- large_tier_lower_size #lower size range for measured
 # calculate ERM for each species
 
-aoc_final_large <- aoc_intermediate  %>% 
+aoc_final_large <- aoc_intermediate_alphas  %>% 
   # define upper size WIDTH for ingestion (based on average width:length ratio)
   mutate(x2M = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
                          (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
@@ -4198,7 +4238,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata.xlsx")
+# write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata.xlsx")
 
 #Data Collapse
 
@@ -4484,6 +4524,236 @@ gt(ERM_large) %>%
     tab_options(column_labels.hidden = FALSE) #%>% 
     #as_raw_html() # return as html
 ```
+## Environment
+Alignments are compartment-specific.
+```{r}
+#### define function for SSD generation for tier 1 ####
+SSD_function_t1 <- function(filtered.data, hcxlcl){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#
+ssd_frame <- collapsed[order(collapsed$Conc), ]
+ssd_frame$frac <- ppoints(collapsed$Conc, 0.5)
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
+#values to extract
+#print(hc5lcl)
+return(list(preds, ssd_frame))
+}
+```
+
+### Oxidative Stress
+#### Marine vs. Marine + Freshwater
+Note that there's only 5 freshwater species that meet criteria for oxidative stress thresholds, so it's impossible to compare them.
+```{r}
+### Marine
+#data filtering
+Marine_t1_ox <- aoc_final_small %>% 
+         mutate(dose_new = 1000 * EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine")
+
+## SSD build
+marine_ox.t1.ssd <- SSD_function_t1(filtered.data = Marine_t1_ox, hcxlcl = 5)
+
+#extract data frames from object
+marine_ox.t1.preds <- as.data.frame(marine_ox.t1.ssd[1])
+marine_ox.t1.points <- as.data.frame(marine_ox.t1.ssd[2])
+
+### Freshwater
+#data filtering
+Freshwater_t1_ox <- aoc_final_small %>% 
+         mutate(dose_new = 1000 * EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Freshwater")
+
+## SSD build
+freshwater_ox.t1.ssd <- SSD_function_t1(filtered.data = Freshwater_t1_ox, hcxlcl = 5)
+
+#extract data frames from object
+freshwater_ox.t1.preds <- as.data.frame(Freshwater_ox.t1.ssd[1])
+freshwater_ox.t1.points <- as.data.frame(Freshwater_ox.t1.ssd[2])
+
+
+
+# give uniq id
+marine_preds <- marine_ox.t1.preds %>% 
+  mutate(type = "Marine")
+marine_points <-  marine_ox.t1.points %>% 
+  mutate(type = "Marine")
+freshwater_points <- freshwater_ox.t1.points %>% 
+  mutate(type = "Freshwater") 
+freshwater_preds <-  freshwater_ox.t1.preds %>% 
+  mutate(type = "Freshwater")
+#join dataframes
+t1.ox.preds <- rbind(marine_preds, freshwater_preds)
+t1.ox.points <- rbind(marine_points, freshwater_points)
+
+
+#ggplot
+ggplot() +#, aes_string(x = "est")) +
+  geom_xribbon(data = t1.ox.preds, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.4) +
+  geom_line(data = t1.ox.preds, aes_string(x = "est", y = "percent/100", fill = "type")) +
+  geom_point(data = t1.ox.points, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (polymer/shape - agnostic)",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+### Food Dilution
+#### Marine vs. Freshwater vs. Marine + Freshwater
+```{r}
+### Marine
+#data filtering
+Marine_t1_food <- aoc_final_large %>% 
+         mutate(dose_new =EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
+
+## SSD build
+marine_food.t1.ssd <- SSD_function_t1(filtered.data = Marine_t1_food, hcxlcl = 5)
+
+#extract data frames from object
+marine_food.t1.preds <- as.data.frame(marine_food.t1.ssd[1])
+marine_food.t1.points <- as.data.frame(marine_food.t1.ssd[2])
+
+### Freshwater
+#data filtering
+Freshwater_t1_food <- aoc_final_large %>% 
+         mutate(dose_new =  EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Freshwater")
+
+## SSD build
+freshwater_food.t1.ssd <- SSD_function_t1(filtered.data = Freshwater_t1_food, hcxlcl = 5)
+
+#extract data frames from object
+freshwater_food.t1.preds <- as.data.frame(freshwater_food.t1.ssd[1])
+freshwater_food.t1.points <- as.data.frame(freshwater_food.t1.ssd[2])
+
+### Marine + freshwater
+#data filtering
+both_t1_food <- aoc_final_large %>% 
+         mutate(dose_new =  EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))
+
+## SSD build
+both_food.t1.ssd <- SSD_function_t1(filtered.data = both_t1_food, hcxlcl = 5)
+
+#extract data frames from object
+both_food.t1.preds <- as.data.frame(both_food.t1.ssd[1])
+both_food.t1.points <- as.data.frame(both_food.t1.ssd[2])
+
+
+# give uniq id
+marine_preds <- marine_food.t1.preds %>% 
+  mutate(type = "Marine")
+marine_points <-  marine_food.t1.points %>% 
+  mutate(type = "Marine")
+freshwater_points <- freshwater_food.t1.points %>% 
+  mutate(type = "Freshwater") 
+freshwater_preds <-  freshwater_food.t1.preds %>% 
+  mutate(type = "Freshwater")
+both_preds <- both_food.t1.preds %>% 
+  mutate(type = "Marine + Freshwater")
+both_points <-  both_food.t1.points %>% 
+  mutate(type = "Marine + Freshwater")
+#join dataframes
+t1.food.preds <- rbind(marine_preds, freshwater_preds, both_preds)
+t1.food.points <- rbind(marine_points, freshwater_points, both_points)
+
+
+#ggplot
+ggplot() +#, aes_string(x = "est")) +
+  geom_xribbon(data = t1.food.preds, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.15) +
+  geom_line(data = t1.food.preds, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  geom_point(data = t1.food.points, aes(x = Conc, y =frac, color = type), alpha = 0.3) + 
+  #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Freshwater vs. Marine SSDs",
+       subtitle = "Tier 2, 1um - Ingestible limit; ERM = Food Dilution",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  scale_fill_aaas(name = "Environment") +
+  scale_color_aaas(name = "Environment") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+```
+#### Kolmogorov-Smirnov Test for Differences
+K-S tests make no assumption about the underlying distributions, and should be used for empirical distributions only. 
+
+```{r}
+ks.test(x = freshwater_food.t1.points[,3],
+        y = marine_food.t1.points[,3],
+        exact = TRUE)
+
+ks.test(x = freshwater_food.t1.points[,3],
+        y = both_food.t1.points[,3],
+        exact = TRUE)
+
+ks.test(x = marine_food.t1.points[,3],
+        y = both_food.t1.points[,3],
+        exact = TRUE)
+```
+
+### Publication Ready
+```{r}
+#ggplot
+food_environment_ssds <- ggplot() +#, aes_string(x = "est")) +
+  geom_xribbon(data = t1.food.preds, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.15) +
+  geom_line(data = t1.food.preds, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  geom_point(data = t1.food.points, aes(x = Conc, y =frac, color = type), alpha = 0.3) + 
+  #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(#title = "Freshwater vs. Marine SSDs",
+       #subtitle = "Tier 2, 1um - Ingestible limit; ERM = Food Dilution",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  scale_fill_aaas(name = "Environment") +
+  scale_color_aaas(name = "Environment") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type #user theme
+
+food_environment_ssds
+
+ggsave(plot = food_environment_ssds,
+       filename = "food_environment_ssds_SI-Fig4.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 14, height = 12, units = "in",
+       dpi = 300)
+```
+
 ## SIMPLE Summary Table
 Thresholds are presented in multiple exposure metrics, aligned to ERMs of interest (surface area for translocatable particles, volume for ingestible particles). Data are aligned using the methods described in Kooi et al 2021. 
 
@@ -4891,9 +5161,13 @@ t1_2_SA <- tier1_small_SA %>%
 ```{r}
 #study
 tier1_small_SA %>% 
-  mutate(doi = fct_reorder(doi, hcxlcl)) %>% 
-  mutate(diff = (hcxlcl - aoc_final_smalllcl)/aoc_final_smalllcl) %>% 
-  ggplot(aes(x = diff, y = doi, color = Species)) +
+  distinct(doi, authors, year, hcxlcl, Species) %>% 
+  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
+   mutate(authoryear = fct_reorder(authoryear, hcxlcl)) %>% 
+   mutate(diff = (hcxlcl - aoc_final_smalllcl)/aoc_final_smalllcl) %>% 
+  group_by(doi, authoryear, diff) %>% 
+  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
+  ggplot(aes(x = diff, y = doi)) +
   geom_point() +
   geom_text_repel(aes(label = species_multiple),
                   size= 3,
