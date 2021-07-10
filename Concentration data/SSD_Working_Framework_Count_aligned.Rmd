@@ -1,5 +1,5 @@
 ---
-title: "Aquatic Environment Thresholds"
+title: "Aquatic Environment Thresholds for Marine Species"
 author: "Scott Coffin & Leah Thornton Hampton"
 date: "7/1/2021"
 output:   
@@ -13,7 +13,7 @@ output:
   word_document:
     toc: yes
 ---
-
+*MARINE SPECIES ONLY*
 ```{r Libraries, include = FALSE}
 
 library(tidyverse)
@@ -547,7 +547,7 @@ The following script utilizes the above equations to calculate *a priori* effect
 ```{r}
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
-  filter(!environment %in% c("Terrestrial", "Not Reported"),
+  filter(!environment %in% c("Terrestrial", "Not Reported", "Freshwater"),
          org_f != "Bacterium",
          org_f != "Plant",
     effect.metric != "HONEC",
@@ -4726,12 +4726,17 @@ ks.test(x = marine_food.t1.points[,3],
 
 ### Publication Ready
 ```{r}
+preds <- t1.food.preds %>% 
+  filter(type != "Marine + Freshwater")
+points <- t1.food.points %>% 
+  filter(type != "Marine + Freshwater")
+
 #ggplot
 food_environment_ssds <- ggplot() +#, aes_string(x = "est")) +
-  geom_xribbon(data = t1.food.preds, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.15) +
-  geom_line(data = t1.food.preds, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
-  geom_point(data = t1.food.points, aes(x = Conc, y =frac, color = type), alpha = 0.3) + 
-  #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_xribbon(data = preds, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.15) +
+  geom_line(data = preds, aes_string(x = "est", y = "percent/100", color = "type")) +
+  geom_point(data = points, aes(x = Conc, y =frac, color = Group), alpha = 0.5) + 
+  geom_text_repel(data = points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(#title = "Freshwater vs. Marine SSDs",
        #subtitle = "Tier 2, 1um - Ingestible limit; ERM = Food Dilution",
@@ -4739,7 +4744,8 @@ food_environment_ssds <- ggplot() +#, aes_string(x = "est")) +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
-  scale_fill_aaas(name = "Environment") +
+  scale_fill_manual(name = "Environment",
+                  values = c("#EE0000FF", "#3B4992FF")) +
   scale_color_aaas(name = "Environment") +
   #fill.type + #user-selected
   #color.type + #user-selected
@@ -4811,7 +4817,7 @@ full_val_range <- simple.summary %>%
 gt(simple.summary) %>% 
   tab_header(title = "Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
   fmt_number(columns = vars(names(simple.summary)[2:7]), 
-             decimals = 0,
+             decimals = 1,
              use_seps = TRUE) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
   tab_spanner(label = "Surface Area ERM",
