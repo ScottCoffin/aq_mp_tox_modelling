@@ -18,10 +18,10 @@ library(skimr)
 library(ggeffects)
 library(ggdark)
 ```
-
+# Setup
 ```{r}
 #data cleanup
-Tissue_Translocation <- read_excel("translocation/Tissue_Translocation.xlsx", 
+Tissue_Translocation <- read_excel("Tissue_Translocation.xlsx", 
     sheet = "obs") %>% 
   mutate(Species = as.factor(Species)) %>% 
   mutate(Polymer = as.factor(Polymer)) %>% 
@@ -47,9 +47,92 @@ df <- Tissue_Translocation %>%
   drop_na()
 skim(df)
 ```
+## Join
+```{r}
+#Load aoc_z into dataframe. This file is generated from RDA_Maker.R
+#Source("Tox Data/RDA_Maker.R")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
+```{r}
+quality <- aoc_z %>% 
+ select(c(
+    doi:risk.tier.zero.criteria.failure
+  ))
+
+joined <- left_join(Tissue_Translocation, quality, by = "doi") %>% 
+  distinct() %>% 
+     #Assign descriptions to each criteria
+      rename("Test Medium Reported*" = "tech.a1",
+    "Administration Route Reported*" = "tech.a2",
+     "Test Species Reported*" = "tech.a3",
+     "Sample Size Reported*" = "tech.a4",
+    "Control Group Reported*" = "tech.a5",
+    "Exposure Duration Reported*" = "tech.a6" ,
+    "Particle Size*" = "tech.1",
+    "Particle Shape*" = "tech.2",
+    "Polymer Type*" = "tech.3",
+                                  "Source of Microplastics*" = "tech.4",
+                                     "Data Reporting*" = "tech.5",
+                                    "Chemical Purity" = "tech.6",
+                                     "Laboratory Preparation" = "tech.7",
+                                    "Background Contamination" = "tech.8",
+                                    "Exposure Verification" = "tech.9",
+                                     "Exposure Homogeneity" = "tech.10",
+                                    "Exposure Assessment" = "tech.11",
+                                    "Replication" = "tech.12",
+                                    "Endpoints" = "risk.13",
+                                    "Food Availability" = "risk.14",
+                                    "Effect Thresholds" = "risk.15",
+                                    "Dose Response" = "risk.16",
+                                    "Concentration Range" = "risk.17",
+                                    "Aging and Biofouling" = "risk.18",
+                                    "Risk Assessment" = "risk.18",
+                                    "Microplastic Diversity" = "risk.19",
+                                    "Exposure Time" = "risk.20")
+ 
+# what studies are missing quality criteria?
+joined %>% filter(is.na('Test Medium Reported*')) %>% 
+  distinct(doi, .keep_all = TRUE) %>% 
+  view()
+
+write.csv(joined, "translocation_scored_2.csv")
+
+#re-assign descriptions to each criteria in normal format
+      rename("tech.a1" = "Test Medium Reported*",
+    "tech.a2" = "Administration Route Reported*",
+     "tech.a3" = "Test Species Reported*",
+     "tech.a4" = "Sample Size Reported*",
+    "tech.a5" = "Control Group Reported*",
+    "tech.a6" = "Exposure Duration Reported*",
+    "tech.1" = "Particle Size*",
+    "tech.2" = "Particle Shape*",
+    "tech.3" = "Polymer Type*",
+                                  "tech.4" = "Source of Microplastics*",
+                                    "tech.5" = "Data Reporting*",
+                                    "tech.6" = "Chemical Purity",
+                                    "tech.7" = "Laboratory Preparation",
+                                    "tech.8" = "Background Contamination",
+                                    "tech.9" = "Exposure Verification",
+                                    "tech.10" = "Exposure Homogeneity",
+                                    "tech.11" = "Exposure Assessment",
+                                    "tech.12" = "Replication",
+                                    "risk.13" = "Endpoints",
+                                    "risk.14" = "Food Availability",
+                                    "risk.15" = "Effect Thresholds",
+                                    "risk.16" = "Dose Response",
+                                    "risk.17" = "Concentration Range",
+                                    "risk.18" = "Aging and Biofouling",
+                                    "risk.18" = "Risk Assessment",
+                                    "risk.19" = "Microplastic Diversity",
+                                    "risk.20" = "Exposure Time")
+```
 
 
-#logistic regression
+## Quality Screening
+
+
+# Modelling
+##logistic regression
 ```{r}
 response <- as.numeric(as.character(df$translocated_10))
 predictors <- as.data.frame(df %>% dplyr::select(-translocated_10))
