@@ -547,9 +547,11 @@ The following script utilizes the above equations to calculate *a priori* effect
 ```{r}
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
-  filter(!environment %in% c("Terrestrial", "Not Reported", "Freshwater"),
+  filter(!environment %in% c("Terrestrial", "Not Reported"),#, "Marine"),
+                             #, "Freshwater"),
          org_f != "Bacterium",
          org_f != "Plant",
+         #org_f != "Algae",
     effect.metric != "HONEC",
     tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
@@ -851,6 +853,8 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 # calculate ERM for each species
 
 aoc_final_large <- aoc_intermediate_alphas  %>% 
+  # remove algae, as food dilution MOE doesn't make sense for algae
+  filter(bio_f != "Algae") %>% 
   # define upper size WIDTH for ingestion (based on average width:length ratio)
   mutate(x2M = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
                          (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
@@ -937,6 +941,12 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   #calculate environmentally realistic effect threshold
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
+### Assign Environment  
+```{r}
+aoc_final_large_marine <- aoc_final_large %>% 
+  filter(environment == "Marine")
+```
+
 
 ## ERM = Unaligned
 ```{r}
@@ -961,7 +971,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r}
 #Food Dilution
-tier1_2_large <- aoc_final_large %>% 
+tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -1180,7 +1190,7 @@ gt(smallsdf) %>%
 
 ```{r}
 #Food Dilution
-tier3_4_large <- aoc_final_large %>%
+tier3_4_large <- aoc_final_large_marine %>%
          filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
          bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
@@ -1420,7 +1430,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection2, include=TRUE}
 #Food Dilution
-tier1_2_large <- aoc_final_large %>% 
+tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -1652,7 +1662,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 ```{r size category selection3 - tiers 3/4, include=TRUE}
 
 #Food Dilution
-tier3_4_large <-  aoc_final_large %>% 
+tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1, #Drop studies that only scored a 1 for endpoints criteria
          bio_f %in% c("Organism", "Population")) %>% #limit to endpoints measured at the organism or population level
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
@@ -1891,7 +1901,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection4, include=TRUE}
 #Food Dilution
-tier1_2_large <- aoc_final_large %>% 
+tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -2125,7 +2135,7 @@ FoodDilution_Tier1_2_SSD <- tier1_2_large_1q_ggplot
 Is body size related to effect threshold for Volume?
 ```{r}
 
-size.volume <- aoc_final_large %>%  
+size.volume <- aoc_final_large_marine %>%  
   #filter(effect.metric %in% c("EC50","LC50")) %>% 
   filter(lvl1_f %in% c("Fitness"))
 
@@ -2143,7 +2153,7 @@ size.volume %>%
 ```
 Is body size related to effect threshold for Surface Area?
 ```{r}
-size.sa <- aoc_final_large %>%  
+size.sa <- aoc_final_large_marine %>%  
   #filter(effect.metric %in% c("EC50","LC50")) %>% 
   filter(lvl1_f %in% c("Fitness"))
 
@@ -2272,7 +2282,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 ```{r}
 
 #Food Dilution
-tier3_4_large <-  aoc_final_large %>% 
+tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
@@ -2619,7 +2629,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection6, include=TRUE}
 #Food Dilution
-tier1_2_large <- aoc_final_large %>% 
+tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -2963,7 +2973,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 ```{r size category selection7 - tiers 3/4, include=TRUE}
 
 #Food Dilution
-tier3_4_large <-  aoc_final_large %>% 
+tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
@@ -3310,7 +3320,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection8, include=TRUE}
 #Food Dilution
-tier1_2_large <- aoc_final_large %>% 
+tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -3543,7 +3553,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 ```{r size category selection9 - tiers 3/4, include=TRUE}
 
 #Food Dilution
-tier3_4_large <-  aoc_final_large %>% 
+tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
@@ -3782,7 +3792,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 ```{r size category selection6, include=TRUE}
 #Food Dilution
-tier1_2_large <- aoc_final_large %>% 
+tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
@@ -4016,7 +4026,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 ```{r size category selection7 - tiers 3/4, include=TRUE}
 
 #Food Dilution
-tier3_4_large <-  aoc_final_large %>% 
+tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
@@ -4552,7 +4562,7 @@ return(list(preds, ssd_frame))
 ### Oxidative Stress
 #### Marine vs. Marine + Freshwater
 Note that there's only 5 freshwater species that meet criteria for oxidative stress thresholds, so it's impossible to compare them.
-```{r}
+```{r eval=FALSE, include=FALSE}
 ### Marine
 #data filtering
 Marine_t1_ox <- aoc_final_small %>% 
@@ -4679,11 +4689,12 @@ freshwater_points <- freshwater_food.t1.points %>%
   mutate(type = "Freshwater") 
 freshwater_preds <-  freshwater_food.t1.preds %>% 
   mutate(type = "Freshwater")
-both_preds <- both_food.t1.preds %>% 
+both_preds <- both_food.t1.preds %>%
   mutate(type = "Marine + Freshwater")
-both_points <-  both_food.t1.points %>% 
-  mutate(type = "Marine + Freshwater")
-#join dataframes
+both_points <-  both_food.t1.points %>%
+ mutate(type = "Marine + Freshwater")
+
+#### join dataframes
 t1.food.preds <- rbind(marine_preds, freshwater_preds, both_preds)
 t1.food.points <- rbind(marine_points, freshwater_points, both_points)
 
@@ -4715,13 +4726,13 @@ ks.test(x = freshwater_food.t1.points[,3],
         y = marine_food.t1.points[,3],
         exact = TRUE)
 
-ks.test(x = freshwater_food.t1.points[,3],
-        y = both_food.t1.points[,3],
-        exact = TRUE)
-
-ks.test(x = marine_food.t1.points[,3],
-        y = both_food.t1.points[,3],
-        exact = TRUE)
+# ks.test(x = freshwater_food.t1.points[,3],
+#         y = both_food.t1.points[,3],
+#         exact = TRUE)
+# 
+# ks.test(x = marine_food.t1.points[,3],
+#         y = both_food.t1.points[,3],
+#         exact = TRUE)
 ```
 
 ### Publication Ready
@@ -4772,6 +4783,7 @@ $\mu_{x,poly} = \frac{1 - a_{x}}{2 - a_{x}}  \frac{X^{2-a_x}_{UL} - X^{2-a_x}_{L
 
 In this case, the limits LL and UL in  $\mu_{x,poly}$ relate to the values of the ERM at the 1 and 5,000 um size limits, respectively, rather than to bioavailability limits. Compartment-specific alpha values are used based on Table S4 of Kooi et al 2021. Marine surface water values are used. For converting to surface area, an alpha value of 1.50 is used, 1.48 for volume, and 1.32 for mass.
 
+### Marine 
 ```{r}
 # Steve wants thresholds reported in the units they're aligned to (um3/L and um2/L)
 oxidative.stress.tiers <- ERM_small %>% 
@@ -4791,7 +4803,7 @@ food.dilution.tiers <- ERM_large %>%
                                        x_UL = 5000, #upper limit of default range
                                        x_LL = 1 # lower limit of default range
                                        )) %>% 
-  mutate(EC_env_mass_ug.L.V =  `Surface Area` * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
+  mutate(EC_env_mass_ug.L.V =  Volume * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
                                        x_UL = 5000, #upper limit of default range
                                        x_LL = 1 # lower limit of default range
                                        )) %>% 
@@ -4815,15 +4827,179 @@ full_val_range <- simple.summary %>%
     range
 
 gt(simple.summary) %>% 
-  tab_header(title = "Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
-  fmt_number(columns = vars(names(simple.summary)[2:7]), 
+  tab_header(title = "Marine Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
+  fmt_number(columns = c(names(simple.summary)[2:7]), 
              decimals = 1,
              use_seps = TRUE) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
   tab_spanner(label = "Surface Area ERM",
-              columns = vars(names(simple.summary)[2:4])) %>% 
+              columns = c(names(simple.summary)[2:4])) %>% 
   tab_spanner(label = "Volume ERM",
-              columns = vars(names(simple.summary)[5:7]))
+              columns = c(names(simple.summary)[5:7]))
+```
+### Freshwater
+#### Calculations
+
+Note that insufficient data are available to build translocation-based thresholds for freshwater species.
+```{r}
+SSD_function_t2 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hcx <- c(preds$est[hcx]) #HC5
+#values to extract
+return(list(preds, ssd_frame, hcx))
+}
+
+SSD_function_t3_4 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.5))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hcx <- c(preds$est[hcx]) #HC5
+#values to extract
+return(list(preds, ssd_frame, hcx))
+}
+
+##### TIERs 1 & 2 ####
+#data filtering
+Freshwater_t1_food <- aoc_final_large %>% 
+         mutate(dose_new =  EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Freshwater")
+
+## SSD build
+freshwater_food.t1.ssd <- SSD_function_t1(filtered.data = Freshwater_t1_food, hcxlcl = 5)
+
+#extract data frames from object
+freshwater_food.t1.preds <- as.data.frame(freshwater_food.t1.ssd[1])
+freshwater_food.t1.points <- as.data.frame(freshwater_food.t1.ssd[2])
+# extract HC5LCL
+freshwater_food_t1 <- freshwater_food.t1.preds$lcl[5]
+
+##### TIER 2 ####
+#note that the dataset for tiers 1 and 2 are identical, and just the HC metric changes
+
+freshwater_food_t2 <- freshwater_food.t1.preds$est[5]
+
+##### TIER 3 ####
+#data filtering
+Freshwater_t3_food <- aoc_final_large %>% 
+         mutate(dose_new =  EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+  filter(environment == "Freshwater")
+
+#### SSD build
+#freshwater_food.t3.ssd <- SSD_function_t3_4(filtered.data = Freshwater_t3_food, hcx = 5)
+## Won't run due to 5 species
+
+##extract data frames from object
+#freshwater_food.t3.preds <- as.data.frame(freshwater_food.t3.ssd[1])
+#freshwater_food.t3.points <- as.data.frame(freshwater_food.t3.ssd[2])
+
+##### TIER 4 ####
+#note that tiers 3 and 4 use the same data but different HC metric
+## SSD build
+#freshwater_food.t4.ssd <- SSD_function_t3_4(filtered.data = Freshwater_t3_food, hcx = 10)
+
+##extract data frames from object
+#freshwater_food.t4.preds <- as.data.frame(freshwater_food.t4.ssd[1])
+#freshwater_food.t4.points <- as.data.frame(freshwater_food.t4.ssd[2])
+```
+
+#### Table
+```{r}
+ERM_small_freshwater <- tibble(
+  "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
+  "Unaligned" = c(NA, NA, NA, NA),
+  "Particle" = c(NA, NA, NA, NA), 
+  "Volume" = c(NA, NA, NA, NA), 
+  "Surface Area" = c(NA, NA, NA, NA),
+  "Mass" = c(NA, NA, NA, NA),
+  "Specific Surface Area" = c(NA, NA, NA, NA)
+                    )
+
+ERM_large_freshwater <- tibble(
+  "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
+  "Unaligned" = c(NA, NA, NA, NA),
+  "Particle" = c(NA, NA, NA, NA), 
+  "Volume" = c(freshwater_food_t1, freshwater_food_t2, NA, NA), 
+  "Surface Area" = c(NA, NA, NA, NA),
+  "Mass" = c(NA, NA, NA, NA),
+  "Specific Surface Area" = c(NA, NA, NA, NA)
+                    )
+
+# Steve wants thresholds reported in the units they're aligned to (um3/L and um2/L)
+oxidative.stress.tiers_freshwater <- ERM_small_freshwater %>% 
+  mutate(EC_env_sa_um2.L =  `Surface Area` * mux.polyfnx(a.x = 1.50, #alpha for marine surface water for surface area
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  mutate(EC_env_mass_ug.L.SA =  `Surface Area` * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  dplyr::select(EC_env_sa_um2.L, EC_env_mass_ug.L.SA, `Surface Area`)
+
+# calculate food dilution tiers with surface area and in particles/L
+food.dilution.tiers_freshwater <- ERM_large_freshwater %>% 
+ # drop_na(Volume) %>% 
+  mutate(EC_env_volume_um3.L =  Volume * mux.polyfnx(a.x = a.v.freshwater, #alpha for surface area
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>% 
+  mutate(EC_env_mass_ug.L.V =  Volume * mux.polyfnx(a.x = a.m.freshwater, #alpha for  mass
+                                       x_UL = 5000, #upper limit of default range
+                                       x_LL = 1 # lower limit of default range
+                                       )) %>%
+  dplyr::select(EC_env_volume_um3.L, EC_env_mass_ug.L.V, Volume)
+
+simple.summary_freshwater <- bind_cols(oxidative.stress.tiers_freshwater, food.dilution.tiers_freshwater)
+
+simple.summary_freshwater <- simple.summary_freshwater%>% 
+  mutate("Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4')) %>% 
+  rename("um2/L" = EC_env_sa_um2.L,
+         "surface area (particles/L)" = 'Surface Area',
+         "ug/L (SA)" = EC_env_mass_ug.L.SA,
+         "um3/L" = EC_env_volume_um3.L,
+        "volume (particles/L)" =  Volume,
+        "ug/L (V)" = EC_env_mass_ug.L.V,) %>% 
+  relocate(Tier)
+
+full_val_range <- simple.summary_freshwater %>% 
+    ungroup %>% 
+    select_if(is.numeric) %>% 
+    range
+
+gt(simple.summary_freshwater) %>% 
+  tab_header(title = "Freshwater Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
+  # fmt_number(columns = c(names(simple.summary)[2:7]), 
+  #            decimals = 1,
+  #            use_seps = TRUE) %>% 
+    tab_options(column_labels.hidden = FALSE) %>% 
+  tab_spanner(label = "Surface Area ERM",
+              columns = c(names(simple.summary)[2:4])) %>% 
+  tab_spanner(label = "Volume ERM",
+              columns = c(names(simple.summary)[5:7]))
 ```
 
 
@@ -5299,7 +5475,7 @@ filtered.data <- aoc_final_small %>%
 y <- list(hc5 = 5,hc10 = 10)
 
 # get HC5 for all studies
-tier3_4_small_SAhc5 <- SSD_function(filtered.data, hcx = 5)
+tier3_4_small_SAhc5 <- SSD_function_t3_4(filtered.data, hcx = 5)
 
 #unique study names
 doi.u <- unique(filtered.data$doi)
@@ -5472,7 +5648,7 @@ filtered.data <- aoc_final_large %>%
 y <- list(hc5 = 5,hc10 = 10)
 
 # get HC5 for all studies
-tier3_4_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
+tier3_4_large_Vhc5 <- SSD_function_t3_4(filtered.data, hcx = 5)
 
 #unique study names
 doi.u <- unique(filtered.data$doi)
