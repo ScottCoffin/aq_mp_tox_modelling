@@ -551,7 +551,7 @@ aoc_intermediate <- aoc_z %>%
                              #, "Freshwater"),
          org_f != "Bacterium",
          org_f != "Plant",
-         #org_f != "Algae",
+         #Group != "Algae",
     effect.metric != "HONEC",
     tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
@@ -854,7 +854,7 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 
 aoc_final_large <- aoc_intermediate_alphas  %>% 
   # remove algae, as food dilution MOE doesn't make sense for algae
-  filter(bio_f != "Algae") %>% 
+  filter(Group != "Algae") %>% 
   # define upper size WIDTH for ingestion (based on average width:length ratio)
   mutate(x2M = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
                          (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
@@ -975,7 +975,8 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions,large_tier_lower_size, large_tier_upper_size)) 
+  filter(between(size.length.um.used.for.conversions,large_tier_lower_size, large_tier_upper_size)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -985,7 +986,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) 
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine")
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1196,7 +1198,8 @@ tier3_4_large <- aoc_final_large_marine %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) 
+  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1208,7 +1211,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine")  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1434,7 +1438,8 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) 
+  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1444,7 +1449,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  %>% 
+  filter(environment == "Marine")
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1668,7 +1674,8 @@ tier3_4_large <-  aoc_final_large_marine %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) 
+  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1680,7 +1687,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine") 
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1939,7 +1947,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  %>% 
+  filter(environment == "Marine")
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2324,7 +2333,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine") 
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2633,7 +2643,8 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2643,7 +2654,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))%>% 
+  filter(environment == "Marine")  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2979,7 +2991,8 @@ tier3_4_large <-  aoc_final_large_marine %>%
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2991,7 +3004,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  %>% 
+  filter(environment == "Marine")
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3324,7 +3338,8 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3334,7 +3349,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine") 
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3559,7 +3575,8 @@ tier3_4_large <-  aoc_final_large_marine %>%
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3571,7 +3588,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine") 
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3796,7 +3814,8 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) 
+  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size))%>% 
+  filter(environment == "Marine") 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3806,7 +3825,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))%>% 
+  filter(environment == "Marine")  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4032,7 +4052,8 @@ tier3_4_large <-  aoc_final_large_marine %>%
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000)) 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
 
 # Count observations and studies
 tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4044,7 +4065,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  %>% 
+  filter(environment == "Marine")
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4248,7 +4270,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-# write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata.xlsx")
 
 #Data Collapse
 
@@ -4826,7 +4848,7 @@ full_val_range <- simple.summary %>%
     select_if(is.numeric) %>% 
     range
 
-gt(simple.summary) %>% 
+marine_thresholds_table <- gt(simple.summary) %>% 
   tab_header(title = "Marine Microplastics Thresholds (Aligned to 1-5,000 µm)") %>% 
   fmt_number(columns = c(names(simple.summary)[2:7]), 
              decimals = 1,
@@ -4836,6 +4858,16 @@ gt(simple.summary) %>%
               columns = c(names(simple.summary)[2:4])) %>% 
   tab_spanner(label = "Volume ERM",
               columns = c(names(simple.summary)[5:7]))
+
+#save as html
+gtsave(marine_thresholds_table, 
+       filename = "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.html")
+
+#save as csv
+write.csv(simple.summary,
+          "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.csv")
+
+marine_thresholds_table
 ```
 ### Freshwater
 #### Calculations
@@ -5003,6 +5035,553 @@ gt(simple.summary_freshwater) %>%
 ```
 
 
+
+# Sensitivity Analysis
+## Leave-one-out method
+These techniques are based on the Leave-One-Out-method, in which we recalculate the results of our meta-analysis K − 1  times, each times leaving out one study. This way, we can more easily detect studies which influence the overall estimate of our meta-analysis the most, and this lets us better assess if this influence may distort our pooled effect (Viechtbauer and Cheung 2010).
+
+### SSD and Sensitivity analysis Functions
+```{r}
+#### define function for SSD generation for tier 1 ####
+SSD_function_t1 <- function(filtered.data, hcxlcl){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
+#values to extract
+print(hc5lcl)
+}
+
+# Leave-one-out by study function
+sensitivity_t1 <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function_t1(train, hcxlcl = y)
+})
+
+#### define function for SSD generation for tier 2 ####
+SSD_function <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+
+#### define function for SSD generation for tiers 3 and 4 ####
+SSD_function_t3_4 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.50))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+
+# Leave-one-out by study function
+sensitivity <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function(train, hcx = y)
+})
+
+#tier 3 & 4 sensitivity funciton
+sensitivity_t3_4 <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function_t3_4(train, hcx = y)
+})
+```
+
+###  Tier 1 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+         mutate(dose_new = 1000 * EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine")
+
+#HC metrics to calculate
+y <- list(hcxlcl = 5)
+
+# get HC5 for all studies
+aoc_final_smalllcl <- SSD_function_t1(filtered.data = filtered.data, hcxlcl = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity_t1), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
+  
+tier1_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hcxlcl,
+                acute.chronic_f, 
+                bio_f,
+               lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_small_SA
+```
+Save
+```{r}
+t1_2_SA <- tier1_small_SA %>%  
+  distinct(doi, authors, year, hcxlcl) 
+```
+
+#### Analytics
+```{r}
+#study
+tier1_small_SA %>% 
+  distinct(doi, authors, year, hcxlcl, Species) %>% 
+  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
+   mutate(diff = (hcxlcl - aoc_final_smalllcl)/aoc_final_smalllcl) %>% 
+  group_by(doi, authoryear, diff) %>% 
+  summarise(species_multiple = paste(Species, collapse = ", ")) %>%
+  ungroup() %>% 
+  mutate(doi = fct_reorder(doi, diff)) %>% 
+  ggplot(aes(x = diff, y = doi)) +
+  geom_point() +
+  geom_text_repel(aes(label = species_multiple),
+                  size= 3,
+                 # position = position_nudge(x = 0.05),
+                  ylim = c(NA,NA),
+                 hjust = 0.8,
+                  nudge_x = 0.25,
+                  force = 2,
+                   color = "black",
+                   direction = "x",
+                 #  point.padding = 1,
+                 # segment.shape = 1,
+                 # segment.inflect = TRUE,
+                 # box.padding = 1,
+                 fontface = "italic") +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference") +
+  ylab("Study") +
+  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+       subtitle = "95% lower CI:HC5 - Tier 1(Tissue Translocation)") +
+  theme_minimal() +
+  theme(legend.position = 'none')
+```
+
+###  Tier 2 - Translocation
+```{r warning=FALSE}
+#data filtering
+Marine_t1_ox <- aoc_final_small %>% 
+         mutate(dose_new = 1000 * EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
+  filter(environment == "Marine")
+
+#HC metrics to calculate
+y <- list(hc5 = 5)
+
+# get HC5 for all studies
+aoc_final_smallhc5 <- SSD_function(filtered.data = Marine_t1_ox, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
+  
+tier2_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5,
+                acute.chronic_f, 
+                bio_f,
+               lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier2_small_SA
+```
+Save
+```{r}
+t2_SA <- tier2_small_SA %>%  
+  distinct(doi, authors, year, hc5) 
+```
+
+#### Analytics
+```{r}
+#study
+tier1_2_small_SA_sens <- tier2_small_SA %>% 
+   distinct(doi, authors, year, hc5, Species) %>% 
+  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
+   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
+  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
+  group_by(doi, authoryear, diff) %>% 
+  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
+#plot
+  ggplot(aes(x = diff, y = authoryear)) + 
+  geom_point(color = "black") +
+  geom_text_repel(aes(label = species_multiple),
+                  size= 3,
+                 # position = position_nudge(x = 0.05),
+                  ylim = c(NA,NA),
+                 hjust = 0.8,
+                  nudge_x = 0.25,
+                  force = 2,
+                   color = "black",
+                   direction = "x",
+                 #  point.padding = 1,
+                 # segment.shape = 1,
+                 # segment.inflect = TRUE,
+                 # box.padding = 1,
+                 fontface = "italic") +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference") +
+  ylab("Study") +
+  # labs(title = "Sensitivity Analysis",
+  #      subtitle = "Tissue Translocation : Tiers 1 & 2") +
+  theme.type +
+  theme(legend.position = 'none')
+tier1_2_small_SA_sens
+```
+
+###  Tiers 3 and 4 - Translocation
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_small %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new*1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  %>% 
+  filter(environment == "Marine")
+
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier3_4_small_SAhc5 <- SSD_function_t3_4(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity_t3_4), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier3_4_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier3_4_small_SA
+```
+Save
+```{r}
+t3_4_SA <- tier3_4_small_SA %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
+
+#### Analytics
+```{r}
+#group species into one column if study has multiple
+tier3_4_small_SA_sens <- tier3_4_small_SA %>%
+  distinct(doi, authors, year, hc5, Species) %>% 
+  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
+   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
+  mutate(diff = (hc5 - tier3_4_small_SAhc5)/tier3_4_small_SAhc5) %>% 
+  group_by(doi, authoryear, diff) %>% 
+  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
+#plot
+  ggplot(aes(x = diff, y = authoryear)) + 
+  geom_point(color = "black") +
+  geom_text_repel(aes(label = species_multiple),
+                  size= 3,
+                 # position = position_nudge(x = 0.05),
+                  ylim = c(NA,NA),
+                 hjust = 0.8,
+                  nudge_x = 0.25,
+                  force = 2,
+                   color = "black",
+                   direction = "x",
+                 #  point.padding = 1,
+                 # segment.shape = 1,
+                 # segment.inflect = TRUE,
+                 # box.padding = 1,
+                 fontface = "italic") +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference") +
+  ylab("Study") +
+  # labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+  #      subtitle = "Tissue Translocation: Tiers 3 & 4") +
+  theme.type +
+  #theme_minimal() +
+  theme(legend.position = 'none')
+
+tier3_4_small_SA_sens
+```
+
+
+###  Tiers 1 and 2 - Food Dilution
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_large %>% 
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+  filter(environment == "Marine")
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier1_2_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier1_2_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+tier1_2_large_V
+```
+Save
+```{r}
+t1_2_volume <- tier1_2_large_V %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
+
+#### Analytics
+```{r}
+#study
+tier1_2_large_V_sens <- tier1_2_large_V %>%
+  distinct(doi, authors, year, hc5, Species) %>% 
+  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
+   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
+  mutate(diff = (hc5 - tier1_2_large_Vhc5)/tier1_2_large_Vhc5) %>% 
+  group_by(doi, authoryear, diff) %>% 
+  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
+#plot
+  ggplot(aes(x = diff, y = authoryear)) + 
+  geom_point(color = "black") +
+  geom_text_repel(aes(label = species_multiple),
+                  size= 3,
+                 # position = position_nudge(x = 0.05),
+                  ylim = c(NA,NA),
+                 hjust = 0.8,
+                  nudge_x = 0.25,
+                  force = 2,
+                   color = "black",
+                   direction = "x",
+                 #  point.padding = 1,
+                 # segment.shape = 1,
+                 # segment.inflect = TRUE,
+                 # box.padding = 1,
+                 fontface = "italic") +
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference") +
+  ylab("Study") +
+  # labs(title = "Sensitivity Analysis",
+  #      subtitle = "Food Dilution: Tiers 1 & 2") +
+  theme.type +
+  #theme_minimal() +
+  theme(legend.position = 'none')
+
+tier1_2_large_V_sens
+```
+
+###  Tiers 3 and 4 - Food Dilution
+```{r warning=FALSE}
+#data filtering
+filtered.data <- aoc_final_large %>% 
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+         mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new*1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 
+  filter(environment == "Marine")
+
+#HC metrics to calculate
+y <- list(hc5 = 5,hc10 = 10)
+
+# get HC5 for all studies
+tier3_4_large_Vhc5 <- SSD_function_t3_4(filtered.data, hcx = 5)
+
+#unique study names
+doi.u <- unique(filtered.data$doi)
+
+
+# generate matrix
+o2 <- 'rownames<-'(outer(doi.u, y, sensitivity_t3_4), doi.u)
+
+#bind DOI's to other parameters of interest for analysis
+tier3_4_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
+  dplyr::select(authors,
+                year,
+                Species, 
+                dose_new,
+                EC_env_sa.particles.mL,
+                hc5, 
+                hc10, 
+                acute.chronic_f, 
+                bio_f,
+                lvl2_f,
+                size.length.um.used.for.conversions,
+                doi) 
+
+tier3_4_large_V %>% 
+  datatable()
+```
+Save
+```{r}
+t3_4_volume <- tier3_4_large_V %>%  
+  distinct(doi, authors, year, hc5, hc10) 
+```
+
+#### Analytics
+```{r}
+#study
+tier3_4_large_V_sens <- tier3_4_large_V %>% 
+  distinct(doi, authors, year, hc5, Species) %>% 
+  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
+   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
+  mutate(diff = (hc5 - tier3_4_large_Vhc5)/tier3_4_large_Vhc5) %>% 
+  group_by(doi, authoryear, diff) %>% 
+  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
+#plot
+  ggplot(aes(x = diff, y = authoryear)) + 
+  geom_point(color = "black") +
+  geom_text_repel(aes(label = species_multiple),
+                  size= 3,
+                 # position = position_nudge(x = 0.05),
+                  ylim = c(NA,NA),
+                 hjust = 0.8,
+                  nudge_x = 0.25,
+                  force = 2,
+                   color = "black",
+                   direction = "x",
+                 #  point.padding = 1,
+                 # segment.shape = 1,
+                 # segment.inflect = TRUE,
+                 # box.padding = 1,
+                 fontface = "italic") +
+
+  geom_line() +
+  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
+  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
+  xlab("% Difference") +
+  ylab("Study") +
+  # labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
+  #      subtitle = "HC5 - Tier 3 & 4 (Volume)") +
+  theme.type +
+  #theme_minimal() +
+  theme(legend.position = 'none')
+#print
+tier3_4_large_V_sens
+```
+
+## Export to Excel
+```{r eval=FALSE, include=FALSE}
+library(openxlsx)
+write.xlsx(t1_2_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
+write.xlsx(t3_4_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t3_4_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+
+## doesn't seem to work, so do manual export to .csv and append to excel file
+
+write.csv(t1_2_SA, file="Tier 1&2_translocation.csv")
+write.csv(t3_4_SA, file="Tier 3&4_translocation.csv")
+write.csv(t1_2_volume, file="Tier 1&2_food_dilution.csv")
+write.csv(t3_4_volume, file="Tier 3&4_food_dilution.csv")
+```
+
+## Manuscript Figure
+```{r}
+sensitivity_Figure <- ggarrange(tier1_2_small_SA_sens, tier3_4_small_SA_sens,
+                        tier1_2_large_V_sens,tier3_4_large_V_sens,
+                        labels = c("A", "B", "C", "D"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 2)
+
+plot(sensitivity_Figure)
+
+ggsave(plot = sensitivity_Figure,
+       filename = "sensitivity_Figure_SI-Fig3.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 14, height = 12, units = "in",
+       dpi = 300)
+```
 # Probabilistic Species Sensitivity Distribution Plus
 
 The below code will not run with an open environment due to memory constraints.
@@ -5238,521 +5817,4 @@ PNEC %>%
   ggplot(aes(x = PNEC))
 ```
 
-
-# Sensitivity Analysis
-## Leave-one-out method
-These techniques are based on the Leave-One-Out-method, in which we recalculate the results of our meta-analysis K − 1  times, each times leaving out one study. This way, we can more easily detect studies which influence the overall estimate of our meta-analysis the most, and this lets us better assess if this influence may distort our pooled effect (Viechtbauer and Cheung 2010).
-
-### SSD and Sensitivity analysis Functions
-```{r}
-#### define function for SSD generation for tier 1 ####
-SSD_function_t1 <- function(filtered.data, hcxlcl){
-  set.seed(99)
-  #data collapse
-collapsed <- filtered.data %>% 
-  group_by(Species, Group) %>% 
-  summarize(Conc = quantile(dose_new, 0.25))
-#fit distributions
-dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
-#use average distribution with weighthing based on AICC
-preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
-#report HC metrics of interest
-hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
-#values to extract
-print(hc5lcl)
-}
-
-# Leave-one-out by study function
-sensitivity_t1 <- Vectorize(function(x, y) {
-  train <- filtered.data[!filtered.data$doi %in% x,]
-   SSD_function_t1(train, hcxlcl = y)
-})
-
-#### define function for SSD generation for tiers 2,3 and 4 ####
-SSD_function <- function(filtered.data, hcx){
-  set.seed(99)
-  #data collapse
-collapsed <- filtered.data %>% 
-  group_by(Species, Group) %>% 
-  summarize(Conc = quantile(dose_new, 0.25))
-#fit distributions
-dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
-#use average distribution with weighthing based on AICC
-preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
-#report HC metrics of interest
-hc <- c(preds$est[hcx]) #HC5
-#values to extract
-#print(hc5)
-print(hc)
-}
-
-# Leave-one-out by study function
-sensitivity <- Vectorize(function(x, y) {
-  train <- filtered.data[!filtered.data$doi %in% x,]
-   SSD_function(train, hcx = y)
-})
-
-```
-
-###  Tier 1 - Translocation
-```{r warning=FALSE}
-#data filtering
-filtered.data <- aoc_final_small %>% 
-         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
-         drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
-
-#HC metrics to calculate
-y <- list(hcxlcl = 5)
-
-# get HC5 for all studies
-aoc_final_smalllcl <- SSD_function_t1(filtered.data = filtered.data, hcxlcl = 5)
-
-#unique study names
-doi.u <- unique(filtered.data$doi)
-
-
-# generate matrix
-o2 <- 'rownames<-'(outer(doi.u, y, sensitivity_t1), doi.u)
-
-#bind DOI's to other parameters of interest for analysis
-o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
-  
-tier1_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
-  dplyr::select(authors,
-                year,
-                Species, 
-                dose_new,
-                EC_env_sa.particles.mL,
-                hcxlcl,
-                acute.chronic_f, 
-                bio_f,
-               lvl2_f,
-                size.length.um.used.for.conversions,
-                doi) 
-tier1_small_SA
-```
-Save
-```{r}
-t1_2_SA <- tier1_small_SA %>%  
-  distinct(doi, authors, year, hcxlcl) 
-```
-
-#### Analytics
-```{r}
-#study
-tier1_small_SA %>% 
-  distinct(doi, authors, year, hcxlcl, Species) %>% 
-  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
-   mutate(authoryear = fct_reorder(authoryear, hcxlcl)) %>% 
-   mutate(diff = (hcxlcl - aoc_final_smalllcl)/aoc_final_smalllcl) %>% 
-  group_by(doi, authoryear, diff) %>% 
-  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
-  ggplot(aes(x = diff, y = doi)) +
-  geom_point() +
-  geom_text_repel(aes(label = species_multiple),
-                  size= 3,
-                 # position = position_nudge(x = 0.05),
-                  ylim = c(NA,NA),
-                 hjust = 0.8,
-                  nudge_x = 0.25,
-                  force = 2,
-                   color = "black",
-                   direction = "x",
-                 #  point.padding = 1,
-                 # segment.shape = 1,
-                 # segment.inflect = TRUE,
-                 # box.padding = 1,
-                 fontface = "italic") +
-  geom_line() +
-  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
-  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference") +
-  ylab("Study") +
-  labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
-       subtitle = "95% lower CI:HC5 - Tier 1(Tissue Translocation)") +
-  theme_minimal() +
-  theme(legend.position = 'none')
-```
-
-###  Tier 2 - Translocation
-```{r warning=FALSE}
-#data filtering
-filtered.data <- aoc_final_small %>% 
-         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
-         drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
-
-#HC metrics to calculate
-y <- list(hc5 = 5)
-
-# get HC5 for all studies
-aoc_final_smallhc5 <- SSD_function(filtered.data = filtered.data, hcx = 5)
-
-#unique study names
-doi.u <- unique(filtered.data$doi)
-
-
-# generate matrix
-o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
-
-#bind DOI's to other parameters of interest for analysis
-o2_tbl <- rownames_to_column(as.data.frame(o2), var = "doi")
-  
-tier2_small_SA <- left_join(o2_tbl, filtered.data, by = "doi") %>% 
-  dplyr::select(authors,
-                year,
-                Species, 
-                dose_new,
-                EC_env_sa.particles.mL,
-                hc5,
-                acute.chronic_f, 
-                bio_f,
-               lvl2_f,
-                size.length.um.used.for.conversions,
-                doi) 
-tier2_small_SA
-```
-Save
-```{r}
-t2_SA <- tier2_small_SA %>%  
-  distinct(doi, authors, year, hc5) 
-```
-
-#### Analytics
-```{r}
-#study
-tier1_2_small_SA_sens <- tier2_small_SA %>% 
-   distinct(doi, authors, year, hc5, Species) %>% 
-  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
-   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
-  mutate(diff = (hc5 - aoc_final_smallhc5)/aoc_final_smallhc5) %>% 
-  group_by(doi, authoryear, diff) %>% 
-  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
-#plot
-  ggplot(aes(x = diff, y = authoryear)) + 
-  geom_point(color = "black") +
-  geom_text_repel(aes(label = species_multiple),
-                  size= 3,
-                 # position = position_nudge(x = 0.05),
-                  ylim = c(NA,NA),
-                 hjust = 0.8,
-                  nudge_x = 0.25,
-                  force = 2,
-                   color = "black",
-                   direction = "x",
-                 #  point.padding = 1,
-                 # segment.shape = 1,
-                 # segment.inflect = TRUE,
-                 # box.padding = 1,
-                 fontface = "italic") +
-  geom_line() +
-  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
-  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference") +
-  ylab("Study") +
-  # labs(title = "Sensitivity Analysis",
-  #      subtitle = "Tissue Translocation : Tiers 1 & 2") +
-  theme.type +
-  theme(legend.position = 'none')
-tier1_2_small_SA_sens
-```
-
-###  Tiers 3 and 4 - Translocation
-```{r warning=FALSE}
-#data filtering
-filtered.data <- aoc_final_small %>% 
-  filter(risk.13 != 1,
-         bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
-         drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
-
-#HC metrics to calculate
-y <- list(hc5 = 5,hc10 = 10)
-
-# get HC5 for all studies
-tier3_4_small_SAhc5 <- SSD_function_t3_4(filtered.data, hcx = 5)
-
-#unique study names
-doi.u <- unique(filtered.data$doi)
-
-
-# generate matrix
-o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
-
-#bind DOI's to other parameters of interest for analysis
-tier3_4_small_SA <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
-  dplyr::select(authors,
-                year,
-                Species, 
-                dose_new,
-                EC_env_sa.particles.mL,
-                hc5, 
-                hc10, 
-                acute.chronic_f, 
-                bio_f,
-                lvl2_f,
-                size.length.um.used.for.conversions,
-                doi) 
-tier3_4_small_SA
-```
-Save
-```{r}
-t3_4_SA <- tier3_4_small_SA %>%  
-  distinct(doi, authors, year, hc5, hc10) 
-```
-
-#### Analytics
-```{r}
-#group species into one column if study has multiple
-tier3_4_small_SA_sens <- tier3_4_small_SA %>%
-  distinct(doi, authors, year, hc5, Species) %>% 
-  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
-   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
-  mutate(diff = (hc5 - tier3_4_small_SAhc5)/tier3_4_small_SAhc5) %>% 
-  group_by(doi, authoryear, diff) %>% 
-  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
-#plot
-  ggplot(aes(x = diff, y = authoryear)) + 
-  geom_point(color = "black") +
-  geom_text_repel(aes(label = species_multiple),
-                  size= 3,
-                 # position = position_nudge(x = 0.05),
-                  ylim = c(NA,NA),
-                 hjust = 0.8,
-                  nudge_x = 0.25,
-                  force = 2,
-                   color = "black",
-                   direction = "x",
-                 #  point.padding = 1,
-                 # segment.shape = 1,
-                 # segment.inflect = TRUE,
-                 # box.padding = 1,
-                 fontface = "italic") +
-  geom_line() +
-  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
-  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference") +
-  ylab("Study") +
-  # labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
-  #      subtitle = "Tissue Translocation: Tiers 3 & 4") +
-  theme.type +
-  #theme_minimal() +
-  theme(legend.position = 'none')
-
-tier3_4_small_SA_sens
-```
-
-
-###  Tiers 1 and 2 - Food Dilution
-```{r warning=FALSE}
-#data filtering
-filtered.data <- aoc_final_large %>% 
-         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
-         drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000))  
-
-#HC metrics to calculate
-y <- list(hc5 = 5,hc10 = 10)
-
-# get HC5 for all studies
-tier1_2_large_Vhc5 <- SSD_function(filtered.data, hcx = 5)
-
-#unique study names
-doi.u <- unique(filtered.data$doi)
-
-
-# generate matrix
-o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
-
-#bind DOI's to other parameters of interest for analysis
-tier1_2_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
-  dplyr::select(authors,
-                year,
-                Species, 
-                dose_new,
-                EC_env_sa.particles.mL,
-                hc5, 
-                hc10, 
-                acute.chronic_f, 
-                bio_f,
-                lvl2_f,
-                size.length.um.used.for.conversions,
-                doi) 
-tier1_2_large_V
-```
-Save
-```{r}
-t1_2_volume <- tier1_2_large_V %>%  
-  distinct(doi, authors, year, hc5, hc10) 
-```
-
-#### Analytics
-```{r}
-#study
-tier1_2_large_V_sens <- tier1_2_large_V %>%
-  distinct(doi, authors, year, hc5, Species) %>% 
-  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
-   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
-  mutate(diff = (hc5 - tier1_2_large_Vhc5)/tier1_2_large_Vhc5) %>% 
-  group_by(doi, authoryear, diff) %>% 
-  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
-#plot
-  ggplot(aes(x = diff, y = authoryear)) + 
-  geom_point(color = "black") +
-  geom_text_repel(aes(label = species_multiple),
-                  size= 3,
-                 # position = position_nudge(x = 0.05),
-                  ylim = c(NA,NA),
-                 hjust = 0.8,
-                  nudge_x = 0.25,
-                  force = 2,
-                   color = "black",
-                   direction = "x",
-                 #  point.padding = 1,
-                 # segment.shape = 1,
-                 # segment.inflect = TRUE,
-                 # box.padding = 1,
-                 fontface = "italic") +
-  geom_line() +
-  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
-  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference") +
-  ylab("Study") +
-  # labs(title = "Sensitivity Analysis",
-  #      subtitle = "Food Dilution: Tiers 1 & 2") +
-  theme.type +
-  #theme_minimal() +
-  theme(legend.position = 'none')
-
-tier1_2_large_V_sens
-```
-
-###  Tiers 3 and 4 - Food Dilution
-```{r warning=FALSE}
-#data filtering
-filtered.data <- aoc_final_large %>% 
-  filter(risk.13 != 1,
-         bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_ssa.particles.mL / (af.time * af.noec)) %>%  
-         drop_na(dose_new) %>% 
-         mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000))  
-
-#HC metrics to calculate
-y <- list(hc5 = 5,hc10 = 10)
-
-# get HC5 for all studies
-tier3_4_large_Vhc5 <- SSD_function_t3_4(filtered.data, hcx = 5)
-
-#unique study names
-doi.u <- unique(filtered.data$doi)
-
-
-# generate matrix
-o2 <- 'rownames<-'(outer(doi.u, y, sensitivity), doi.u)
-
-#bind DOI's to other parameters of interest for analysis
-tier3_4_large_V <- cbind(filtered.data, o2[match(filtered.data$doi, rownames(o2)), ]) %>% 
-  dplyr::select(authors,
-                year,
-                Species, 
-                dose_new,
-                EC_env_sa.particles.mL,
-                hc5, 
-                hc10, 
-                acute.chronic_f, 
-                bio_f,
-                lvl2_f,
-                size.length.um.used.for.conversions,
-                doi) 
-
-tier3_4_large_V %>% 
-  datatable()
-```
-Save
-```{r}
-t3_4_volume <- tier3_4_large_V %>%  
-  distinct(doi, authors, year, hc5, hc10) 
-```
-
-#### Analytics
-```{r}
-#study
-tier3_4_large_V_sens <- tier3_4_large_V %>% 
-  distinct(doi, authors, year, hc5, Species) %>% 
-  mutate(authoryear = paste(authors, "et. al ", year)) %>% 
-   mutate(authoryear = fct_reorder(authoryear, hc5)) %>% 
-  mutate(diff = (hc5 - tier3_4_large_Vhc5)/tier3_4_large_Vhc5) %>% 
-  group_by(doi, authoryear, diff) %>% 
-  summarise(species_multiple = paste(Species, collapse = ", ")) %>% 
-#plot
-  ggplot(aes(x = diff, y = authoryear)) + 
-  geom_point(color = "black") +
-  geom_text_repel(aes(label = species_multiple),
-                  size= 3,
-                 # position = position_nudge(x = 0.05),
-                  ylim = c(NA,NA),
-                 hjust = 0.8,
-                  nudge_x = 0.25,
-                  force = 2,
-                   color = "black",
-                   direction = "x",
-                 #  point.padding = 1,
-                 # segment.shape = 1,
-                 # segment.inflect = TRUE,
-                 # box.padding = 1,
-                 fontface = "italic") +
-
-  geom_line() +
-  geom_vline(xintercept = 0, alpha = 0.5, color = "grey60") +
-  scale_x_continuous(labels = scales::percent_format(accuracy = 1)) +
-  xlab("% Difference") +
-  ylab("Study") +
-  # labs(title = "Sensitivity Analysis (Leave-one-study-out-method)",
-  #      subtitle = "HC5 - Tier 3 & 4 (Volume)") +
-  theme.type +
-  #theme_minimal() +
-  theme(legend.position = 'none')
-#print
-tier3_4_large_V_sens
-```
-
-## Export to Excel
-```{r eval=FALSE, include=FALSE}
-library(openxlsx)
-write.xlsx(t1_2_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
-write.xlsx(t3_4_SA, file="sensitivityAnalysis.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
-write.xlsx(t1_2_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
-write.xlsx(t3_4_volume, file="sensitivityAnalysis.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
-
-## doesn't seem to work, so do manual export to .csv and append to excel file
-
-write.csv(t1_2_SA, file="Tier 1&2_translocation.csv")
-write.csv(t3_4_SA, file="Tier 3&4_translocation.csv")
-write.csv(t1_2_volume, file="Tier 1&2_food_dilution.csv")
-write.csv(t3_4_volume, file="Tier 3&4_food_dilution.csv")
-```
-
-## Manuscript Figure
-```{r}
-sensitivity_Figure <- ggarrange(tier1_2_small_SA_sens, tier3_4_small_SA_sens,
-                        tier1_2_large_V_sens,tier3_4_large_V_sens,
-                        labels = c("A", "B", "C", "D"), common.legend = TRUE,
-                        legend = "bottom",
-                        ncol = 2, nrow = 2)
-
-plot(sensitivity_Figure)
-
-ggsave(plot = sensitivity_Figure,
-       filename = "sensitivity_Figure_SI-Fig3.tiff",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 14, height = 12, units = "in",
-       dpi = 300)
-```
 

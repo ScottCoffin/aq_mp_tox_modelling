@@ -50,10 +50,10 @@ AF = 1#5
 
 ##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 0.3 / AF
-Threshold2 = 3.4 / AF
-Threshold3 = 4.4 / AF
-Threshold4 = 21.9 / AF
+Threshold1 = 0.1 / AF
+Threshold2 = 1.4 / AF
+Threshold3 = 3.2 / AF
+Threshold4 = 16.1 / AF
 ```
 
 ```{r Theme, include=FALSE}
@@ -362,7 +362,6 @@ sampleSimpleSFEI <- globalData %>%
 #make new dataframe to plot both histograms together
 dfSFEI <- rbind(sampleSimpleSFEI)#,food.dilution.simple)
 
-
 #calculate exceedance
 dfSFEI_exceedance <- dfSFEI %>% 
   mutate(aboveThreshold = factor(case_when(
@@ -374,7 +373,7 @@ dfSFEI_exceedance <- dfSFEI %>%
   )))
 
 #give summary stat for exceedance
-exceedance <- dfADAM_exceedance  %>%
+exceedance <- dfSFEI_exceedance  %>%
   filter(Sample.Type == "sample") %>% 
   dplyr::select(c(Conc, aboveThreshold)) %>%
   group_by(aboveThreshold) %>%
@@ -1114,6 +1113,8 @@ volume <- aoc_final_large %>%
   # tier 3/4 filters
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
+  filter(Group != "Algae") %>% 
+  filter(environment == "Marine") %>% 
          mutate(Conc = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(Conc) %>% 
          mutate(Conc = Conc * 1000) %>% 
@@ -1128,7 +1129,7 @@ global <- dfADAM %>%
 tox.occurence <- rbind.data.frame(volume, global)
 
 #build plot
-tox.occurence %>% 
+aligned.tox.occurence.plot <- tox.occurence %>% 
   ggplot(aes(x = Conc, fill = tox.occurrence)) +
   #geom_histogram(bins = 40) +
   geom_density(alpha = 0.6) +
@@ -1142,7 +1143,8 @@ tox.occurence %>%
   labs(title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
        subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
        caption = paste("(24 occurence studies, 37 tox studies, Alpha = ",alpha,")"))+
-  dark_theme_minimal(base_size = 25) +
+  #dark_theme_minimal(base_size = 25) +
+ theme_bw(base_size = 15) +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
@@ -1151,6 +1153,8 @@ tox.occurence %>%
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14),
     plot.caption = element_text(hjust = 0.9, size = 14))
+
+aligned.tox.occurence.plot
 ```
 ## Plot Un-aligned Data
 Combine tox dataset with occurence data
@@ -1162,6 +1166,8 @@ unaligned.tox <- aoc_final_large %>%
          mutate(Conc = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(Conc) %>% 
          mutate(Conc = Conc * 1000) %>% 
+  filter(Group != "Algae") %>% 
+  filter(environment == "Marine") %>% 
   filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 
   mutate(tox.occurrence = "tox") %>% 
   dplyr::select(Conc, tox.occurrence)
@@ -1214,7 +1220,7 @@ curve_intersect(occurrence.unaligned.df, tox.unaligned.df, empirical = TRUE)
 
 ```{r}
 ##### Genereate PLot###
-unaligned.tox.occurence %>% 
+unaligned.tox.occurence.plot <- unaligned.tox.occurence %>% 
   ggplot(aes(x = Conc, fill = tox.occurrence)) +
   #geom_histogram(bins = 40) +
   geom_density(alpha = 0.6) +
@@ -1231,7 +1237,8 @@ unaligned.tox.occurence %>%
   labs(title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
        subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
        caption = paste("(24 occurence studies, 37 tox studies, Alpha = ",alpha,")"))+
-  dark_theme_minimal(base_size = 25) +
+  #dark_theme_minimal(base_size = 25) +
+  theme_bw(base_size = 15) +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
@@ -1240,7 +1247,26 @@ unaligned.tox.occurence %>%
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14),
     plot.caption = element_text(hjust = 0.9, size = 14))
+
+unaligned.tox.occurence.plot
 ```
+### Manuscript Figure
+```{r}
+overlap_figures <- ggarrange(unaligned.tox.occurence.plot, aligned.tox.occurence.plot,
+                        labels = c("A", "B"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 1)
+
+plot(overlap_figures)
+
+ggsave(plot =overlap_figures,
+       filename = "overlap_figure_SI-Fig4.tiff",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 14, height = 12, units = "in",
+       dpi = 300)
+```
+
+
 ## Table comparing overlap
 ```{r}
 #require(overlapping)
@@ -1376,5 +1402,44 @@ ggplot(aes(x = x1M, color = tox.occurrence))+
         legend.title = element_blank(),
         plot.subtitle = element_text(hjust = 0.5, size = 14),
     plot.caption = element_text(hjust = 0.9, size = 12))
+```
+
+# Are sampling sizes and concentrations related?
+The following analysis tests whether the alignments are accurate.
+```{r}
+oceanData <- globalData %>% 
+  filter(System == "Ocean")
+
+
+globalData %>% 
+  filter(System == "Ocean") %>% 
+  ggplot(aes(x = x1M, y = Conc, color = Sampling.location)) +
+  geom_point() +
+  scale_x_log10(name = "Lower Size Limit of Detection") +
+  scale_y_log10(name = "1 - 5,000 µm Aligned Concentration (Particles/L)") +
+  dark_theme_bw()
+  
+```
+```{r}
+globalData %>% 
+  filter(System == "Ocean") %>% 
+  mutate(Sampling.location = fct_reorder(Sampling.location, Conc, .fun = median)) %>% 
+  ggplot(aes(x = Conc, y = Sampling.location, color = Sampling.location)) +
+   geom_vline(xintercept = Threshold1, linetype = 'dashed', color = "#00798c", size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
+  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
+  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	"#d1495b", size = 1.3) +
+  geom_text(label = "Tier 1", color = "#00798c" , x = Threshold1, y = 14, size = 5)+
+  geom_text(label = "Tier 2", color = "#66a182" , x = Threshold2, y = 13.5, size = 5)+
+  geom_text(label = "Tier 3", color = '#edae49', x = Threshold3, y = 13, size = 5)+
+  geom_text(label = "Tier 4", color = "#d1495b", x = Threshold4, y = 12.5, size = 5)+
+  geom_boxplot() +
+  geom_point() +
+  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
+  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  theme.type +
+  dark_theme_bw()
 ```
 
