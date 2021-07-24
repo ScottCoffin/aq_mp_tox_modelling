@@ -1,0 +1,529 @@
+---
+title: "site-specific characterization"
+author: "Scott Coffin"
+date: "7/23/2021"
+output:   
+  html_document:
+    code_folding: hide
+    theme: journal
+    toc: yes
+    toc_float: yes
+    toc_depth: 6
+    number_sections: true
+    includes:
+     # after_body: footer.html
+  word_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE,time_it = TRUE) #report
+```
+
+#Intro
+The objective of this project is to determine site-specific SSDs for plastic particles spiked into the experimental lakes area in Canada. Particle distribution data for added plastic particles is from Chelsea Rochman.
+
+Some notes: 
+all particles are fragments. These started as pellets and were ground down with a toll grinder under liquid nitrogen.
+
+Chelsea is not 100% certain that the lower size ranges are real. In fact, they measured them two ways. The first was the toll grinding company measuring their sizes with sieve stacks – and seeing how much fell in each size range. The second was us taking images of different amounts (masses) of plastics and counting and measuring each particle. We did the latter to figure out what mass we needed to dose with to achieve the particle count we wanted. We also did it to confirm size. The two methods are pretty similar in results. Anything smaller we could not have measured well and neither could the toll grinding company, so it’s hard to say. As such, Chelsea is comfortable with us extrapolating to 1 micron.
+
+Chelsea knows what kinds of species are in the lake. For fish: yellow perch; for invertebrates: a range of zooplankton varying in size – including chaoberus, daphnia, copepods (and others! – do you need genus species or just lots of species of zooplankton is okay?); phytoplankton and periphyton communities.
+
+# Setup
+## Libraries
+```{r}
+library(tidyverse)
+library(ssdtools)
+library(fitdistrplus)
+library(rbin)
+```
+
+## Import data
+```{r}
+#site-specific distribution data
+distributions <- read.csv("Concentration data/site-specific distributions/SizeMicroplastic_Rochman.csv") %>% 
+  rename("polymer" = "ï..PolymerType")
+```
+
+# Modelling
+## Visualization
+```{r}
+distributions %>% 
+  ggplot(aes(x = Size_um, fill = polymer)) +
+  geom_histogram() +
+  scale_x_continuous(name = "Size (um)",breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
+  theme_minimal()
+```
+We can see here that they do not exactly follow an alpha distribution, but this is likely due to detection limits.
+
+```{r}
+distributions %>% 
+  group_by(polymer) %>% 
+  summarize(count = n()) %>% 
+  mutate(fraction_total = count /  sum(count)) %>% 
+  ggplot(aes(x = polymer, y = fraction_total, fill = polymer)) +
+  geom_col() +
+  labs(title = "Relative Polymer Fraction in added particles") +
+  theme_minimal()
+
+```
+
+### Average Density
+```{r}
+library(skimr)
+distributions %>% 
+  mutate(density = case_when(polymer == "PE" ~ 0.91,
+                             polymer == "PET" ~ 1.38,
+                             polymer == "PS" ~ 1.04)) %>% 
+   #filter(Size_um >150
+    #     & Size_um <1000) %>% 
+  skim()
+```
+
+
+## Determine maximum size for which the dataset
+The maximum size for which the dataset was valid is determined using a theoretical particle
+detection limit (PDL). 
+
+1. Data was plotted using only the values between the minimum and the first non-detect.  A log-log plot for size vs abundance (#) is made.
+2. A linear trendline was fitted, and the parameters for the function y = a*x + b were
+obtained
+3. Assuming y = 0 (equals 1 particle since 10^0 = 1), a value for x (the PDL) was calculated
+4. Data were plotted using only the values between the minimum and the calculated PDL
+5. If more data were included than in step 1, the procedure was repeated.
+6. Once the PDL does not change anymore, only data between the minimum and PDL were
+included for the final trendline fitting.
+```{r}
+#first split dataset into polymers
+PS <- distributions %>% 
+  filter(polymer == "PS")
+PET <- distributions %>% 
+  filter(polymer == "PET")
+PE <- distributions %>% 
+  filter(polymer == "PE")
+```
+
+```{r}
+# #cut data into bins to add frequency column to alllow for plotting 
+# PS %>% summarize(min_size = min(Size_um), max = max(Size_um))
+# 
+# breaks <- c(5:1960)
+# PS$bins <- cut(PS$Size_um, breaks = breaks)
+# 
+# PS %>% 
+#   group_by(bins) %>% 
+#   summarize(abundance = n())
+
+# ## alt approach
+# PS$bins <- .bincode(PS$Size_um, breaks = breaks)
+
+PS_abundance <- PS %>% 
+  group_by(Size_um) %>% 
+  summarize(abundance = n())
+
+PS_abundance %>% 
+  ggplot(aes(x = Size_um, y = abundance)) +
+  geom_point() +
+  geom_smooth(method = "lm") +
+  scale_x_log10() +
+  scale_y_log10()
+```
+We need a better way of binning data.
+
+Winsorized binning is similar to equal length binning except that both tails are cut off to obtain a smooth binning result. This technique is often used to remove outliers during the data pre-processing stage. For Winsorized binning, the Winsorized statistics are computed first. After the minimum and maximum have been found, the split points are calculated the same way as in equal length binning.
+
+### Polystyrene
+```{r}
+#determine lower and upper end based on maximum R^2 (iteration required)
+PS_cut <- PS %>% 
+  filter(Size_um >150
+         & Size_um <1000)
+
+#cut into bins
+#PSwinsors <- rbin_winsorize(PS_cut, polymer, Size_um, 20)
+PSwinsors <- rbin_winsorize(PS_cut, polymer, Size_um, 30, winsor_rate = 0.01)
+#save as dataframe
+PSbinned <- as.data.frame(PSwinsors$bins) %>% 
+  dplyr::select(c(cut_point, bin_count, bin_prop))
+
+#strip of characters
+PSbinned$cut <- gsub("[^0-9.-]","",PSbinned$cut_point)
+ #convert to numeric
+PSbinned2 <- PSbinned %>% 
+  mutate(cut.numeric = as.numeric(cut)) %>% 
+  mutate(logAbundance = log10(bin_prop),
+         logSize = log10(cut.numeric))
+
+## model
+library(ggpmisc)
+my.formula <- y ~ x
+p <- ggplot(data = PSbinned2, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+p
+```
+#### Remove outliers
+```{r}
+PSlin <- lm(logAbundance ~ logSize, data = PSbinned2)
+cooksd <- cooks.distance(PSlin)
+plot(cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooksd, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4*mean(cooksd, na.rm=T),names(cooksd),""), col="red")  # add labels
+```
+Extract outliers
+```{r}
+influential <- as.numeric(names(cooksd)[(cooksd > 4*mean(cooksd, na.rm=T))])  # influential row numbers
+head(PSbinned2[influential, ])  # influential observations.
+```
+```{r}
+trimmedPS <- PSbinned2 %>% 
+  filter(cut_point != c("	< 658.066666666668", "< 676.033333333334", ">= 676.033333333334")
+) %>% 
+  mutate(polymer = "PS")
+
+PSlin <- lm(logAbundance ~ logSize, data = trimmedPS)
+PSlin.summ <- summary(PSlin)
+PSlin.summ
+```
+```{r}
+ggplot(data = trimmedPS, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+```
+
+### PET
+```{r}
+#determine lower and upper end based on maximum R^2 (iteration required)
+PET_cut <- PET %>% 
+  filter(Size_um >150 & Size_um <1000)
+
+#cut into bins
+#PETwinsors <- rbin_winsorize(PET_cut, polymer, Size_um, 20)
+PETwinsors <- rbin_winsorize(PET_cut, polymer, Size_um, 30, winsor_rate = 0.01)
+#save as dataframe
+PETbinned <- as.data.frame(PETwinsors$bins) %>% 
+  dplyr::select(c(cut_point, bin_count, bin_prop))
+
+#strip of characters
+PETbinned$cut <- gsub("[^0-9.-]","",PETbinned$cut_point)
+ #convert to numeric
+PETbinned2 <- PETbinned %>% 
+  mutate(cut.numeric = as.numeric(cut)) %>% 
+  mutate(logAbundance = log10(bin_prop),
+         logSize = log10(cut.numeric))
+
+## model
+library(ggpmisc)
+my.formula <- y ~ x
+p <- ggplot(data = PETbinned2, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+p
+```
+#### Remove outliers
+```{r}
+PETlin <- lm(logAbundance ~ logSize, data = PETbinned2)
+cooksd <- cooks.distance(PETlin)
+plot(cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooksd, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4*mean(cooksd, na.rm=T),names(cooksd),""), col="red")  # add labels
+```
+Extract outliers
+```{r}
+influential <- as.numeric(names(cooksd)[(cooksd > 4*mean(cooksd, na.rm=T))])  # influential row numbers
+head(PETbinned2[influential, ])  # influential observations.
+```
+```{r}
+trimmedPET <- PETbinned2 %>% 
+  filter(cut_point != c("		< 178.476666666667", "	< 891.823333333334", ">= 891.823333333334")
+)%>% 
+  mutate(polymer = "PET")
+
+PETlin <- lm(logAbundance ~ logSize, data = trimmedPET)
+PETlin.summ <- summary(PETlin)
+PETlin.summ
+```
+```{r}
+ggplot(data = trimmedPET, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+```
+
+### PE
+```{r}
+#determine lower and upper end based on maximum R^2 (iteration required)
+PE_cut <- PE %>% 
+  filter(Size_um >150 & Size_um <1000)
+
+#cut into bins
+#PEwinsors <- rbin_winsorize(PE_cut, polymer, Size_um, 20)
+PEwinsors <- rbin_winsorize(PE_cut, polymer, Size_um, 20, winsor_rate = 0.01)
+#save as dataframe
+PEbinned <- as.data.frame(PEwinsors$bins) %>% 
+  dplyr::select(c(cut_point, bin_count, bin_prop))
+
+#strip of characters
+PEbinned$cut <- gsub("[^0-9.-]","",PEbinned$cut_point)
+ #convert to numeric
+PEbinned2 <- PEbinned %>% 
+  mutate(cut.numeric = as.numeric(cut)) %>% 
+  mutate(logAbundance = log10(bin_prop),
+         logSize = log10(cut.numeric))
+
+## model
+library(ggpmisc)
+my.formula <- y ~ x
+p <- ggplot(data = PEbinned2, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+p
+```
+#### Remove outliers
+```{r}
+PElin <- lm(logAbundance ~ logSize, data = PEbinned2)
+cooksd <- cooks.distance(PElin)
+plot(cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooksd, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4*mean(cooksd, na.rm=T),names(cooksd),""), col="red")  # add labels
+```
+Extract outliers
+```{r}
+influential <- as.numeric(names(cooksd)[(cooksd > 4*mean(cooksd, na.rm=T))])  # influential row numbers
+head(PEbinned2[influential, ])  # influential observations.
+```
+```{r}
+trimmedPE <- PEbinned2 %>% 
+  filter(cut_point != c("< 647.847899999999")
+) %>% 
+  mutate(polymer = "PE")
+
+PElin <- lm(logAbundance ~ logSize, data = trimmedPE)
+PElin.summ <- summary(PElin)
+PElin.summ
+```
+```{r}
+ggplot(data = trimmedPE, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+```
+
+# All Polymers
+## Plot individual polymers
+```{r}
+allPolymers <- rbind.data.frame(trimmedPE, trimmedPET, trimmedPS)
+
+allPolymers %>% 
+ggplot(aes(x = logSize, y = logAbundance, color = polymer, fill = polymer)) +
+   geom_smooth(method = "lm", se=FALSE, formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")),
+                label.y = c(0.1,0.2, 0,3), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)") +
+  theme_minimal()
+```
+
+## Calculate alpha for all polymers combined
+### Untrimmed
+```{r}
+#determine lower and upper end based on maximum R^2 (iteration required)
+all_cut <- distributions# %>% 
+  #filter(Size_um >150 & Size_um <1000)
+
+#cut into bins
+#allwinsors <- rbin_winsorize(all_cut, polymer, Size_um, 20)
+allwinsors <- rbin_winsorize(all_cut, polymer, Size_um, 30, winsor_rate = 0.01)
+#save as dataframe
+allbinned <- as.data.frame(allwinsors$bins) %>% 
+  dplyr::select(c(cut_point, bin_count, bin_prop))
+
+#strip of characters
+allbinned$cut <- gsub("[^0-9.-]","",allbinned$cut_point)
+ #convert to numeric
+allbinned2 <- allbinned %>% 
+  mutate(cut.numeric = as.numeric(cut)) %>% 
+  mutate(logAbundance = log10(bin_prop),
+         logSize = log10(cut.numeric))
+
+## model
+library(ggpmisc)
+my.formula <- y ~ x
+p <- ggplot(data = allbinned2, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="red", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)") +
+  theme_minimal()
+p
+```
+
+### Trimmed
+```{r}
+#determine lower and upper end based on maximum R^2 (iteration required)
+all_cut <- distributions %>% 
+  filter(Size_um >150 & Size_um <1000)
+
+#cut into bins
+#allwinsors <- rbin_winsorize(all_cut, polymer, Size_um, 20)
+allwinsors <- rbin_winsorize(all_cut, polymer, Size_um, 30, winsor_rate = 0.01)
+#save as dataframe
+allbinned <- as.data.frame(allwinsors$bins) %>% 
+  dplyr::select(c(cut_point, bin_count, bin_prop))
+
+#strip of characters
+allbinned$cut <- gsub("[^0-9.-]","",allbinned$cut_point)
+ #convert to numeric
+allbinned2 <- allbinned %>% 
+  mutate(cut.numeric = as.numeric(cut)) %>% 
+  mutate(logAbundance = log10(bin_prop),
+         logSize = log10(cut.numeric))
+
+## model
+library(ggpmisc)
+my.formula <- y ~ x
+p <- ggplot(data = allbinned2, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="black", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)")
+p
+```
+#### Remove outliers
+```{r}
+alllin <- lm(logAbundance ~ logSize, data = allbinned2)
+cooksd <- cooks.distance(alllin)
+plot(cooksd, pch="*", cex=2, main="Influential Obs by Cooks distance")  # plot cook's distance
+abline(h = 4*mean(cooksd, na.rm=T), col="red")  # add cutoff line
+text(x=1:length(cooksd)+1, y=cooksd, labels=ifelse(cooksd>4*mean(cooksd, na.rm=T),names(cooksd),""), col="red")  # add labels
+```
+Extract outliers
+```{r}
+influential <- as.numeric(names(cooksd)[(cooksd > 4*mean(cooksd, na.rm=T))])  # influential row numbers
+head(allbinned2[influential, ])  # influential observations.
+```
+```{r}
+trimmedall <- allbinned2 %>% 
+  filter(cut_point != c("	< 175.925733333333", ">= 820.422266666667")
+) %>% 
+  mutate(polymer = "all")
+
+alllin <- lm(logAbundance ~ logSize, data = trimmedall)
+alllin.summ <- summary(alllin)
+alllin.summ
+```
+```{r}
+ggplot(data = trimmedall, aes(x = logSize, y = logAbundance)) +
+   geom_smooth(method = "lm", se=FALSE, color="red", formula = my.formula) +
+   stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., sep = "~~~")), 
+                parse = TRUE) +         
+   geom_point() +
+  xlab("Log (Size, um)") +
+  ylab("Log (Relative abundance, %)") +
+  labs(title = "Size Distribution for all polymers combined") +
+  theme_minimal()
+```
+### Visualize as histrogram
+```{r}
+distributions %>% 
+    filter(Size_um >150 & Size_um <1000) %>% 
+    ggplot(aes(x = Size_um, fill = polymer)) +
+  geom_histogram(bins = 22) +
+  #geom_density()+
+  scale_x_continuous(name = "Size (um)",breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
+  theme_minimal()
+```
+
+
+## Compare individual and all combined
+```{r}
+names <- c("All", "PS", "PE", "PET")
+
+preds <- c(alllin$coefficients[2], PSlin$coefficients[2], PElin$coefficients[2], PETlin$coefficients[2])
+
+stderrors <- c(alllin.summ$coefficients[2,2], PSlin.summ$coefficients[2,2], PElin.summ$coefficients[2,2], PETlin.summ$coefficients[2,2])
+
+R2 <- c(alllin.summ$r.squared, PSlin.summ$r.squared, PElin.summ$r.squared, PETlin.summ$r.squared)
+
+p.values <- c(alllin.summ$coefficients[2,4], PSlin.summ$coefficients[2,4], PElin.summ$coefficients[2,4], PETlin.summ$coefficients[2,4])
+
+summary <- tibble(names,preds, stderrors, R2, p.values)
+write.csv(summary,"Concentration data/site-specific distributions/summary_table.csv")
+summary
+
+summary %>% 
+  ggplot(aes(x = names, y = preds, fill = R2)) +
+  geom_col() +
+  geom_errorbar(aes(xmin = stderrors, xmax = stderrors))
+  
+```
+
+
+## Fit distributions
+
+```{r}
+#beta test with one polymer
+PS <- distributions %>% 
+  filter(polymer == "PS")
+descdist(PS$Size_um, boot = 1000)
+```
+```{r}
+#fit log-normal distribution
+lnorm <- fitdist(PS$Size_um, "lnorm")
+summary(lnorm)
+#fit gamma distribution
+gamma <- fitdist(PS$Size_um, "gamma")
+summary(gamma)
+
+par(mfrow = c(2,2))
+plot.legend <- c("lognormal", "gamma")
+denscomp(list(lnorm, gamma), legendtext = plot.legend)
+qqcomp(list(lnorm, gamma), legendtext = plot.legend)
+cdfcomp(list(lnorm, gamma), legendtext = plot.legend)
+ppcomp(list(lnorm, gamma), legendtext = plot.legend)
+```
+Which distributions fits the data best?
+```{r}
+gofstat(list(lnorm, gamma), fitnames = plot.legend)
+```
+
