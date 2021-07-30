@@ -1211,8 +1211,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) %>% 
-  filter(environment == "Marine")  
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  
+  # filter(environment == "Marine")  
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -1687,8 +1687,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_p.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) %>% 
-  filter(environment == "Marine") 
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))  
+  # filter(environment == "Marine") 
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2333,8 +2333,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
-  filter(environment == "Marine") 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  # filter(environment == "Marine") 
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -2654,8 +2654,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))%>% 
-  filter(environment == "Marine")  
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) 
+  # filter(environment == "Marine")  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3349,8 +3349,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
-  filter(environment == "Marine") 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  # filter(environment == "Marine") 
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3588,8 +3588,8 @@ tier3_4_small <- aoc_final_small %>%
          mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) %>% 
-  filter(environment == "Marine") 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
+  # filter(environment == "Marine") 
   
 # Count observations and studies
 tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3814,8 +3814,8 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size))%>% 
-  filter(environment == "Marine") 
+  filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) 
+  # filter(environment == "Marine") 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -3825,8 +3825,8 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))%>% 
-  filter(environment == "Marine")  
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) 
+  # filter(environment == "Marine")  
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
