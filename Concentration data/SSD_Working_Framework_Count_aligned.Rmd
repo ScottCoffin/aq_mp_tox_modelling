@@ -4127,7 +4127,7 @@ gt(ERM_large) %>%
     tab_options(column_labels.hidden = FALSE) #%>% 
     #as_raw_html() # return as html
 ```
-## Environment
+## Compartment-specific SSDs
 Alignments are compartment-specific.
 ```{r}
 #### define function for SSD generation for tier 1 ####
@@ -4346,11 +4346,11 @@ food_environment_ssds <- ggplot() +#, aes_string(x = "est")) +
        #subtitle = "Tier 2, 1um - Ingestible limit; ERM = Food Dilution",
        x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
   coord_trans(x = "log10") +
-  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 7),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
   scale_fill_manual(name = "Environment",
                   values = c("#EE0000FF", "#3B4992FF")) +
-  scale_color_aaas(name = "Environment") +
+  scale_color_aaas(name = "Species") +
   #fill.type + #user-selected
   #color.type + #user-selected
   theme.type #user theme
@@ -4358,9 +4358,9 @@ food_environment_ssds <- ggplot() +#, aes_string(x = "est")) +
 food_environment_ssds
 
 ggsave(plot = food_environment_ssds,
-       filename = "food_environment_ssds_SI-Fig4.tiff",
+       filename = "food_environment_ssds_SI-Fig4.jpeg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 14, height = 12, units = "in",
+       width = 8, height = 6, units = "in",
        dpi = 300)
 ```
 
@@ -4440,8 +4440,7 @@ write.csv(simple.summary,
 
 marine_thresholds_table
 ```
-### Freshwater
-#### Calculations
+
 
 Note that insufficient data are available to build translocation-based thresholds for freshwater species.
 ```{r}
@@ -4476,7 +4475,10 @@ hcx <- c(preds$est[hcx]) #HC5
 #values to extract
 return(list(preds, ssd_frame, hcx))
 }
-
+```
+### Freshwater
+#### Calculations
+```{r}
 ##### TIERs 1 & 2 ####
 #data filtering
 Freshwater_t1_food <- aoc_final_large %>% 
@@ -4601,9 +4603,9 @@ gt(simple.summary_freshwater) %>%
   #            use_seps = TRUE) %>% 
     tab_options(column_labels.hidden = FALSE) %>% 
   tab_spanner(label = "Surface Area ERM",
-              columns = c(names(simple.summary)[2:4])) %>% 
+              columns = c(names(simple.summary_freshwater)[2:4])) %>% 
   tab_spanner(label = "Volume ERM",
-              columns = c(names(simple.summary)[5:7]))
+              columns = c(names(simple.summary_freshwater)[5:7]))
 ```
 
 

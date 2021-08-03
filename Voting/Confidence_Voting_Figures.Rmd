@@ -101,10 +101,10 @@ thresholds <- final %>%
   geom_point(size = 5) +
   scale_color_manual(name = "Ecologically Relevant Metric",
                        values = c("gray1", "gray40"),
-                     labels = c("Food Dilution", "Oxidative Stress")) +
+                     labels = c("Food Dilution", "Translocation")) +
   scale_shape_manual(name = "Ecologically Relevant Metric",
                      values = c(19, 17),
-                     labels = c("Food Dilution", "Oxidative Stress")) +
+                     labels = c("Food Dilution", "Translocation")) +
   # add error bars
   geom_errorbar(aes(ymin = mean.agreement - sd.agreement, ymax = mean.agreement + sd.agreement),
                 width = 0.3) +
@@ -190,9 +190,9 @@ vote_figure <- ggarrange(approach_fig,thresholds,
 plot(vote_figure)
 
 ggsave(plot = vote_figure,
-       filename = "Confidence_Votes_Fig3.tiff",
+       filename = "Confidence_Votes_Fig3.jpeg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 14, height = 12, units = "in",
+       width = 12, height = 12, units = "in",
        dpi = 300)
 ```
 

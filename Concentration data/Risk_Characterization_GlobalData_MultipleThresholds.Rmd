@@ -1268,6 +1268,49 @@ ggsave(plot =overlap_figures,
        width = 20, height = 12, units = "in",
        dpi = 300)
 ```
+### ECDF
+```{r}
+vals <- c("Unaligned" = "black", "Aligned" = "blue")
+
+ECDF_marine <- globalData %>% 
+   filter(System %in% c("Ocean", "Estuary")) %>% 
+  mutate(unaligned = particle.L.master / CF) %>%
+  ggplot(aes(x = unaligned)) + 
+  #unaligned
+  stat_ecdf(aes(x = unaligned, color = "Unaligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = unaligned, color = "Unaligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #aligned
+  stat_ecdf(aes(x = Conc, color = "Aligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = Conc, color = "Aligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+ 
+  #thresholds
+  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = "#00798c", size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
+  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
+  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	"#d1495b", size = 1.3) +
+  geom_text(label = "1", color = "#00798c" , x = log10(Threshold1) - 0.2, y = 0.1, size = 5)+
+  geom_text(label = "2", color = "#66a182" , x = log10(Threshold2) - 0.2, y = 0.1, size = 5)+
+  geom_text(label = "3", color = '#edae49', x = log10(Threshold3) + 0.2, y = 0.1, size = 5)+
+  geom_text(label = "4", color = "#d1495b", x = log10(Threshold4) + 0.2, y = 0.1, size = 5)+
+  #aesthetics
+   ylab("Cumulative Density") +
+  xlab(paste0("Particles/L"))+
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif) +
+   #color scale
+  scale_color_manual(name = "alignment",
+                     values = vals) +
+  #coord_trans(x = "log10") +
+  
+  #annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  theme.type +
+  theme(legend.title = element_blank())
+
+ECDF_marine
+```
+
 
 
 ## Table comparing overlap
@@ -1842,5 +1885,60 @@ ggsave(plot =overlap_figures_marine_freshwater,
        filename = "overlap_figure_marine_freshwater_SI-Fig5.tiff",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
        width = 12, height = 8, units = "in",
+       dpi = 300)
+```
+## ECDF
+```{r}
+vals <- c("Unaligned" = "black", "Aligned" = "blue")
+
+ECDF_freshwater <- globalData %>% 
+  filter(sample.matrix.specific == "surface water") %>% 
+   filter(System %in% c("Lake", "River")) %>% 
+  mutate(unaligned = particle.L.master / CF) %>%
+  ggplot() + 
+  #unaligned
+  stat_ecdf(aes(x = unaligned, color = "Unaligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = unaligned, color = "Unaligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #aligned
+  stat_ecdf(aes(x = Conc, color = "Aligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = Conc, color = "Aligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #color
+  scale_color_manual(name = "alignment",
+                     values = vals) +
+  #thresholds
+  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = "#00798c", size = 1.3) +
+  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
+  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
+  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	"#d1495b", size = 1.3) +
+  geom_text(label = "1", color = "#00798c" , x = log10(Threshold1) - 0.2, y = 0.1, size = 5)+
+  geom_text(label = "2", color = "#66a182" , x = log10(Threshold2) - 0.2, y = 0.1, size = 5)+
+  geom_text(label = "3", color = '#edae49', x = log10(Threshold3) + 0.2, y = 0.1, size = 5)+
+  geom_text(label = "4", color = "#d1495b", x = log10(Threshold4) + 0.2, y = 0.1, size = 5)+
+  #aesthetics
+   ylab("Cumulative Density") +
+  xlab(paste0("Particles/L"))+
+  scale_y_continuous(labels = scales::percent) +
+  scale_x_log10(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif) +
+  theme.type +
+  theme(legend.title = element_blank())
+
+ECDF_freshwater
+```
+
+#### Manuscript Figure
+```{r}
+ECDF_freshwater_marine <- ggarrange(ECDF_marine, ECDF_freshwater,
+                        labels = c("A", "B"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 1)
+
+plot(ECDF_freshwater_marine)
+
+ggsave(plot =ECDF_freshwater_marine,
+       filename = "ECDF_freshwater_marine_SI-Fig6.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 11, height = 5, units = "in",
        dpi = 300)
 ```
