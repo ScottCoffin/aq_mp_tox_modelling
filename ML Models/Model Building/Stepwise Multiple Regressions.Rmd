@@ -17,7 +17,7 @@ output:
 knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
                       warning=FALSE, message=FALSE)
 ```
----
+
 
 ```{r, echo = FALSE, message = FALSE, warning = FALSE}
 #Packages
@@ -611,6 +611,10 @@ m1_crust_acute <- aoc_setup %>%
   filter(!effect_f == "NA") %>% 
   mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>% 
   mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>% 
+   mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>% 
  # filter(acute.chronic_f == "Acute") %>% 
   dplyr::select(c(effect_10, 
                   logdose.mg.L.master, 
@@ -679,6 +683,10 @@ m1_crust <- aoc_setup %>%
   filter(lvl1_f == "Fitness") %>% 
   filter(!size_f == "Not Reported") %>% 
   mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>% 
  # filter(acute.chronic_f == "Acute") %>% 
   dplyr::select(c(effect_10, logdose.mg.L.master, size_f, exposure.duration.d)) %>% 
   drop_na()
@@ -696,3 +704,241 @@ plot(cumHaz, facet = TRUE, add.data = TRUE, colors = "flat")
 pr <- ggpredict(survival, c("logdose.mg.L.master", "size_f"), type = "surv")
 plot(pr, colors = "social")
 ```
+```{r}
+crust_duration_size_mass <- glm(effect_10 ~ (logdose.mg.L.master + size_f + exposure.duration.d) ^ 2,
+                                     data = m1_crust, 
+                                     na.action = "na.exclude", 
+                                     family = "binomial"#,
+                                     #glm.control(maxit = 50)
+                                     )
+
+summary(crust_duration_size_mass)
+```
+# Manuscript Figures
+## Particles
+```{r}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup %>% 
+  filter(tech.tier.zero == "Pass") %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+ # filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+#  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+   mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, logdose.surface.area.um2.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_particles <- glm(effect_10 ~ logdose.particles.mL.master*size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_particles)
+```
+```{r}
+ggPredict(m1_crust_model_particles,colorn=900,jitter=FALSE, interactive = FALSE)
+```
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.particles.mL.master)
+dose_U <-max(m1_crust$logdose.particles.mL.master)
+
+mockData_particles <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.particles.mL.master = seq(dose_L, dose_U, 0.1))
+
+mockData_particles$effect_10 <- predict(m1_crust_model_particles,
+                     mockData_particles,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_particles <- mockData_particles %>% 
+  ggplot(aes(x = logdose.particles.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+  xlab("log10(Particles/mL)") +
+  ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw()
+
+glm_particles
+```
+
+
+## Mass
+```{r}
+
+#Fit the full model
+m1_crust_model_mass <- glm(effect_10 ~ logdose.mg.L.master * size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_mass)
+```
+
+```{r}
+ggPredict(m1_crust_model_mass,colorn=300,jitter=FALSE, interactive = FALSE)
+```
+
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.mg.L.master)
+dose_U <-max(m1_crust$logdose.mg.L.master)
+
+mockData_mass <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.mg.L.master = seq(dose_L, dose_U, 0.1))
+
+mockData_mass$effect_10 <- predict(m1_crust_model_mass,
+                     mockData_mass,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_mass <- mockData_mass %>% 
+  ggplot(aes(x = logdose.mg.L.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+  xlab("log10(mg/L)") +
+  ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw()
+
+glm_mass
+```
+
+## Volume
+```{r}
+#Fit the full model
+m1_crust_model_volume <- glm(effect_10 ~ logdose.um3.mL.master * size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_volume)
+```
+
+```{r}
+ggPredict(m1_crust_model_volume,colorn=300,jitter=FALSE, interactive = FALSE)
+```
+
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.um3.mL.master)
+dose_U <-max(m1_crust$logdose.um3.mL.master)
+
+mockData_volume <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.um3.mL.master = seq(dose_L, dose_U, 0.1))
+
+mockData_volume$effect_10 <- predict(m1_crust_model_volume,
+                     mockData_volume,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_volume <- mockData_volume %>% 
+  ggplot(aes(x = logdose.um3.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+   xlab(expression(log10 ~ (mu * m ^ 3 / mL))) +
+ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw()
+
+glm_volume
+```
+
+
+## surface_area
+```{r}
+#Fit the full model
+m1_crust_model_surface_area <- glm(effect_10 ~ logdose.surface.area.um2.mL.master * size.length.um.used.for.conversions, 
+                                   data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_surface_area)
+```
+
+```{r}
+ggPredict(m1_crust_model_surface_area,colorn=300,jitter=FALSE, interactive = FALSE)
+```
+
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.surface.area.um2.mL.master)
+dose_U <-max(m1_crust$logdose.surface.area.um2.mL.master)
+
+mockData_surface_area <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.surface.area.um2.mL.master = seq(dose_L, dose_U, 0.1))
+
+mockData_surface_area$effect_10 <- predict(m1_crust_model_surface_area,
+                     mockData_surface_area,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_surface_area <- mockData_surface_area %>% 
+  ggplot(aes(x = logdose.surface.area.um2.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+  xlab(expression(log10 ~ (mu * m ^ 2 / mL))) +
+  ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw()
+
+glm_surface_area
+```
+
+# Manuscript Figure GLM Plots
+```{r}
+require(ggpubr)
+dose_GLMs <- ggarrange(glm_particles, glm_mass,
+                       glm_volume, glm_surface_area,
+                        labels = c("A", "B", "C", "D"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 2)
+
+plot(dose_GLMs)
+
+ggsave(plot = dose_GLMs,
+       filename = "dose_GLMs.jpeg",
+       path = "./teamXfigures/", 
+       width = 12, height = 12, units = "in",
+       dpi = 900)
+```
+

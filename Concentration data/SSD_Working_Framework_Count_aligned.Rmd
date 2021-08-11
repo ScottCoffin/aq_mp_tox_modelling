@@ -689,6 +689,10 @@ tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
 tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
 pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier1_2_small_1q_unaligned <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_unaligned <- SSD_tier1_2_small_1q
+
 #ggplot
 tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -913,6 +917,10 @@ SSD_tier3_4_small_median$frac <- ppoints(tier3_4_small_median$Conc, 0.5)
 tier3_4_small_median_hc5 <- c(pred_tier3_4_small_median$est[5]) #HC5
 tier3_4_small_median_hc10 <- c(pred_tier3_4_small_median$est[10]) #HC10
 pred_tier3_4_small_median$est_format <-format(pred_tier3_4_small_median$est, digits = 3, scientific = TRUE)
+
+#add unique ID for multiplot
+pred_tier3_4_small_median_unaligned <- pred_tier3_4_small_median
+SSD_tier3_4_small_median_unaligned <- SSD_tier3_4_small_median
 
 #ggplot
 tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "est")) +
@@ -1152,6 +1160,11 @@ tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
 tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
 pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier1_2_small_1q_particles <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_particles <- SSD_tier1_2_small_1q
+
+
 #ggplot
 tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -1343,6 +1356,10 @@ tier3_4_large_median_hc5 <- c(pred_tier3_4_large_median$est[5]) #HC5
 tier3_4_large_median_hc10 <- c(pred_tier3_4_large_median$est[10]) #HC10
 pred_tier3_4_large_median$est_format <-format(pred_tier3_4_large_median$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier3_4_large_median_particles <- pred_tier3_4_large_median
+SSD_tier3_4_large_median_particles <- SSD_tier3_4_large_median
+
 #ggplot
 tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -1386,6 +1403,10 @@ SSD_tier3_4_small_median$frac <- ppoints(tier3_4_small_median$Conc, 0.5)
 tier3_4_small_median_hc5 <- c(pred_tier3_4_small_median$est[5]) #HC5
 tier3_4_small_median_hc10 <- c(pred_tier3_4_small_median$est[10]) #HC10
 pred_tier3_4_small_median$est_format <-format(pred_tier3_4_small_median$est, digits = 3, scientific = TRUE)
+
+#add unique ID for multiplot
+pred_tier3_4_small_median_particles <- pred_tier3_4_small_median
+SSD_tier3_4_small_median_particles <- SSD_tier3_4_small_median
 
 #ggplot
 tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "est")) +
@@ -1725,14 +1746,19 @@ size.volume <- aoc_final_large_marine %>%
 summary(lm(data = size.volume, EC_env_v.particles.mL ~ body.length.cm))
 
 
-size.volume %>%  
+body_size_volume <- size.volume %>%  
   #filter(effect.metric %in% c("EC50","LC50")) %>% 
   ggplot(aes(x = EC_env_v.particles.mL, y = body.length.cm, color = Group)) +
   #geom_smooth() +
   geom_point() + 
   scale_x_log10(limits = c(1e-2, 1e10)) + 
   scale_y_log10() + 
-  dark_theme_bw()
+  ylab("Species Body Length (cm)") +
+  xlab("Critical Effect Concentration (particles/L; volume aligned)") +
+  #dark_theme_bw()
+  theme_bw(base_size = 14)
+
+body_size_volume
 ```
 Is body size related to effect threshold for Surface Area?
 ```{r}
@@ -1743,15 +1769,34 @@ size.sa <- aoc_final_large_marine %>%
 summary(lm(data = size.sa, EC_env_sa.particles.mL ~ body.length.cm))
 
 
-size.sa %>%  
+body_size_surface_area <- size.sa %>%  
   #filter(effect.metric %in% c("EC50","LC50")) %>% 
   ggplot(aes(x = EC_env_sa.particles.mL, y = body.length.cm, color = Group)) +
   #geom_smooth() +
   geom_point() + 
   scale_x_log10(limits = c(1e-2, 1e10)) + 
   scale_y_log10() + 
-  dark_theme_bw()
+  ylab("Species Body Length (cm)") +
+  xlab("Critical Effect Concentration (particles/L; surface area aligned)") +
+  #dark_theme_bw()
+  theme_bw(base_size = 14)
+
+body_size_surface_area 
 ```
+###### Manuscript Figure
+```{r}
+body_size_figs <- ggarrange(body_size_surface_area, body_size_volume,
+                            labels = c("A", "B"),
+                            legend = "bottom",
+                            common.legend = TRUE)
+body_size_figs
+
+
+ggsave(filename = "body_size_figs_SIx.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = body_size_figs, width = 12, height = 8, units = "in")
+```
+
 
 ##### Oxidative Stress (1 - 83 µm) 
 
@@ -1774,6 +1819,11 @@ SSD_tier1_2_small_1q$frac <- ppoints(tier1_2_small_1q$Conc, 0.5)
 tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
 tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
 pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
+
+
+#add unique ID for multiplot
+pred_tier1_2_small_1q_volume <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_volume <- SSD_tier1_2_small_1q
 
 #ggplot
 tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
@@ -2070,6 +2120,10 @@ tier3_4_large_median_hc5 <- c(pred_tier3_4_large_median$est[5]) #HC5
 tier3_4_large_median_hc10 <- c(pred_tier3_4_large_median$est[10]) #HC10
 pred_tier3_4_large_median$est_format <-format(pred_tier3_4_large_median$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier3_4_large_median_volume <- pred_tier3_4_large_median
+SSD_tier3_4_large_median_volume <- SSD_tier3_4_large_median
+
 #ggplot
 tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -2117,6 +2171,10 @@ SSD_tier3_4_small_median$frac <- ppoints(tier3_4_small_median$Conc, 0.5)
 tier3_4_small_median_hc5 <- c(pred_tier3_4_small_median$est[5]) #HC5
 tier3_4_small_median_hc10 <- c(pred_tier3_4_small_median$est[10]) #HC10
 pred_tier3_4_small_median$est_format <-format(pred_tier3_4_small_median$est, digits = 3, scientific = TRUE)
+
+#add unique ID for multiplot
+pred_tier3_4_small_median_volume <- pred_tier3_4_small_median
+SSD_tier3_4_small_median_volume <- SSD_tier3_4_small_median
 
 #ggplot
 tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "est")) +
@@ -2464,6 +2522,10 @@ tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
 tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
 pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier1_2_small_1q_surfacearea <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_surfacearea <- SSD_tier1_2_small_1q
+
 #ggplot
 tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -2765,6 +2827,10 @@ tier3_4_large_median_hc5 <- c(pred_tier3_4_large_median$est[5]) #HC5
 tier3_4_large_median_hc10 <- c(pred_tier3_4_large_median$est[10]) #HC10
 pred_tier3_4_large_median$est_format <-format(pred_tier3_4_large_median$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier3_4_large_median_surfacearea <- pred_tier3_4_large_median
+SSD_tier3_4_large_median_surfacearea <- SSD_tier3_4_large_median
+
 #ggplot
 tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -2808,6 +2874,10 @@ SSD_tier3_4_small_median$frac <- ppoints(tier3_4_small_median$Conc, 0.5)
 tier3_4_small_median_hc5 <- c(pred_tier3_4_small_median$est[5]) #HC5
 tier3_4_small_median_hc10 <- c(pred_tier3_4_small_median$est[10]) #HC10
 pred_tier3_4_small_median$est_format <-format(pred_tier3_4_small_median$est, digits = 3, scientific = TRUE)
+
+#add unique ID for multiplot
+pred_tier3_4_small_median_surfacearea <- pred_tier3_4_small_median
+SSD_tier3_4_small_median_surfacearea <- SSD_tier3_4_small_median
 
 #ggplot
 tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "est")) +
@@ -3052,6 +3122,10 @@ tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
 tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
 pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier1_2_small_1q_mass <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_mass <- SSD_tier1_2_small_1q
+
 #ggplot
 tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -3245,6 +3319,10 @@ tier3_4_large_median_hc5 <- c(pred_tier3_4_large_median$est[5]) #HC5
 tier3_4_large_median_hc10 <- c(pred_tier3_4_large_median$est[10]) #HC10
 pred_tier3_4_large_median$est_format <-format(pred_tier3_4_large_median$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier3_4_large_median_mass <- pred_tier3_4_large_median
+SSD_tier3_4_large_median_mass <- SSD_tier3_4_large_median
+
 #ggplot
 tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -3288,6 +3366,10 @@ SSD_tier3_4_small_median$frac <- ppoints(tier3_4_small_median$Conc, 0.5)
 tier3_4_small_median_hc5 <- c(pred_tier3_4_small_median$est[5]) #HC5
 tier3_4_small_median_hc10 <- c(pred_tier3_4_small_median$est[10]) #HC10
 pred_tier3_4_small_median$est_format <-format(pred_tier3_4_small_median$est, digits = 3, scientific = TRUE)
+
+#add unique ID for multiplot
+pred_tier3_4_small_median_mass <- pred_tier3_4_small_median
+SSD_tier3_4_small_median_mass <- SSD_tier3_4_small_median
 
 #ggplot
 tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "est")) +
@@ -3385,7 +3467,7 @@ Data Quality = Pass Technical Quality Red Criteria
 ```{r size category selection6, include=TRUE}
 #Food Dilution
 tier1_2_large <- aoc_final_large_marine %>% 
-         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, large_tier_lower_size, large_tier_upper_size)) 
@@ -3396,7 +3478,7 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 #Translocation
 tier1_2_small <- aoc_final_small %>% 
-         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_ssa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um)) 
@@ -3482,8 +3564,8 @@ tier1_2_large_1q_hc5 <- c(pred_tier1_2_large_1q$est[5]) #HC5
 pred_tier1_2_large_1q$est_format <-format(pred_tier1_2_large_1q$est, digits = 3, scientific = TRUE)
 
 #add unique ID for multiplot
-pred_tier1_2_large_1q_surfacearea <- pred_tier1_2_large_1q
-SSD_tier1_2_large_1q_surfacearea <- SSD_tier1_2_large_1q
+pred_tier1_2_large_1q_specificsurfacearea <- pred_tier1_2_large_1q
+SSD_tier1_2_large_1q_specificsurfacearea <- SSD_tier1_2_large_1q
 
 #ggplot
 tier1_2_large_1q_ggplot <- ggplot(pred_tier1_2_large_1q,aes_string(x = "est")) +
@@ -3528,6 +3610,10 @@ SSD_tier1_2_small_1q$frac <- ppoints(tier1_2_small_1q$Conc, 0.5)
 tier1_2_small_1q_lcl <- c(pred_tier1_2_small_1q$lcl[5]) #CI95
 tier1_2_small_1q_hc5 <- c(pred_tier1_2_small_1q$est[5]) #HC5
 pred_tier1_2_small_1q$est_format <-format(pred_tier1_2_small_1q$est, digits = 3, scientific = TRUE)
+
+#add unique ID for multiplot
+pred_tier1_2_small_1q_specificsurfacearea <- pred_tier1_2_small_1q
+SSD_tier1_2_small_1q_specificsurfacearea <- SSD_tier1_2_small_1q
 
 #ggplot
 tier1_2_small_1q_ggplot <- ggplot(pred_tier1_2_small_1q,aes_string(x = "est")) +
@@ -3721,6 +3807,10 @@ tier3_4_large_median_hc5 <- c(pred_tier3_4_large_median$est[5]) #HC5
 tier3_4_large_median_hc10 <- c(pred_tier3_4_large_median$est[10]) #HC10
 pred_tier3_4_large_median$est_format <-format(pred_tier3_4_large_median$est, digits = 3, scientific = TRUE)
 
+#add unique ID for multiplot
+pred_tier3_4_large_median_specificsurfacearea <- pred_tier3_4_large_median
+SSD_tier3_4_large_median_specificsurfacearea <- SSD_tier3_4_large_median
+
 #ggplot
 tier3_4_large_median_ggplot <- ggplot(pred_tier3_4_large_median,aes_string(x = "est")) +
       geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "grey", fill = "lightgrey") +
@@ -3762,6 +3852,11 @@ SSD_tier3_4_small_median$frac <- ppoints(tier3_4_small_median$Conc, 0.5)
 tier3_4_small_median_hc5 <- c(pred_tier3_4_small_median$est[5]) #HC5
 tier3_4_small_median_hc10 <- c(pred_tier3_4_small_median$est[10]) #HC10
 pred_tier3_4_small_median$est_format <-format(pred_tier3_4_small_median$est, digits = 3, scientific = TRUE)
+
+
+#add unique ID for multiplot
+pred_tier3_4_small_median_specificsurfacearea <- pred_tier3_4_small_median
+SSD_tier3_4_small_median_specificsurfacearea <- SSD_tier3_4_small_median
 
 #ggplot
 tier3_4_small_median_ggplot <- ggplot(pred_tier3_4_small_median,aes_string(x = "est")) +
@@ -3844,7 +3939,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_73021.xlsx")
+#write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_73021.xlsx")
 
 #Data Collapse
 
@@ -3877,6 +3972,7 @@ ggsave(filename = "SSD_Figure_Fig2.tiff",
 
 ## Multi plots
 ### Larges
+#### Tiers 1 & 2
 ```{r}
 # Build dataframe with all SSDs so we can get a color scale
 p_t1_l_p <- pred_tier1_2_large_1q_particles %>% mutate(alignment = "particle")
@@ -3884,12 +3980,15 @@ p_t1_l_u <- pred_tier1_2_large_1q_unaligned %>% mutate(alignment = "unaligned")
 p_t1_l_v <- pred_tier1_2_large_1q_volume %>% mutate(alignment = "volume") %>% select(-est_format)
 p_t1_l_sa <- pred_tier1_2_large_1q_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
 p_t1_l_m <- pred_tier1_2_large_1q_mass %>% mutate(alignment = "mass") %>% select(-est_format)
+p_t1_l_ssa <- pred_tier1_2_large_1q_specificsurfacearea %>% mutate(alignment = "specific_surface_area") %>% select(-est_format)
+
 
 predictions_t1_large <- rbind.data.frame(p_t1_l_p, 
                                 p_t1_l_u,
                                 p_t1_l_v,
                                 p_t1_l_sa,
-                                p_t1_l_m) %>% 
+                                p_t1_l_m,
+                                p_t1_l_ssa) %>% 
   mutate(alignment = factor(alignment))
 predictions_t1_large
 
@@ -3899,32 +3998,96 @@ s_t1_l_u <- SSD_tier1_2_large_1q_unaligned %>% mutate(alignment = "unaligned")
 s_t1_l_v <- SSD_tier1_2_large_1q_volume %>% mutate(alignment = "volume")
 s_t1_l_sa <- SSD_tier1_2_large_1q_surfacearea %>% mutate(alignment = "surface_area")
 s_t1_l_m <- SSD_tier1_2_large_1q_mass %>% mutate(alignment = "mass")
+s_t1_l_ssa <- SSD_tier1_2_large_1q_specificsurfacearea %>% mutate(alignment = "specific_surface_area")
 
 points_t1_large <- rbind.data.frame(s_t1_l_p, 
                                 s_t1_l_u,
                                 s_t1_l_v,
                                 s_t1_l_sa,
-                                s_t1_l_m)# %>% 
+                                s_t1_l_m,
+                                s_t1_l_ssa)# %>% 
   #mutate(alignment = as.factor(alignment))
 #convert alignment to factor
 points_t1_large$alignment <- as.factor(points_t1_large$alignment)
 ```
-#### All
+##### All
 ```{r}
-predictions_t1_large %>% 
+compare_ERMs_t1_2_large <- predictions_t1_large %>% 
 ggplot(aes(x = est, y = percent/100, color = alignment)) +
-  geom_line(size = 1.3) +
+  geom_line(size = 1) +
   #geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
   geom_point(data = points_t1_large,aes(x = Conc, y =frac, color = alignment)) + 
-  scale_color_tron(name = "Alignment") +
-  scale_fill_tron(name = "Alignment") +
+  scale_color_npg(name = "Alignment") +
+  scale_fill_npg(name = "Alignment") +
   guides(fill = FALSE) + # suppress different legend for colors and lines
   coord_trans(x = "log10") +
-      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 10),
                          labels = trans_format("log10", scales::math_format(10^.x))) +
 scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Tiers 1 & 2, 1-5000 µm", x = "particles/L") +
+  labs(#title = "Tiers 1 & 2, 1-5000 µm", 
+       x = "particles/L (aligned to 1-5,000 µm)") +
       theme.type #user theme
+
+compare_ERMs_t1_2_large
+```
+
+#### Tiers 3 & 4
+```{r}
+# Build dataframe with all SSDs so we can get a color scale
+p_t3_l_p <- pred_tier3_4_large_median_particles %>% mutate(alignment = "particle") %>% select(-est_format)
+p_t3_l_u <- pred_tier3_4_large_median_unaligned %>% mutate(alignment = "unaligned")
+p_t3_l_v <- pred_tier3_4_large_median_volume %>% mutate(alignment = "volume") %>% select(-est_format)
+p_t3_l_sa <- pred_tier3_4_large_median_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
+p_t3_l_m <- pred_tier3_4_large_median_mass %>% mutate(alignment = "mass") %>% select(-est_format)
+p_t3_l_ssa <- pred_tier3_4_large_median_specificsurfacearea %>% mutate(alignment = "specific_surface_area") %>% select(-est_format)
+
+
+predictions_t3_large <- rbind.data.frame(p_t3_l_p, 
+                                p_t3_l_u,
+                                p_t3_l_v,
+                                p_t3_l_sa,
+                                p_t3_l_m,
+                                p_t3_l_ssa) %>% 
+  mutate(alignment = factor(alignment))
+predictions_t3_large
+
+#do the same for individual points
+s_t3_l_p <- SSD_tier3_4_large_median_particles %>% mutate(alignment = "particle")
+s_t3_l_u <- SSD_tier3_4_large_median_unaligned %>% mutate(alignment = "unaligned")
+s_t3_l_v <- SSD_tier3_4_large_median_volume %>% mutate(alignment = "volume")
+s_t3_l_sa <- SSD_tier3_4_large_median_surfacearea %>% mutate(alignment = "surface_area")
+s_t3_l_m <- SSD_tier3_4_large_median_mass %>% mutate(alignment = "mass")
+s_t3_l_ssa <- SSD_tier3_4_large_median_specificsurfacearea %>% mutate(alignment = "specific_surface_area")
+
+points_t3_large <- rbind.data.frame(s_t3_l_p, 
+                                s_t3_l_u,
+                                s_t3_l_v,
+                                s_t3_l_sa,
+                                s_t3_l_m,
+                                s_t3_l_ssa)# %>% 
+  #mutate(alignment = as.factor(alignment))
+#convert alignment to factor
+points_t3_large$alignment <- as.factor(points_t3_large$alignment)
+```
+##### All
+```{r}
+compare_ERMs_t3_4 <- predictions_t3_large %>% 
+ggplot(aes(x = est, y = percent/100, color = alignment)) +
+  geom_line(size = 1) +
+  #geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+  geom_point(data = points_t3_large,aes(x = Conc, y =frac, color = alignment)) + 
+  scale_color_npg(name = "Alignment") +
+  scale_fill_npg(name = "Alignment") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 10),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(#title = "Tiers 1 & 2, 1-5000 µm", 
+       x = "particles/L (aligned to 1-5,000 µm)") +
+      theme.type #user theme
+
+compare_ERMs_t3_4
 ```
 
 #### Simple aligned vs unaligned
@@ -4015,20 +4178,22 @@ ggplot(pred_tier1_2_large_1q_particles,aes_string(x = "est")) +
 
 ```
 ### Smalls
-CURRENTLY DOES NOT WORK DUE TO LACK OF ASSIGNING UNIQUE IDs
-```{r eval=FALSE, include=FALSE}
+#### Tier 1_2
+```{r include=FALSE}
 # Build dataframe with all SSDs so we can get a color scale
 p_t1_s_p <- pred_tier1_2_small_1q_particles %>% mutate(alignment = "particle")
 p_t1_s_u <- pred_tier1_2_small_1q_unaligned %>% mutate(alignment = "unaligned")
-p_t1_s_v <- pred_tier1_2_small_1q_volume %>% mutate(alignment = "volume") %>% select(-est_format)
-p_t1_s_sa <- pred_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface_area") %>% select(-est_format)
-p_t1_s_m <- pred_tier1_2_small_1q_mass %>% mutate(alignment = "mass") %>% select(-est_format)
+p_t1_s_v <- pred_tier1_2_small_1q_volume %>% mutate(alignment = "volume")# %>% select(-est_format)
+p_t1_s_sa <- pred_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface area")# %>% select(-est_format)
+p_t1_s_m <- pred_tier1_2_small_1q_mass %>% mutate(alignment = "mass")# %>% select(-est_format)
+p_t1_s_ssa <- pred_tier1_2_small_1q_specificsurfacearea %>% mutate(alignment = "specific surface area")# %>% select(-est_format)
 
 predictions_t1_small <- rbind.data.frame(p_t1_s_p, 
                                 p_t1_s_u,
                                 p_t1_s_v,
                                 p_t1_s_sa,
-                                p_t1_s_m) %>% 
+                                p_t1_s_m,
+                                p_t1_s_ssa) %>% 
   mutate(alignment = factor(alignment))
 predictions_t1_small
 
@@ -4036,34 +4201,116 @@ predictions_t1_small
 s_t1_s_p <- SSD_tier1_2_small_1q_particles %>% mutate(alignment = "particle")
 s_t1_s_u <- SSD_tier1_2_small_1q_unaligned %>% mutate(alignment = "unaligned")
 s_t1_s_v <- SSD_tier1_2_small_1q_volume %>% mutate(alignment = "volume")
-s_t1_s_sa <- SSD_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface_area")
+s_t1_s_sa <- SSD_tier1_2_small_1q_surfacearea %>% mutate(alignment = "surface area")
 s_t1_s_m <- SSD_tier1_2_small_1q_mass %>% mutate(alignment = "mass")
+s_t1_s_ssa <- SSD_tier1_2_small_1q_specificsurfacearea %>% mutate(alignment = "specific surface area")
 
 points_t1_small <- rbind.data.frame(s_t1_s_p, 
                                 s_t1_s_u,
                                 s_t1_s_v,
                                 s_t1_s_sa,
-                                s_t1_s_m)# %>% 
+                                s_t1_s_m,
+                                s_t1_s_ssa)# %>% 
   #mutate(alignment = as.factor(alignment))
 #convert alignment to factor
 points_t1_small$alignment <- as.factor(points_t1_small$alignment)
 ```
-#### All
-```{r eval=FALSE, include=FALSE}
-predictions_t1_small %>% 
+##### All
+```{r}
+compare_ERMs_t1_2_small <- predictions_t1_small %>% 
 ggplot(aes(x = est, y = percent/100, color = alignment)) +
   geom_line() +
-  geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+ # geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
   geom_point(data = points_t1_small,aes(x = Conc, y =frac, color = alignment)) + 
-  scale_color_tron(name = "Alignment") +
+  scale_color_npg(name = "Alignment") +
+  scale_color_npg(name = "Alignment") +
   guides(fill = FALSE) + # suppress different legend for colors and lines
   coord_trans(x = "log10") +
-      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 10),
                          labels = trans_format("log10", scales::math_format(10^.x))) +
 scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Tiers 1 & 2, 1-5000 µm", x = "particles/L") +
+  labs(#title = "Tiers 1 & 2, 1-5000 µm",
+    x = "particles/L (aligned to 1-5,000 µm)") +
       coord_trans(x = "log10") +
       theme.type #user theme
+
+compare_ERMs_t1_2_small
+```
+
+#### Tier 3_4
+```{r eval=FALSE, include=FALSE}
+# Build dataframe with all SSDs so we can get a color scale
+p_t3_s_p <- pred_tier3_4_small_median_particles %>% mutate(alignment = "particle")
+p_t3_s_u <- pred_tier3_4_small_median_unaligned %>% mutate(alignment = "unaligned")
+p_t3_s_v <- pred_tier3_4_small_median_volume %>% mutate(alignment = "volume")# %>% select(-est_format)
+p_t3_s_sa <- pred_tier3_4_small_median_surfacearea %>% mutate(alignment = "surface area")# %>% select(-est_format)
+p_t3_s_m <- pred_tier3_4_small_median_mass %>% mutate(alignment = "mass")# %>% select(-est_format)
+p_t3_s_ssa <- pred_tier3_4_small_median_specificsurfacearea %>% mutate(alignment = "specific surface area")# %>% select(-est_format)
+
+predictions_t3_small <- rbind.data.frame(p_t3_s_p, 
+                                p_t3_s_u,
+                                p_t3_s_v,
+                                p_t3_s_sa,
+                                p_t3_s_m,
+                                p_t3_s_ssa) %>% 
+  mutate(alignment = factor(alignment))
+predictions_t3_small
+
+#do the same for individual points
+s_t3_s_p <- SSD_tier3_4_small_median_particles %>% mutate(alignment = "particle")
+s_t3_s_u <- SSD_tier3_4_small_median_unaligned %>% mutate(alignment = "unaligned")
+s_t3_s_v <- SSD_tier3_4_small_median_volume %>% mutate(alignment = "volume")
+s_t3_s_sa <- SSD_tier3_4_small_median_surfacearea %>% mutate(alignment = "surface area")
+s_t3_s_m <- SSD_tier3_4_small_median_mass %>% mutate(alignment = "mass")
+s_t3_s_ssa <- SSD_tier3_4_small_median_specificsurfacearea %>% mutate(alignment = "specific surface area")
+
+points_t3_small <- rbind.data.frame(s_t3_s_p, 
+                                s_t3_s_u,
+                                s_t3_s_v,
+                                s_t3_s_sa,
+                                s_t3_s_m,
+                                s_t3_s_ssa)# %>% 
+  #mutate(alignment = as.factor(alignment))
+#convert alignment to factor
+points_t3_small$alignment <- as.factor(points_t3_small$alignment)
+```
+##### All
+```{r eval=FALSE, include=FALSE}
+compare_ERMs_t3_4_small <- predictions_t3_small %>% 
+ggplot(aes(x = est, y = percent/100, color = alignment)) +
+  geom_line() +
+ # geom_xribbon(aes(xmin = lcl, xmax = ucl, y = percent/100, fill = alignment),color = "black", alpha = 0.15) +
+  geom_point(data = points_t3_small,aes(x = Conc, y =frac, color = alignment)) + 
+  scale_fill_npg(name = "Alignment") +
+  scale_color_npg(name = "Alignment") +
+  guides(fill = FALSE) + # suppress different legend for colors and lines
+  coord_trans(x = "log10") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 10),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(#title = "Tiers 3 & 4, 1-5000 µm", 
+    x = "particles/L") +
+      coord_trans(x = "log10") +
+      theme.type #user theme
+
+compare_ERMs_t3_4_small
+```
+
+##### Manuscript Figure
+
+```{r}
+ERM_comparisons <- ggarrange(compare_ERMs_t1_2_small, compare_ERMs_t1_2_large,
+          labels = c("A", "B", "C", "D"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 1)
+
+ERM_comparisons
+
+ggsave(plot = ERM_comparisons,
+       filename = "compare_ERMs_SI-Fig4.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 12, height = 8, units = "in",
+       dpi = 600)
 ```
 
 ## Grand Summary
@@ -5309,44 +5556,62 @@ for(i in 1:SIM){
 }
 
 ```
-
+### Plot
 ```{r eval=FALSE, include=FALSE}
 # Plot the mean PSSD
-plot(c(-2,6), c(0,1),
-     main = "Microplastics Probabilistic SSD (1-5,000 um; volumetric)",
-     xlab = "NOEC [particles/L]",
+plot(c(-2,8), c(0,1),
+     #main = "Microplastics Probabilistic SSD (1-5,000 um; volumetric)",
+     xlab = "NOEC (particles/L; aligned to 1-5,000 um by volume)",
      ylab = "Proportion of Species Affected",
      type = "n",
      axes = F)
-axis(1, at = c(-2,0,2,4,6), labels = expression(10^-2, 10^0, 10^2, 10^4, 10^6), lwd = 0.5)
+axis(1, at = c(-2,0,2,4,6,8), labels = expression(10^-2, 10^0, 10^2, 10^4, 10^6, 10^8), lwd = 0.5)
 axis(2, lwd = 0.5, las = 1)
 abline(h = seq(0,1,0.2), lty = 1, lwd = 0.5, col = "gray90")
-abline(v = seq(-6,5,1), lty = 1, lwd = 0.5, col = "gray90")
+abline(v = seq(-6,8,1), lty = 1, lwd = 0.5, col = "gray90")
 box(lwd = 0.5)
 lines(xvalues, apply(PSSD,2,function(x) {mean(x)}), col = "red", lwd = 1.5)
 legend("topleft", "Mean PSSD", col = "red", lwd = 1.5)
 ```
 
+### GGplot
+```{r}
+ggplot() +
+  geom_line(aes(xvalues, apply(PSSD,2,function(x) {mean(x)})),
+            color = "red") +
+      scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^ x, n = 10),
+                         labels = trans_format("log10", scales::math_format(10^.x))) +
+scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(#title = "Tiers 1 & 2, 1-5000 µm",
+    x = "particles/L (aligned to 1-5,000 µm)") +
+  coord_trans(x = "log10") +
+      theme.type #user theme
+
+```
+
+
 ## Tier 1_2_Small_SurfaceArea
 ```{r eval=FALSE, include=FALSE}
-t2_s <- tier1_2_small#%>% 
- # filter(species == "magna")
+library(csvread) #64-digit integer
+
+t2_s <- tier1_2_small# %>% 
+ # filter(EC_env_sa.particles.mL < 1E4) #have to remove points above integer limit
 
 # prep dataframe for tox datapoints
 DP_1_small_surfaceArea <-  t2_s %>% 
   #mutate(tier = "A") %>% 
   mutate(id = row_number()) %>% 
-  mutate(particles_L = EC_env_sa.particles.mL * 1000) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
+  mutate(particles_L = EC_env_sa.particles.mL * 10000) %>% #must *10 to eliminate sub-zero values, can't go above 10 b/c R can't handle integers above certain value
   mutate(particles_L_round = as.integer(round(particles_L,digits = 1))) %>%  #must make integer for below code to work
-  select(id, species, particles_L_round) %>% 
-  acast(id ~ species, value.var = "particles_L_round") %>% 
+  select(id, Species, particles_L_round) %>% 
+  acast(id ~ Species, value.var = "particles_L_round") %>% 
   Matrix(sparse = TRUE) # makes a smaller object than using as.matrix()
 
 #prep uncertainty factors for conversion from acute to chronic values
 UFt_1_small_surfaceArea <- t2_s %>% 
   mutate(id = row_number()) %>% 
-  select(id, species, af.time) %>% 
-  acast(id ~ species, value.var = "af.time")
+  select(id, Species, af.time) %>% 
+  acast(id ~ Species, value.var = "af.time")
 
 # uncertainty factors for conversion of dose descriptors to NOEC
 UFdd_1_small_surfaceArea <- t2_s %>% 
