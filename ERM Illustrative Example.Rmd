@@ -2,14 +2,18 @@
 title: "ERM Illustrative Example"
 author: "Scott Coffin"
 date: "7/30/2021"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE)
 ```
+
 ```{r}
 library(tidyverse)
+library(gt)
 ```
 
 
@@ -22,6 +26,8 @@ The effect concentration must first be corrected for bioavailability. If the sus
 
 For an example, the tox database is queried to determine a real-world example. Studies in the database are filtered for all 'red' criteria, and only organismal and population-level biological organizations are considered, then default assessment metrics are applied.
 ```{r}
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+
 EC_mono <- aoc_z %>% 
   filter(species == "magna") %>% 
   filter(effect.metric == "NOEC") %>% 
@@ -141,7 +147,7 @@ $\mu_{v,mono} = V_{i} = \frac{4}{3}\pi abc$
 
 Where $V_i$ is the volume for a given particle *i*, and a, b, and c are radii along the principal axes, corresponding to one-half times the length, width, and height of an ellipsoid. Upper and lower limits of bioavailability for volume correspond to the maximum ingestible size of particles and the lower limit of the size range to be aligned to (typically 1 micron).
 
-![Ellipsoid Volume](www/ellipsoid_volume.JPG)
+<!-- ![Ellipsoid Volume](www/ellipsoid_volume.JPG) -->
 Image source: Wikipedia.com
 
 The above equation can be applied to fragments, thin films, microbeads, spheres, or fibers given a known length to width ratios for such shapes, with the height assumed to be equivalent to 0.67 x width (Kooi et al 2021). Width to length ratios differ for microplastics differ by compartment, with averages ranging from 0.67 to 0.77 (Kooi et al 2021; Table S3). Averaged values may be used to estimate the volume of polydisperse environmental mixtures of microplastics.
@@ -341,36 +347,42 @@ mu_ssa.mono = mu_sa.mono/mu_m.mono
 paste("mu_ssa,mono:", formatC(mu_ssa.mono,format = "e", digits = 2),"um^2/ug")
 ```
 
-Since the probability distribution of ERM $ssa$ (specific surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{ssa,poly}$, can be calculated, where UL and LL are respectively defined as the upper and lower limit in ERM $ssa$ (ssa) for which the mean is calculated, and $a_ssa$ is the power law exponent of specific surface area. For example, marine surface water has an $a_ssa$ of 1.98 (Kooi et al 2021; Table S4). For specific surface area, UL and LL are area/mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate area/mass-based limits based on size, the volume of bioaccessible particles  is first calculated using the equation for the surface area of an ellipsoid, then divided by the lower and upper bioavailable  mass of particles in the 1-5,000 um distribution in surface marine water, as calculated above.
+Since the probability distribution of the inverse of the ERM $ssa$ (specific surface area; i.e. 1/SSA) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{1/ssa,poly}$, can be calculated, where UL and LL are respectively defined as the inverse of the upper and lower limit in ERM $ssa$ (i.e. 1/ssa) for which the mean is calculated, and $a_1/ssa$ is the power law exponent of the inverse of specific surface area. For example, marine surface water has an $a_1/ssa$ of 1.98 (Kooi et al 2021; Table S4). For specific surface area, UL and LL are the inverse of the area/mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate area/mass-based limits based on size, the volume of bioaccessible particles  is first calculated using the equation for the surface area of an ellipsoid, then divided by the lower and upper bioavailable  mass of particles in the 1-5,000 um distribution in surface marine water, as calculated above.
 
 ```{r}
 #max ingestible specific surface area
-SSAfnx = function(sa,
+SSA.inversefnx = function(sa,
                   m){
-  SSA = sa/m
-    return(SSA)}
+  SSA.inverse = m/sa
+    return(SSA.inverse)}
 
 #calculate
-x_LL_ssa = SSAfnx(sa = x_LL_sa, m = x_LL_m)
-x_UL_ssa = SSAfnx(sa = x_UL_sa, m = x_UL_m)
+x_LL_ssa = SSA.inversefnx(sa = x_LL_sa, m = x_LL_m)
+x_UL_ssa = SSA.inversefnx(sa = x_UL_sa, m = x_UL_m)
 
 #report
-paste("x_UL_ssa = ", signif(x_UL_ssa,3), "um^2/ug",
-      ";x_LL_ssa = ", signif(x_LL_ssa,3), "um^2/ug")
+paste("x_UL_1/ssa = ", signif(x_UL_ssa,3), "ug/um^2",
+      ";x_LL_1/ssa = ", signif(x_LL_ssa,3), "ug/um^2")
 ```
 
 $\mu_{m,poly}$ may now be calculated given these limits, using an alpha value of $a_ssa$ of 1.98 for the marine surface water environment (Kooi et al 2021):
 ```{r}
 a.ssa = 1.98 # A_SSA for marine surface water
   
-mu_ssa.poly <- mux.polyfnx(a.x = a.ssa, 
+mu_ssa.poly.inverse <- mux.polyfnx(a.x = a.ssa, 
             x_UL = x_UL_ssa,
             x_LL = x_LL_ssa) 
 
-paste("mu_ssa,poly =",signif(mu_ssa.poly,3), "um^2/ug")
+paste("mu_1/ssa,poly =",signif(mu_ssa.poly.inverse,3), "ug/um^2")
 ```
 
-Now that $\mu_{ssa,poly}$, $\mu_{ssa,mono}$, and $EC_{mono}$ are known for this example for specific surface area, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the specific surface area ERM may then be calculated:
+Now that $\mu_{1/ssa,poly}$, $\mu_{ssa,mono}$, and $EC_{mono}$ are known for this example for specific surface area, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the specific surface area ERM may then be calculated by first taking the inverse of $\mu_{1/ssa,poly}$ to obtain $\mu_{ssa,poly}$:
+
+```{r}
+mu_ssa.poly <- 1/mu_ssa.poly.inverse
+paste("mu_1/ssa,poly =",signif(mu_ssa.poly,3), "um^2/ug")
+```
+
 
 ```{r}
 EC_poly_ssa <- (EC_mono * mu_ssa.mono)/mu_ssa.poly
@@ -424,7 +436,7 @@ This measured rescaled environmental concentration $C_{env}$ may then be directl
 ```{r}
 risk <- tibble('ERM' = c("Particles", "Volume", "Surface Area", "Mass", "Specific Surface Area"),
                'EC_env' = c(EC_env, EC_env_v, EC_env_sa, EC_env_m, EC_env_ssa)) %>% 
-  mutate('PNEC/PEC' = EC_env / C_env)
+  mutate('PNEC/PEC' =  C_env / EC_env)
 
 # build gt table
 full_val_range_1 <- risk %>% 

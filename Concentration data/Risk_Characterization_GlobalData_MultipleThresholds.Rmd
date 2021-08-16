@@ -125,7 +125,7 @@ sfBay <- read.csv("Concentration Data/Datasets/SFBayData.csv", na.strings = "NA"
           x1M = Min.particle.size.um,
          x2M = Max.particle.size.um) %>% 
   mutate(Sample.Type = "sample")
-
+# import from Covernton et al (2019)
 covernton <- read.csv("Concentration Data/Datasets/Covernton.csv", na.strings = "NA", stringsAsFactors = TRUE) %>%
   rename(x1M = Min.particle.size.um,
          x2M = Max.particle.size.um) %>% 

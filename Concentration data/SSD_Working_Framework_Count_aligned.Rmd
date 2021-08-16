@@ -260,6 +260,12 @@ SSAfnx = function(sa, #surface area, calcaulted elsewhere
   SSA = sa/m
     return(SSA)}
 
+#max ingestible specific surface area
+SSA.inversefnx = function(sa, #surface area, calcaulted elsewhere
+                  m){ #mass, calculated elsewhere
+  SSA.inverse = m / sa
+    return(SSA.inverse)}
+
 ## parametrization ##
 # Define params for correction #
 alpha.marine = 2.07 #table s4 for marine surface water. length
@@ -271,8 +277,8 @@ a.v.marine = 1.48 #a_V for marine surface water volume
 a.v.freshwater = 1.68 #a_V for Freshwater surface water volume
 a.m.marine = 1.32 # upper limit fora_m for mass for marine surface water in table S4
 a.m.freshwater = 1.65 # upper limit fora_m for mass for freshwater surface water in table S4 
-a.ssa.marine = 1.98 # A_SSA for marine surface water
-a.ssa.freshwater = 2.71 # A_SSA for freshwater surface water
+a.ssa.marine = 1.98 # A_S1/SA for marine surface water
+a.ssa.freshwater = 2.71 # A_1/SSA for freshwater surface water
 
 #define additional parameters for calculations based on averages in the environment
 R.ave.marine = 0.77 #average width to length ratio for microplastics in marine enviornment
@@ -402,17 +408,18 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   
   ##### specific surface area ERM ####
   mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible SSA
-  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
+  #calculate lower ingestible 1/SSA
+  mutate(x_LL_ssa = SSA.inversefnx(sa = x_LL_sa, #surface area
                            m = x_LL_m) #mass
          ) %>% 
   #calculate upper ingestible SSA  (um^2/ug)
-  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
+  mutate(x_UL_ssa = SSA.inversefnx(sa = x_UL_sa, #surface area
                            m = x_UL_m) #mass
          ) %>% 
   #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  mutate(mu.ssa.inverse.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
   #calculate polydisperse effect concentration for specific surface area (particles/mL)
+  mutate(mu.ssa.poly = 1 / mu.ssa.inverse.poly) %>%  #calculate mu_SSA from inverse
   mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
   #calculate environmentally realistic effect threshold
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)

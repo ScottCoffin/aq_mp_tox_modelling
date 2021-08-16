@@ -737,7 +737,7 @@ m1_crust <- aoc_setup %>%
       effect == "Y" ~ 1,
       effect == "N" ~ 0
     )) %>% 
-  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, logdose.surface.area.um2.mL.master, size.length.um.used.for.conversions)) %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, logdose.surface.area.um2.mL.master, size.length.um.used.for.conversions, Species, doi)) %>% 
   drop_na()
 
 #Fit the full model
@@ -776,8 +776,10 @@ glm_particles <- mockData_particles %>%
                        high = "#56B1F7",
                        n.breaks = 5) +
   xlab("log10(Particles/mL)") +
-  ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw()
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
 
 glm_particles
 ```
@@ -824,8 +826,10 @@ glm_mass <- mockData_mass %>%
                        high = "#56B1F7",
                        n.breaks = 5) +
   xlab("log10(mg/L)") +
-  ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw()
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
 
 glm_mass
 ```
@@ -870,8 +874,10 @@ glm_volume <- mockData_volume %>%
                        high = "#56B1F7",
                        n.breaks = 5) +
    xlab(expression(log10 ~ (mu * m ^ 3 / mL))) +
-ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw()
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
 
 glm_volume
 ```
@@ -918,8 +924,10 @@ glm_surface_area <- mockData_surface_area %>%
                        high = "#56B1F7",
                        n.breaks = 5) +
   xlab(expression(log10 ~ (mu * m ^ 2 / mL))) +
-  ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw()
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
 
 glm_surface_area
 ```
@@ -927,9 +935,11 @@ glm_surface_area
 # Manuscript Figure GLM Plots
 ```{r}
 require(ggpubr)
+
 dose_GLMs <- ggarrange(glm_particles, glm_mass,
                        glm_volume, glm_surface_area,
-                        labels = c("A", "B", "C", "D"), common.legend = TRUE,
+                       # labels = c("A", "B", "C", "D"), 
+                       common.legend = TRUE,
                         legend = "bottom",
                         ncol = 2, nrow = 2)
 
@@ -940,5 +950,43 @@ ggsave(plot = dose_GLMs,
        path = "./teamXfigures/", 
        width = 12, height = 12, units = "in",
        dpi = 900)
+```
+
+## send to Win as a postcard
+```{r}
+# title <- "Microplastics Toxicity by Size and Dose Metric"
+# 
+# # Create a text grob
+# tgrob <- text_grob(title,size = 14)
+# # Draw the text
+# plot_0 <- as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
+# 
+# 
+# dose_GLMs <- ggarrange(plot_0, NULL,
+#                        glm_particles, glm_mass,
+#                        glm_volume, glm_surface_area,
+#                         #labels = c("A", "B", "C", "D"), common.legend = TRUE,
+#                         legend = "bottom",
+#                         ncol = 2, nrow = 3)
+
+postcard <- annotate_figure(dose_GLMs, 
+                top = text_grob("Microplastics Toxicity by Size and Dose Metric",
+                                           face = "bold", size = 14),
+                bottom = text_grob("Aquatic organisms (n = 3,371; 103 studies; 73 species)",
+                                   #Scott Coffin, Ph.D.", 
+                                   color = "blue", face = "italic", size = 6,
+                                   hjust = 1, x = 1
+                                   ))
+
+library(ggirl)
+contact_email <- "scoffincheyenne@gmail.com"
+
+send_address_1 <- address(name = "Win Cowger", address_line_1 = "3381 Cambria Ct.",
+                          city = "Riverside", state = "CA",
+                          postal_code = "92501", country = "US")
+
+message_1 <- "Dr. Cowger - may this ggplot provide humility, awe, and a reminder of who is the best microplastics scientist in California :)"
+
+ggpostcard(postcard, contact_email, messages = message_1, send_addresses = send_address_1)
 ```
 
