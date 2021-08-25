@@ -370,7 +370,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
                          b = 0.5 * R.ave *x2M, 
                          c = 0.5 * R.ave * 0.67 * x2M)) %>%  
   #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
+  mutate(mu.sa.poly = if(a.sa == "2"){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != "2"){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
   mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
   #calculate environmentally realistic effect threshold
@@ -386,7 +386,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   mutate(x_UL_v = volumefnx(R = R.ave,
                             L = x2M)) %>%  
   # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
+  mutate(mu.v.poly = if(a.v == "2"){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != "2"){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
     #calculate environmentally realistic effect threshold
@@ -400,7 +400,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   #calculate upper ingestible mass
   mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
   # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
+  mutate(mu.m.poly = if(a.m == "2"){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != "2"){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
   #calculate environmentally realistic effect threshold
@@ -417,7 +417,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
                            m = x_UL_m) #mass
          ) %>% 
   #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.inverse.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  mutate(mu.ssa.inverse.poly = if(a.ssa == "2"){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != "2"){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
   #calculate polydisperse effect concentration for specific surface area (particles/mL)
   mutate(mu.ssa.poly = 1 / mu.ssa.inverse.poly) %>%  #calculate mu_SSA from inverse
   mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
@@ -469,7 +469,7 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
                          b = 0.5 * R.ave *x2M, 
                          c = 0.5 * R.ave * 0.67 * x2M)) %>%  
   #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
+  mutate(mu.sa.poly = if(a.sa == "2"){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != "2"){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
   mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
   #calculate environmentally realistic effect threshold
@@ -485,7 +485,7 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   mutate(x_UL_v = volumefnx(R = R.ave,
                             L = x2M)) %>%  
   # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
+  mutate(mu.v.poly = if(a.v == "2"){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != "2"){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
     #calculate environmentally realistic effect threshold
@@ -499,25 +499,26 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   #calculate upper ingestible mass
   mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
   # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
+  mutate(mu.m.poly = if(a.m == "2"){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != "2"){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
   #calculate environmentally realistic effect threshold
   mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
   
-  ##### specific surface area ERM ####
+ ##### specific surface area ERM ####
   mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible SSA
-  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
+  #calculate lower ingestible 1/SSA
+  mutate(x_LL_ssa = SSA.inversefnx(sa = x_LL_sa, #surface area
                            m = x_LL_m) #mass
          ) %>% 
   #calculate upper ingestible SSA  (um^2/ug)
-  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
+  mutate(x_UL_ssa = SSA.inversefnx(sa = x_UL_sa, #surface area
                            m = x_UL_m) #mass
          ) %>% 
   #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  mutate(mu.ssa.inverse.poly = if(a.ssa == "2"){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != "2"){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
   #calculate polydisperse effect concentration for specific surface area (particles/mL)
+  mutate(mu.ssa.poly = 1 / mu.ssa.inverse.poly) %>%  #calculate mu_SSA from inverse
   mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
   #calculate environmentally realistic effect threshold
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
@@ -4373,7 +4374,7 @@ full_val_range <- ERM_large %>%
 gt(ERM_large) %>% 
   tab_header(title = "1-5,000 µm Thresholds (Aligned to 1-5,000 µm)", subtitle = "Thresholds presented in particles/L") %>% 
   fmt_number(columns = vars(Unaligned, Particle, Volume,'Surface Area', Mass, 'Specific Surface Area'), 
-             n_sigfig = 2,
+             n_sigfig = 3,
              use_seps = TRUE) %>% 
     data_color(
     columns = names(ERM_large)[2:7],
