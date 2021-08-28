@@ -76,16 +76,16 @@ mux.polyfnx = function(a.x,
   return(mux.poly)}
 
 #define parameters for C.daphnia
-upper.ingestible.length.um = 115
-lower.ingestible.length.um = 1
+upper.ingestible.width.um = 115
+lower.ingestible.width.um = 1
 
 # marine surface water alpha for length
 alpha = 2.07
 
 #compute
 mu_x.poly <- mux.polyfnx(a.x = alpha, 
-                         x_UL = upper.ingestible.length.um,
-                         x_LL = lower.ingestible.length.um)
+                         x_UL = upper.ingestible.width.um,
+                         x_LL = lower.ingestible.width.um)
 #report
 paste("mu_x_poly:", round(mu_x.poly,2))
 ```
@@ -162,11 +162,12 @@ For the example of a 40 um PE fragment, the length was reported ($L_i = 40 \mu m
 
 $\mu_{v,mono}$ is calculated:
 ```{r}
-volumefnx = function(R, L){
-  volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
-  return(volume)}
 
-mu_v.mono = volumefnx(R = 0.77,
+volumefnx_mono = function(R, L){
+  volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+return(volume)}
+
+mu_v.mono = volumefnx_mono(R = 0.77,
                       L = 10)
 paste("mu_v.mono = ", signif(mu_v.mono,3), "um^3")
 ```
@@ -176,12 +177,24 @@ $\mu_{v,poly}$ is then calculated using the volume of particles that are bioacce
 As discussed above, for the example of an organism of interest of *Cerodaphnia magna*, the estimated maximum ingestible size range is 115 um particles, $L_{UL,m}$ would be equivalent to 115 um, and $L_{LL,m}$ would be the lower size range of the bin for which the SSD is built- in this example, 1 um as a lower limit. Volumetric limits are calculated:
 
 ```{r}
-R.ave = 0.77
+#note that the upper length for the polydiserpse volume should be 5,000 um
+volumefnx_poly = function(width, length){
+  height = 0.67 * width
+  volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
+  return(volume)}
 
-x_LL_v = volumefnx(R = R.ave,
-                      L = lower.ingestible.length.um)
-x_UL_v = volumefnx(R = R.ave,
-                      L = upper.ingestible.length.um)
+# R.ave = 0.77
+# 
+# x_LL_v = volumefnx(R = R.ave,
+#                       L = lower.ingestible.width.um)
+# x_UL_v = volumefnx(R = R.ave,
+#                       L = upper.ingestible.width.um)
+
+x_LL_v = volumefnx_poly(width = lower.ingestible.width.um,
+                      length = x1D_set)
+x_UL_v = volumefnx_poly(width = upper.ingestible.width.um,
+                      length = x2D_set)
+
 
 paste("x_UL_v = ",signif(x_UL_v,3), "um^3",
       ";x_LL_v = ", signif(x_LL_v,3), "um^3")
@@ -236,14 +249,14 @@ Since the probability distribution of ERM $sa$ (surface area) follows a power la
 
 ```{r}
 # calculate lower
-x_LL_sa = SAfnx(a = 0.5 * lower.ingestible.length.um, 
-                b = 0.5 * 0.77 * lower.ingestible.length.um, 
-                c = 0.5 * 0.77 * 0.67 *lower.ingestible.length.um)
+x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
+                b = 0.5 * x1D_set, #width
+                c = 0.5 * 0.67 * x1D_set) #height = 0.67 * width
 
 # calculate lower
-x_UL_sa = SAfnx(a = 0.5 * upper.ingestible.length.um, 
-                b = 0.5 * 0.77 * upper.ingestible.length.um, 
-                c = 0.5 * 0.77 * 0.67 *upper.ingestible.length.um)
+x_UL_sa = SAfnx(a = 0.5 * x2D_set, #upper default length (5,000 um)
+                b = 0.5 * upper.tissue.trans.size.um, #()
+                c = 0.5 * 0.67 * upper.tissue.trans.size.um)
 
 paste("x_UL = ",round(x_UL_sa,2), "um^2",
       ";x_LL = ", round(x_LL_sa,2), "um^2")
@@ -281,13 +294,13 @@ Where *m* is the mass (ug), *p* is density (g/cm^3), *V* is volume (um^3) - whic
 For the example of a 40 um polyethylene fragment, the volume was calculated above (~ $207 um^3$), and the density of polyethylene was is estimated to be 0.935 g/cm^3. $\mu_{x,mono}$ is calculated:
 
 ```{r}
-massfnx = function(R, L, p){
+massfnx_mono = function(R, L, p){
   mass = p * #density (g/cm^3)
     0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
     1/1e12 * 1e6 #correction factor
   return(mass)}
 
-mu_m.mono <- massfnx(R = 0.77,  L = 40, p = 0.935)
+mu_m.mono <- massfnx_mono(R = 0.77,  L = 40, p = 0.935)
 paste("mu_m,mono:", signif(mu_m.mono,3),"ug")
 ```
 Since the probability distribution of ERM $m$ (mass) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{m,poly}$, can be calculated by first calculating the lower and upper ingestible masses of particles based on the length of the ingestible particle. The UL and LL are respectively defined as the upper and lower limit in ERM $m$ (mass) for which the mean is calculated, and $a_m$ is the power law exponent of mass. In the case of marine surface water,an $a_m$ of 1.32 is utilized (Kooi et al 2021; Table S4).
@@ -295,15 +308,23 @@ Since the probability distribution of ERM $m$ (mass) follows a power law regime,
 For mass, UL and LL are mass-based upper and lower limits of bioaccessibility based on the width of particles, respectively. To estimate mass-based limits based on size, the volume of bioaccessible particles is first calculated using the equation for the volume of an ellipsoid, then multipied by the average density of particles in the 1-5,000 um distribution in the environmental compartment of interest (e.g.surface marine water: 1.10 g/cm^3) (Kooi et al 2021; table S3).
 
 ```{r}
+massfnx_poly = function(width, length, p){
+  height = 0.67 * width
+  volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
+  mass = p * #density (g/cm^3)
+    volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+    1/1e12 * 1e6 #correction factor
+  return(mass)}
+
 p.ave = 1.1
 
 #lower limit
-x_LL_m = massfnx(R = R.ave, #width to length ratio
-               L = lower.ingestible.length.um, #lower bioaccessible length
+x_LL_m = massfnx_poly(width = lower.ingestible.width.um, #smallest ingestible width
+               length = x1D_set, # smallest length 
                p = p.ave) #average density
 #upper limit
-x_UL_m = massfnx(R = R.ave, #width to length ratio
-               L = upper.ingestible.length.um, #upper bioaccessible length
+x_UL_m = massfnx_poly(width = upper.ingestible.width.um,
+               length = x2D_set, #upper default length
                p = p.ave) #average density
 
 paste("x_UL = ",signif(x_UL_m,2), "ug",

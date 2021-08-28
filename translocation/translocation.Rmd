@@ -16,18 +16,19 @@ library(caret)
 library(DALEX)
 library(skimr)
 library(ggeffects)
-library(ggdark)
+#library(ggdark)
 ```
 # Setup
 ```{r}
 #data cleanup
-Tissue_Translocation <- read_excel("Tissue_Translocation.xlsx", 
+Tissue_Translocation <- read_excel("translocation/Tissue_Translocation.xlsx", 
     sheet = "obs") %>% 
   mutate(Species = as.factor(Species)) %>% 
   mutate(Polymer = as.factor(Polymer)) %>% 
   mutate(lab.field = as.factor(lab.field)) %>% 
   mutate(Shape = as.factor(Shape)) %>%
   mutate(size.um = `Size (µm)`) %>% 
+  mutate(size.nm = size.um * 1000) %>% 
   mutate(Organisms = as.factor(Organisms)) %>%
   mutate(Exposure_route = as.factor(Exposure_route)) %>% 
   mutate(Tissue = as.factor(Tissue)) %>% 
@@ -95,36 +96,53 @@ joined %>% filter(is.na('Test Medium Reported*')) %>%
   distinct(doi, .keep_all = TRUE) %>% 
   view()
 
-write.csv(joined, "translocation_scored_2.csv")
+write.csv(joined, "translocation/translocation_scored_2.csv")
 
-#re-assign descriptions to each criteria in normal format
-      rename("tech.a1" = "Test Medium Reported*",
-    "tech.a2" = "Administration Route Reported*",
-     "tech.a3" = "Test Species Reported*",
-     "tech.a4" = "Sample Size Reported*",
-    "tech.a5" = "Control Group Reported*",
-    "tech.a6" = "Exposure Duration Reported*",
-    "tech.1" = "Particle Size*",
-    "tech.2" = "Particle Shape*",
-    "tech.3" = "Polymer Type*",
-                                  "tech.4" = "Source of Microplastics*",
-                                    "tech.5" = "Data Reporting*",
-                                    "tech.6" = "Chemical Purity",
-                                    "tech.7" = "Laboratory Preparation",
-                                    "tech.8" = "Background Contamination",
-                                    "tech.9" = "Exposure Verification",
-                                    "tech.10" = "Exposure Homogeneity",
-                                    "tech.11" = "Exposure Assessment",
-                                    "tech.12" = "Replication",
-                                    "risk.13" = "Endpoints",
-                                    "risk.14" = "Food Availability",
-                                    "risk.15" = "Effect Thresholds",
-                                    "risk.16" = "Dose Response",
-                                    "risk.17" = "Concentration Range",
-                                    "risk.18" = "Aging and Biofouling",
-                                    "risk.18" = "Risk Assessment",
-                                    "risk.19" = "Microplastic Diversity",
-                                    "risk.20" = "Exposure Time")
+# #re-assign descriptions to each criteria in normal format
+#       rename("tech.a1" = "Test Medium Reported*",
+#     "tech.a2" = "Administration Route Reported*",
+#      "tech.a3" = "Test Species Reported*",
+#      "tech.a4" = "Sample Size Reported*",
+#     "tech.a5" = "Control Group Reported*",
+#     "tech.a6" = "Exposure Duration Reported*",
+#     "tech.1" = "Particle Size*",
+#     "tech.2" = "Particle Shape*",
+#     "tech.3" = "Polymer Type*",
+#                                   "tech.4" = "Source of Microplastics*",
+#                                     "tech.5" = "Data Reporting*",
+#                                     "tech.6" = "Chemical Purity",
+#                                     "tech.7" = "Laboratory Preparation",
+#                                     "tech.8" = "Background Contamination",
+#                                     "tech.9" = "Exposure Verification",
+#                                     "tech.10" = "Exposure Homogeneity",
+#                                     "tech.11" = "Exposure Assessment",
+#                                     "tech.12" = "Replication",
+#                                     "risk.13" = "Endpoints",
+#                                     "risk.14" = "Food Availability",
+#                                     "risk.15" = "Effect Thresholds",
+#                                     "risk.16" = "Dose Response",
+#                                     "risk.17" = "Concentration Range",
+#                                     "risk.18" = "Aging and Biofouling",
+#                                     "risk.18" = "Risk Assessment",
+#                                     "risk.19" = "Microplastic Diversity",
+#                                     "risk.20" = "Exposure Time")
+```
+
+```{r}
+#histogram
+histogram <- Tissue_Translocation %>%  
+  ggplot(aes(x = size.um)) + 
+  geom_histogram(bins = 20) + 
+  scale_x_log10(name = expression(paste("Particle Length (", mu, "m)")),                                                                                               labels = scales::label_comma()) +
+  theme_bw()
+histogram
+```
+```{r}
+
+ggsave(filename = "translocation_histogram.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot =histogram, width = 5, height = 3, units = "in",
+       bg = "white")
 ```
 
 
@@ -132,6 +150,29 @@ write.csv(joined, "translocation_scored_2.csv")
 
 
 # Modelling
+```{r}
+translocation_glm <- Tissue_Translocation %>% 
+ggplot(aes(x = size.um, y = translocated_10)) +
+  stat_smooth(method="glm", method.args=list(family="binomial"), se=TRUE,
+              color = "black") +
+  scale_x_log10(name = expression(paste("Particle Length (", mu, "m)")),
+                labels = scales::label_comma()
+                ) +#,
+  #n.breaks = 10) +
+  scale_y_continuous(name = "Particle Translocation Probability",
+                     labels = scales::percent, limits = c(0,1)) +
+  theme_classic()
+translocation_glm
+```
+
+#### Manuscript Figure
+```{r}
+ggsave(filename = "translocation_glm.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = translocation_glm, width = 5, height = 5, units = "in",
+       bg = "white")
+```
+
 ##logistic regression
 ```{r}
 response <- as.numeric(as.character(df$translocated_10))
@@ -176,35 +217,105 @@ predictors <- as.data.frame(df %>% dplyr::select(size.um))
 #build explainer for easy interpretation
 explainer_glm_model <- DALEX::explain(glm_model, label = "glm", data = predictors, y = response)
 ```
+```{r}
+library(jtools)
+plot_summs(simple, scale = TRUE, inner_ci_level = 0.95, plot.distributions = TRUE)
+```
+```{r}
+export_summs(simple, scale = TRUE,
+             error_format = "[{conf.low}, {conf.high}]")
+```
+
+```{r}
+size.model <- glm(translocated_10 ~ size.um, data = Tissue_Translocation, family = "binomial")
+```
+
 
 ```{r}
 obj <- ggeffects::ggpredict(simple, terms="size.um [all]")
 plot(obj)
 ```
 ```{r}
+size.model <- glm(translocated_10 ~ size.um, data = Tissue_Translocation, family = "binomial")
 #generate distribution of data
-mockData <- expand.grid(size.um = seq(0.001, 1500))
+mockData <- data.frame(
+  size.um = (1:10000))
 
-mockData$translocated_10 <- predict(simple,
+mockData_fitted <- predict(size.model,
                      mockData,
-                     type = "response")
+                     type = "response",
+                     se.fit = TRUE) %>% 
+  as.data.frame()
+
+mock <- cbind(mockData, mockData_fitted) %>% 
+  # model object nanometer has a component called linkinv that 
+         # is a function that inverts the link function of the GLM:
+  mutate(lower = exp(fit - 1.96 * se.fit)/( 1 + exp(fit - 1.96 * se.fit)),
+         upper = exp(fit + 1.96 * se.fit)/( 1 + exp(fit + 1.96 * se.fit)))
+  
 #plot
-mockData %>% 
+translocation_glm <- mock %>% 
   ggplot(aes(x = size.um, 
-             y = translocated_10)) +
-  geom_line() +
-  scale_x_log10(name = "Particle Length (um)",
-                limits = c(1, 1000)) +
+             y = fit)) +
+  geom_line(color = "blue") +
+  geom_ribbon(aes(ymin = lower,
+                  ymax = upper),
+              alpha = 0.5) +
+  # geom_point(aes(x = size.nm, y = translocated_10),
+  #            data = Tissue_Translocation,
+  #            alpha = 0.7) +
+   # scale_x_continuous(name = "Particle Length (nm)",
+   #                    limits = c(1, 400000),
+   #                    breaks = scales::trans_breaks("log10",function(x) 10^x, n = 5),
+   #                       labels = scales::trans_format("log10", scales::math_format(10^.x))) +
+  scale_x_log10(name = "Particle Length (nm)", #expression(paste("Particle Length (", mu, "m)")),
+                limits = c(0, 1000000),
+                labels = scales::label_comma()
+                ) +#,
+  #n.breaks = 10) +
   scale_y_continuous(name = "Particle Translocation Probability",
                      labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Microplastics Particle Translocation",
-       subtitle = "General Linear Model Output",
-       caption = "p = 0.042, RMSE = 0.54") +
+  # labs(title = "Microplastics Particle Translocation",
+  #      subtitle = "General Linear Model Output",
+  #      caption = "p = 0.034, RMSE = 0.54") +
   #geom_smooth() +
   #scale_color_gradientn(colors = topo.colors(7)) +
   #scale_color_viridis_c(option = "A") +
-  dark_theme_bw()
+  theme_bw()
+  #dark_theme_bw()
+translocation_glm
 ```
 
 
+
+
+
+### Model comparison
+```{r}
+library(jtools)
+library(huxtable)
+library(flextable)
+simple <- lm(translocated_10 ~ size.um, data = df, family = "binomial")
+m2 <- lm(translocated_10 ~ Shape, data = df, family = "binomial")
+m3 <- lm(translocated_10 ~ Polymer, data = df, family = "binomial")
+m4 <- lm(translocated_10 ~ Shape + size.um, data = df, family = "binomial")
+m5 <- lm(translocated_10 ~ Shape + size.um + Polymer, data = df, family = "binomial")
+m6 <- lm(translocated_10 ~ Shape +  Polymer, data = df, family = "binomial")
+full <- glm(translocated_10~., data = df, family = "binomial")
+
+
+export_summs(simple, m2, m3, m4, scale = TRUE)
+```
+
+
+```{r}
+step <- step(full, direction = "both")
+summary(step)
+
+```
+
+```{r}
+simple <- glm(translocated_10 ~ size.um, data = df, family = "binomial")
+summary(simple)
+```
 
