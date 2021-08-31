@@ -1142,7 +1142,7 @@ aligned.tox.occurence.plot <- tox.occurence %>%
                              breaks = scales::log_breaks(),
                              labels = comma_signif) +
   ylab("Normalized Abundance") +
-  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+ # annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   #labs(#title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
        #subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
      #  caption = paste("(26 occurence studies, 37 tox studies, Alpha = ",alpha,")"))+
@@ -1264,9 +1264,10 @@ overlap_figures <- ggarrange(unaligned.tox.occurence.plot, aligned.tox.occurence
 plot(overlap_figures)
 
 ggsave(plot =overlap_figures,
-       filename = "overlap_figure_SI-Fig4.tiff",
+       filename = "overlap_figure_SI-Fig4.jpeg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 20, height = 12, units = "in",
+       width = 10, height = 6, units = "in",
+       bg = "white",
        dpi = 300)
 ```
 ### ECDF
@@ -1883,7 +1884,7 @@ overlap_figures_marine_freshwater <- ggarrange(unaligned.tox.occurence.plot, ali
 plot(overlap_figures_marine_freshwater)
 
 ggsave(plot =overlap_figures_marine_freshwater,
-       filename = "overlap_figure_marine_freshwater_SI-Fig5.tiff",
+       filename = "overlap_figure_marine_freshwater_SI-Fig5.jpg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
        width = 12, height = 8, units = "in",
        dpi = 300)
@@ -1940,7 +1941,7 @@ plot(ECDF_freshwater_marine)
 ggsave(plot =ECDF_freshwater_marine,
        filename = "ECDF_freshwater_marine_SI-Fig6.jpeg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 11, height = 5, units = "in",
+       width = 11, height = 5, units = "in", bg = "white",
        dpi = 300)
 ```
 # FRESHWATER + MARINE
@@ -1950,10 +1951,10 @@ Alvina wants the figure with both freshwater and marine occurence data in the sa
 ## ECDF
 ### Food Dilution
 ```{r}
-Threshold1_food = 0.5 
-Threshold2_food = 8.1 
-Threshold3_food = 14.1
-Threshold4_food = 93.8
+Threshold1_food = 0.289 
+Threshold2_food = 1.35 
+Threshold3_food = 4.22
+Threshold4_food = 18.60
 ```
 
 ```{r}
@@ -1997,10 +1998,10 @@ ECDF_all_food
 
 ### Translocation
 ```{r}
-Threshold1_translocation = 236.34
-Threshold2_translocation = 1312.43
-Threshold3_translocation = 3096.59
-Threshold4_translocation = 14397.3
+Threshold1_translocation = 98.61
+Threshold2_translocation = 523.17
+Threshold3_translocation = 2378.08
+Threshold4_translocation = 9400.75
 ```
 
 ```{r}
@@ -2054,6 +2055,6 @@ plot(ECDF_all_ERM)
 ggsave(plot =ECDF_all_ERM,
        filename = "ECDF_all_ERM_SI-Fig6.jpeg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 11, height = 5, units = "in",
+       width = 10.5, height = 5, units = "in", bg = "white",
        dpi = 300)
 ```
