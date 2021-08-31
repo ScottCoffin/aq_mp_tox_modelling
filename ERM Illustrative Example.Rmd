@@ -247,6 +247,7 @@ paste("mu_sa.mono = ", signif(mu_sa.mono,3), "um^2")
 
 Since the probability distribution of ERM $sa$ (surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{sa,poly}$, can be calculated. For surface area of environmentally disperse particles, UL and LL are calculated using the equation for the surface area of an ellipsoid (above).
 
+#### Translocation
 ```{r}
 # calculate lower
 x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
@@ -254,9 +255,9 @@ x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
                 c = 0.5 * 0.67 * x1D_set) #height = 0.67 * width
 
 # calculate lower
-x_UL_sa = SAfnx(a = 0.5 * x2D_set, #upper default length (5,000 um)
+x_UL_sa = SAfnx(a = 0.5 * upper.tissue.trans.size.um, #()
                 b = 0.5 * upper.tissue.trans.size.um, #()
-                c = 0.5 * 0.67 * upper.tissue.trans.size.um)
+                c = 0.5 * upper.tissue.trans.size.um)
 
 paste("x_UL = ",round(x_UL_sa,2), "um^2",
       ";x_LL = ", round(x_LL_sa,2), "um^2")
@@ -282,6 +283,44 @@ Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly
 ```{r}
 EC_env_sa <- EC_poly_sa * CF_bio
 paste("EC_env_sa = ",signif(EC_env_sa,4), "Particles/L (1-5,000 um; marine surface water )")
+```
+
+#### Ingestion
+```{r}
+# calculate lower
+x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
+                b = 0.5 * x1D_set, #width
+                c = 0.5 * 0.67 * x1D_set) #height = 0.67 * width
+
+# calculate lower
+x_UL_sa = SAfnx(a = 0.5 * x2D_set, #upper default length (5,000 um)
+                b = 0.5 * upper.ingestible.width.um, #()
+                c = 0.5 * 0.67 * upper.ingestible.width.um)
+
+paste("x_UL = ",round(x_UL_sa,2), "um^2",
+      ";x_LL = ", round(x_LL_sa,2), "um^2")
+```
+$\mu_{sa,poly}$ may now be calculated given these limits, using an alpha value of 1.98 for surface area in the marine surface water environment (Kooi et al 2021):
+```{r}
+a.sa = 1.5
+#compute
+mu_sa.poly <- mux.polyfnx(a.x = a.sa, 
+                         x_UL = x_UL_sa,
+                         x_LL = x_LL_sa)
+#report
+paste("mu_sa_poly:", round(mu_sa.poly,2), "um^2")
+```
+Now that $\mu_{v,poly}$, $\mu_{v,mono}$, and $EC_{mono}$ are known for this example for surface area, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the surface area ERM may then be calculated:
+
+```{r}
+EC_poly_sa <- (EC_mono * mu_sa.mono)/mu_sa.poly
+paste("EC_poly_sa:",signif(EC_poly_sa,5), "particles/L")
+```
+Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly,sa}$) to an environmentally relevant *polydisperse* mixture of particles for the surface area ERM, an additional correction must be applied to rescale the threshold to the size range of interest (e.g. 1-5,000 um) using $CF_{bio}$, identical as for particles. 
+
+```{r}
+EC_env_sa_ingestion <- EC_poly_sa * CF_bio
+paste("EC_env_sa = ",signif(EC_env_sa_ingestion,4), "Particles/L (1-5,000 um; marine surface water )")
 ```
 
 ### Mass

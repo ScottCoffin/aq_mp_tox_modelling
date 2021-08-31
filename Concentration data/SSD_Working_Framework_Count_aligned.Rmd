@@ -103,7 +103,6 @@ Reference: Wigger et al. 2020 (doi: 10.1002/ieam.4214)
 
 Note: Values may be slightly different than those presented in the shiny app as concentrations are converted from particles/mL to particles/L ahead of calculations.
 
-
 # ERM/SSD Calculations
 The following script utilizes the above equations to calculate *a priori* effect thresholds for each of the ERM of interest for each species in the database, then calculates species sensitivity distributions using each ERM.
 
@@ -123,7 +122,7 @@ aoc_intermediate <- aoc_z %>%
          ) %>% 
   #Remove 26C temperature treatment data from Jaimukar et al. 2018
   filter(!(article == 42 & media.temp == 26)) %>% 
-  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
+  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm)  #makes it less confusing below
 #### Ecologically Relevant Metric calculations ####
 
 #examine available data as histogram
@@ -208,9 +207,17 @@ ROS_size_filteredData <- aoc_intermediate %>%
 
 grid.arrange(ROS_size_allData, ROS_size_filteredData)
 ```
+### How many studies are polydisperse?
+```{r}
+aoc_intermediate %>% 
+  group_by(polydispersity) %>% 
+  summarize(n = n_distinct(doi))
+```
+To account for polydisperse studies, a separate equation must be used (see SI).
 
+### Data Alignments
 
-*Data Alignments*
+#### Equations
 ```{r}
 ###function to derive correction factor (CF) from Koelmans et al (equation 2)
 CFfnx = function(a, #default alpha from Koelmans et al (2020)
@@ -221,12 +228,15 @@ CFfnx = function(a, #default alpha from Koelmans et al (2020)
   return(CF)}
 
 #### equations for mu_x_poly (note that there are three depending on certain alphas for limits of equation)
-###### if alpha does not equal 2 #####
-mux.polyfnx = function(a.x, 
-                       x_UL, 
-                       x_LL){
+#generalizable if a.x =2 or not
+mux.polyfnx = function(a.x, x_UL, x_LL){
+  if(a.x != 2){
   mux.poly = ((1-a.x)/(2-a.x)) * ((x_UL^(2-a.x) - x_LL^(2-a.x))/(x_UL^(1-a.x) - x_LL^(1-a.x)))
+  return(mux.poly)
+  }else{
+     mux.poly = (log(x_UL/x_LL))/(x_LL^(-1) - x_UL^-1)
   return(mux.poly)}
+  }
 
 ##### If alpha does equal 2 #####
 mux.polyfnx.2 = function(x_UL,x_LL){
@@ -243,15 +253,29 @@ SAfnx = function(a, # a = 0.5 * length
   return(SA)}
 
 ## max ingestible volume ##
+
 volumefnx = function(R, L){
   volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+  return(volume)}
+
+volumefnx_poly = function(width, length){
+  height = 0.67 * width
+  volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
 #max ingestible mass
 massfnx = function(R, L, p){
   mass = p * #density (g/cm^3)
     0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
-    1/1e12 * 1e6 #correction factors
+    1/1e12 * 1e6 #correction factor
+  return(mass)}
+
+massfnx_poly = function(width, length, p){
+  height = 0.67 * width
+  volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
+  mass = p * #density (g/cm^3)
+    volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+    1/1e12 * 1e6 #correction factor
   return(mass)}
 
 #max ingestible specific surface area
@@ -328,6 +352,7 @@ aoc_intermediate_alphas <- aoc_intermediate %>%
    mutate(p.ave = p.ave.marine)
 ```
 
+##### Tissue Translocation 
 ```{r}
 ##### SMALL TIER DATA ####
 ### Set size limits for tier
@@ -352,7 +377,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
    #calculate CF_bio for all conversions
   mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
+                        x2M = x2M, #upper translocatable
                         x1D = x1D_set, #default
                         x2D = x2D_set,  #default
                         a = alpha)) %>%  
@@ -360,71 +385,106 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
   
   #### Surface area ERM ####
-  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  #calculate lower ingestible surface area
+##--- environmental calculations ---###
+  #calculate lower translocatable surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
                          b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
-  #calculate upper ingestible surface area
+                         c = 0.5 * R.ave * 0.67 * x1D_set
+                         )) %>%  
+  #calculate upper translocatable surface area
   mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave *x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
-  #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == "2"){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != "2"){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
-  #calculate polydisperse effect concentration for surface area (particles/mL)
+                         b = 0.5 * R.ave * x2M, 
+                         c = 0.5 * R.ave * 0.67 * x2M
+                         )) %>%  
+  #calculate mu_x_poly (env) for surface area
+  mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
+  
+  ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.sa.mono = case_when(
+    polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa, 
+                                  x_LL = particle.surface.area.um2.min,
+                                  x_UL = particle.surface.area.um2.max))) %>% 
+  
+   #calculate polydisperse effect concentration for surface area (particles/mL)
   mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
   #calculate environmentally realistic effect threshold
   mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
   
   #### volume ERM ####
-#define mu_x_mono for alignment to ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% 
-  #calculate lower ingestible volume 
-  mutate(x_LL_v = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
-  #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave,
-                            L = x2M)) %>%  
+##--- environmental calculations ---###
+  #calculate lower translocatable volume 
+  mutate(x_LL_v = volumefnx_poly(width = x1D_set * R.ave, # lower width
+                                 length = x1D_set)) %>%
+  #calculate maximum translocatable volume 
+  mutate(x_UL_v = volumefnx_poly(width = x2M, #upper translocatable width
+                                 length = x2M)) %>% 
   # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == "2"){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != "2"){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
+  mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
+  
+  ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.v.mono = case_when(
+    polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v, 
+                                  x_LL = particle.volume.um3.min,
+                                  x_UL = particle.volume.um3.max))) %>% 
+  
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
     #calculate environmentally realistic effect threshold
   mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
   
   #### mass ERM ###
-  #define mu_x_mono for alignment to ERM (ug)
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
-  #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
-  #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
+##--- environmental calculations ---###
+  #calculate lower translocatable mass
+  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave, # lower width
+                               length = x1D_set, # lower size limit
+                               p = p.ave)) %>%  #average density
+  #calculate upper translocatable mass
+  mutate(x_UL_m = massfnx_poly(width = x2M, # upper width
+                               length = x2M, # upper width
+                               p = p.ave)) %>%  #average density
   # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == "2"){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != "2"){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
+  mutate(mu.m.poly = mux.polyfnx(a.m, x_UL_m, x_LL_m)) %>% 
+  
+   ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.m.mono = case_when(
+    polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m, 
+                                  x_UL = mass.per.particle.mg.max * 1000,
+                                  x_LL = mass.per.particle.mg.min * 1000))) %>% 
+  
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
   #calculate environmentally realistic effect threshold
   mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
   
   ##### specific surface area ERM ####
+#note that mu were calcaulted for polydisperse particles before, so not special case needed here
   mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible 1/SSA
+  #calculate lower translocatable 1/SSA
   mutate(x_LL_ssa = SSA.inversefnx(sa = x_LL_sa, #surface area
                            m = x_LL_m) #mass
          ) %>% 
-  #calculate upper ingestible SSA  (um^2/ug)
+  #calculate upper translocatable SSA  (um^2/ug)
   mutate(x_UL_ssa = SSA.inversefnx(sa = x_UL_sa, #surface area
                            m = x_UL_m) #mass
          ) %>% 
   #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.inverse.poly = if(a.ssa == "2"){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != "2"){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  mutate(mu.ssa.inverse.poly = mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)) %>% 
   #calculate polydisperse effect concentration for specific surface area (particles/mL)
   mutate(mu.ssa.poly = 1 / mu.ssa.inverse.poly) %>%  #calculate mu_SSA from inverse
   mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
   #calculate environmentally realistic effect threshold
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
-
+##### Ingestion
 ```{r Data Alignments-2}
 ##### SMALL TIER DATA ####
 ### Set size limits for tier
@@ -459,47 +519,75 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
   
   #### Surface area ERM ####
-  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
+##--- environmental calculations ---###
   #calculate lower ingestible surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
                          b = 0.5 * R.ave * x1D_set, 
                          c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
   #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave *x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
-  #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == "2"){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != "2"){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
+  mutate(x_UL_sa = SAfnx(a = 0.5 * x2D_set, #length is upper default limit by definition (accounts for fibers)
+                         b = 0.5 * R.ave * x2M, #width-limited
+                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible width
+ #calculate mu_x_poly (env) for surface area
+  mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
+  
+   ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.sa.mono = case_when(
+    polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa, 
+                                                    x_LL = particle.surface.area.um2.min,
+                                                    x_UL = particle.surface.area.um2.max))) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
   mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
   #calculate environmentally realistic effect threshold
   mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
   
   #### volume ERM ####
-#define mu_x_mono for alignment to ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% 
+##--- environmental calculations ---###
   #calculate lower ingestible volume 
-  mutate(x_LL_v = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
+  mutate(x_LL_v = volumefnx_poly(length = x1D_set,
+                                 width = x1D_set)) %>% 
   #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave,
-                            L = x2M)) %>%  
+  mutate(x_UL_v = volumefnx_poly(length = x2D_set, #upper definiton (accouunts for fibers)
+                                 width = x2M)) %>% #ingestion-limited
   # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == "2"){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != "2"){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
+  mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
+  ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.v.mono = case_when(
+    polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v, 
+                                                   x_LL = particle.volume.um3.min,
+                                                   x_UL = particle.volume.um3.max))) %>% 
+  
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
     #calculate environmentally realistic effect threshold
   mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
   
   #### mass ERM ###
-  #define mu_x_mono for alignment to ERM (ug)
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
+  ##--- environmental calculations ---###
   #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
+  mutate(x_LL_m = massfnx_poly(width = x1D_set,
+                               length = x1D_set,
+                               p = p.ave)) %>% 
   #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
-  # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == "2"){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != "2"){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
+  mutate(x_UL_m = massfnx_poly(width = x2M, #ingestible
+                               length = x2D_set, #upper definition
+                               p = p.ave)) %>% #average density
+ # calculate mu.m.poly
+  mutate(mu.m.poly = mux.polyfnx(a.m, x_UL_m, x_LL_m)) %>% 
+  ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.m.mono = case_when(
+    polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m, 
+                                                   x_UL = mass.per.particle.mg.max * 1000,
+                                                   x_LL = mass.per.particle.mg.min * 1000))) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
   #calculate environmentally realistic effect threshold
@@ -516,7 +604,8 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
                            m = x_UL_m) #mass
          ) %>% 
   #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.inverse.poly = if(a.ssa == "2"){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != "2"){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
+  #note that mu were calcaulted for polydisperse particles before, so not special case needed here
+   mutate(mu.ssa.inverse.poly = mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)) %>% 
   #calculate polydisperse effect concentration for specific surface area (particles/mL)
   mutate(mu.ssa.poly = 1 / mu.ssa.inverse.poly) %>%  #calculate mu_SSA from inverse
   mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
@@ -3947,7 +4036,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-#write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_73021.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_8302021.xlsx")
 
 #Data Collapse
 
