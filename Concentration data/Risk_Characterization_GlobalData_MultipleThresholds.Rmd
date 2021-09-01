@@ -1023,9 +1023,9 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 
 aoc_final_large <- aoc_intermediate  %>% 
   # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
-                         (max.size.ingest.um * (1/R.ave)) > x2D_set ~ (x2D_set * (1/R.ave))
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
+                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
+                         max.size.ingest.um > x2D_set ~ x2D_set
                          )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 

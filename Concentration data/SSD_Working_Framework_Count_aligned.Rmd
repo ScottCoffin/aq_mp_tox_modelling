@@ -429,7 +429,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   mutate(x_LL_v = volumefnx_poly(width = x1D_set * R.ave, # lower width
                                  length = x1D_set)) %>%
   #calculate maximum translocatable volume 
-  mutate(x_UL_v = volumefnx_poly(width = x2M, #upper translocatable width
+  mutate(x_UL_v = volumefnx_poly(width = x2M * R.ave, #upper translocatable width
                                  length = x2M)) %>% 
   # calculate mu.v.poly
   mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
@@ -455,7 +455,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
                                length = x1D_set, # lower size limit
                                p = p.ave)) %>%  #average density
   #calculate upper translocatable mass
-  mutate(x_UL_m = massfnx_poly(width = x2M, # upper width
+  mutate(x_UL_m = massfnx_poly(width = x2M * R.ave, # upper width
                                length = x2M, # upper width
                                p = p.ave)) %>%  #average density
   # calculate mu.m.poly
@@ -506,10 +506,10 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 aoc_final_large <- aoc_intermediate_alphas  %>% 
   # remove algae, as food dilution MOE doesn't make sense for algae
   filter(Group != "Algae") %>% 
-  # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ R.ave * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         (max.size.ingest.um * R.ave) < x2D_set ~ (R.ave * max.size.ingest.um),
-                         (max.size.ingest.um * R.ave) > x2D_set ~ (x2D_set * R.ave)
+  # define upper size length for ingestion 
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
+                         (max.size.ingest.um) < x2D_set ~ (max.size.ingest.um),
+                         (max.size.ingest.um) > x2D_set ~ (x2D_set)
                          )) %>%  #set to 5,000 as upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
@@ -560,7 +560,7 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible volume 
   mutate(x_LL_v = volumefnx_poly(length = x1D_set,
-                                 width = x1D_set)) %>% 
+                                 width = x1D_set * R.ave)) %>% 
   #calculate maximum ingestible volume 
   mutate(x_UL_v = volumefnx_poly(length = x2M, # length-limited
                                  #x2D_set, #upper definiton (accouunts for fibers) CONSERVATIVE
@@ -584,11 +584,11 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
   ##--- environmental calculations ---###
   #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set,
+  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave,
                                length = x1D_set,
                                p = p.ave)) %>% 
   #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx_poly(width = x2M, #ingestible
+  mutate(x_UL_m = massfnx_poly(width = x2M * R.ave, #ingestible
                                length = x2M, #length-limited
                                # CONSERVATIVE length = x2D_set, #upper definition
                                p = p.ave)) %>% #average density
@@ -4062,7 +4062,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_8312021_lessConservative.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_912021_lessConservative.xlsx")
 
 #Data Collapse
 
@@ -5112,18 +5112,18 @@ p.ave.marine = 1.10 #average density in marine surface water
 
 #upper values
 alpha.upper = 2.5 #table s4 for upper surface water. length
-a.sa.upper = 2.0 #upper surface area power law
-a.v.upper = 2.0 #a_V for upper surface water volume
-a.m.upper = 2.0 # upper limit fora_m for mass for upper surface water in table S4
+a.sa.upper = 1.8 #upper surface area power law
+a.v.upper = 1.4 #a_V for upper surface water volume
+a.m.upper = 1.24 # upper limit fora_m for mass for upper surface water in table S4
 a.ssa.upper = 2.5 # A_S1/SA for upper surface water
 R.ave.upper = 0.8 #average width to length ratio for microplastics in upper enviornment
 p.ave.upper = 1.20 #average density in upper surface water
 
 #lower values
 alpha.lower = 1.5 #table s4 for lower surface water. length
-a.sa.lower = 1.0 #lower surface area power law
-a.v.lower = 1.0 #a_V for lower surface water volume
-a.m.lower = 1.0 # upper limit fora_m for mass for lower surface water in table S4
+a.sa.lower = 1.4 #lower surface area power law
+a.v.lower = 1.39 #a_V for lower surface water volume
+a.m.lower = 1.24 # upper limit fora_m for mass for lower surface water in table S4
 a.ssa.lower = 1.5 # A_S1/SA for lower surface water
 R.ave.lower = 0.67 #average width to length ratio for microplastics in lower enviornment
 p.ave.lower = 1.0 #average density in lower surface water
@@ -5192,7 +5192,7 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
-    polydispersity == "polydisperse" ~  mux.polyfnx1(a.x = a.sa.lower,  #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.lower,  #use alpha = 1 eq.
                                   x_LL = particle.surface.area.um2.min,
                                   x_UL = particle.surface.area.um2.max))) %>% 
   
@@ -5217,7 +5217,7 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx1(a.x = a.v.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.lower, #use alpha = 1 eq.
                                   x_LL = particle.volume.um3.min,
                                   x_UL = particle.volume.um3.max))) %>% 
   
@@ -5244,7 +5244,7 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.m.mono = case_when(
     polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx1(a.x = a.m.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.lower, #use alpha = 1 eq.
                                   x_UL = mass.per.particle.mg.max * 1000,
                                   x_LL = mass.per.particle.mg.min * 1000))) %>% 
   
@@ -5286,9 +5286,9 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   # remove algae, as food dilution MOE doesn't make sense for algae
   filter(Group != "Algae") %>% 
   # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ R.ave * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         (max.size.ingest.um * R.ave) < x2D_set ~ (R.ave * max.size.ingest.um),
-                         (max.size.ingest.um * R.ave) > x2D_set ~ (x2D_set * R.ave)
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
+                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
+                         max.size.ingest.um > x2D_set ~ x2D_set
                          )) %>%  #set to upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
@@ -5315,8 +5315,8 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
                          c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
   #calculate upper ingestible surface area
   mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, #CONSERVATIVE: x2D_set, #length is upper default limit by definition (accounts for fibers)
-                         b = 0.5 * R.ave * x2M, #width-limited
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible width
+                         b = 0.5 * R.ave * x2M, #length-limited
+                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible length
  #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
   
@@ -5325,7 +5325,7 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
-    polydispersity == "polydisperse" ~  mux.polyfnx1(a.x = a.sa.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.lower, #use alpha = 1 eq.
                                                     x_LL = particle.surface.area.um2.min,
                                                     x_UL = particle.surface.area.um2.max))) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
@@ -5337,11 +5337,11 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible volume 
   mutate(x_LL_v = volumefnx_poly(length = x1D_set,
-                                 width = x1D_set)) %>% 
+                                 width = x1D_set * R.ave)) %>% 
   #calculate maximum ingestible volume 
   mutate(x_UL_v = volumefnx_poly(length = x2M, #length-limited
                                   #length = x2D_set, #upper definiton (accouunts for fibers)
-                                 width = x2M)) %>% #ingestion-limited
+                                 width = x2M * R.ave)) %>% #ingestion-limited
   # calculate mu.v.poly
   mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
   ##--- laboratory calculations ---###
@@ -5349,7 +5349,7 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx1(a.x = a.v.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.lower, #use alpha = 1 eq.
                                                    x_LL = particle.volume.um3.min,
                                                    x_UL = particle.volume.um3.max))) %>% 
   
@@ -5361,11 +5361,11 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
   ##--- environmental calculations ---###
   #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set,
+  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave,
                                length = x1D_set,
                                p = p.ave)) %>% 
   #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx_poly(width = x2M, #ingestible
+  mutate(x_UL_m = massfnx_poly(width = x2M * R.ave, #ingestible
                                length = x2M, #length-limited
                                #length = x2D_set, #upper definition
                                p = p.ave)) %>% #average density
@@ -5376,7 +5376,7 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.m.mono = case_when(
     polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx1(a.x = a.m.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.lower, #use alpha = 1 eq.
                                                    x_UL = mass.per.particle.mg.max * 1000,
                                                    x_LL = mass.per.particle.mg.min * 1000))) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
@@ -5457,7 +5457,7 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
-    polydispersity == "polydisperse" ~  mux.polyfnx2(a.x = a.sa.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.upper, #use alpha = 2 eq.
                                   x_LL = particle.surface.area.um2.min,
                                   x_UL = particle.surface.area.um2.max))) %>% 
   
@@ -5482,7 +5482,7 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx2(a.x = a.v.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.upper, #use alpha = 2 eq.
                                   x_LL = particle.volume.um3.min,
                                   x_UL = particle.volume.um3.max))) %>% 
   
@@ -5509,7 +5509,7 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.m.mono = case_when(
     polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx2(a.x = a.m.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.upper, #use alpha = 2 eq.
                                   x_UL = mass.per.particle.mg.max * 1000,
                                   x_LL = mass.per.particle.mg.min * 1000))) %>% 
   
@@ -5590,7 +5590,7 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
-    polydispersity == "polydisperse" ~  mux.polyfnx2(a.x = a.sa.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.upper, #use alpha = 2 eq.
                                                     x_LL = particle.surface.area.um2.min,
                                                     x_UL = particle.surface.area.um2.max))) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
@@ -5613,7 +5613,7 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx2(a.x = a.v.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.upper, #use alpha = 2 eq.
                                                    x_LL = particle.volume.um3.min,
                                                    x_UL = particle.volume.um3.max))) %>% 
   
@@ -5639,7 +5639,7 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.m.mono = case_when(
     polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx2(a.x = a.m.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.upper, #use alpha = 2 eq.
                                                    x_UL = mass.per.particle.mg.max * 1000,
                                                    x_LL = mass.per.particle.mg.min * 1000))) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)

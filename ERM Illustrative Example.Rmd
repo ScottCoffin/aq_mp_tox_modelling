@@ -1,7 +1,7 @@
 ---
 title: "ERM Illustrative Example"
 author: "Scott Coffin"
-date: "7/30/2021"
+date: "9/1/2021"
 output:
   word_document: default
   html_document: default
@@ -76,8 +76,10 @@ mux.polyfnx = function(a.x,
   return(mux.poly)}
 
 #define parameters for C.daphnia
-upper.ingestible.width.um = 115
-lower.ingestible.width.um = 1
+upper.ingestible.length.um = 115 #mouth size opening
+upper.ingestible.width.um = upper.ingestible.length.um * R.ave #length to width ratio
+lower.ingestible.length.um = 1
+lower.ingestible.width.um = lower.ingestible.length.um * R.ave
 
 # marine surface water alpha for length
 alpha = 2.07
@@ -139,7 +141,7 @@ EC_env <- EC_poly * CF_bio
 paste("EC_env = ",signif(EC_env,4), "Particles/L (1-5,000 um; marine surface water )")
 ```
 
-### Volume
+### Volume (Ingestion)
 
 In the case of an ERM of interest being volume, $\mu_{x,mono}$ is equivalent to the average volume of a the monodisperse particle (i.e. $\mu_{v,mono}$), calculated as follows:
 
@@ -168,7 +170,7 @@ volumefnx_mono = function(R, L){
 return(volume)}
 
 mu_v.mono = volumefnx_mono(R = 0.77,
-                      L = 10)
+                      L = 40)
 paste("mu_v.mono = ", signif(mu_v.mono,3), "um^3")
 ```
 
@@ -191,9 +193,9 @@ volumefnx_poly = function(width, length){
 #                       L = upper.ingestible.width.um)
 
 x_LL_v = volumefnx_poly(width = lower.ingestible.width.um,
-                      length = x1D_set)
+                      length = lower.ingestible.length.um)
 x_UL_v = volumefnx_poly(width = upper.ingestible.width.um,
-                      length = x2D_set)
+                      length = upper.ingestible.length.um)
 
 
 paste("x_UL_v = ",signif(x_UL_v,3), "um^3",
@@ -222,7 +224,7 @@ EC_env_v <- EC_poly_v * CF_bio
 paste("EC_env_v = ",signif(EC_env_v,4), "Particles/L (1-5,000 um; marine surface water )")
 ```
 
-###  Surface Area
+###  Surface Area (translocation)
 For surface area as an ERM, $\mu_{sa,mono}$ is equivalent to the average surface area ($SA$) of the *monodisperse* particle for the effect threshold, calculated as follows:
 
 $\mu_{sa,mono} = SA = 4 \pi (\frac{(ab)^{1.6} + (ac)^{1.6} + (bc)^{1.6}}{3})^{1/1.6}$
@@ -247,17 +249,17 @@ paste("mu_sa.mono = ", signif(mu_sa.mono,3), "um^2")
 
 Since the probability distribution of ERM $sa$ (surface area) follows a power law regime, the mean ERM value for the polydisperse particles, $\mu_{sa,poly}$, can be calculated. For surface area of environmentally disperse particles, UL and LL are calculated using the equation for the surface area of an ellipsoid (above).
 
-#### Translocation
+
 ```{r}
 # calculate lower
-x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
-                b = 0.5 * x1D_set, #width
-                c = 0.5 * 0.67 * x1D_set) #height = 0.67 * width
+x_LL_sa = SAfnx(a = 0.5 * lower.ingestible.length.um, #length
+                b = 0.5 * lower.ingestible.width.um, #width
+                c = 0.5 * 0.67 * lower.ingestible.width.um) #height = 0.67 * width
 
-# calculate lower
+# calculate upper
 x_UL_sa = SAfnx(a = 0.5 * upper.tissue.trans.size.um, #()
-                b = 0.5 * upper.tissue.trans.size.um, #()
-                c = 0.5 * upper.tissue.trans.size.um)
+                b = 0.5 * R.ave * upper.tissue.trans.size.um, #()
+                c = 0.5 * R.ave * 0.67 * upper.tissue.trans.size.um)
 
 paste("x_UL = ",round(x_UL_sa,2), "um^2",
       ";x_LL = ", round(x_LL_sa,2), "um^2")
@@ -285,45 +287,8 @@ EC_env_sa <- EC_poly_sa * CF_bio
 paste("EC_env_sa = ",signif(EC_env_sa,4), "Particles/L (1-5,000 um; marine surface water )")
 ```
 
-#### Ingestion
-```{r}
-# calculate lower
-x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
-                b = 0.5 * x1D_set, #width
-                c = 0.5 * 0.67 * x1D_set) #height = 0.67 * width
 
-# calculate lower
-x_UL_sa = SAfnx(a = 0.5 * x2D_set, #upper default length (5,000 um)
-                b = 0.5 * upper.ingestible.width.um, #()
-                c = 0.5 * 0.67 * upper.ingestible.width.um)
-
-paste("x_UL = ",round(x_UL_sa,2), "um^2",
-      ";x_LL = ", round(x_LL_sa,2), "um^2")
-```
-$\mu_{sa,poly}$ may now be calculated given these limits, using an alpha value of 1.98 for surface area in the marine surface water environment (Kooi et al 2021):
-```{r}
-a.sa = 1.5
-#compute
-mu_sa.poly <- mux.polyfnx(a.x = a.sa, 
-                         x_UL = x_UL_sa,
-                         x_LL = x_LL_sa)
-#report
-paste("mu_sa_poly:", round(mu_sa.poly,2), "um^2")
-```
-Now that $\mu_{v,poly}$, $\mu_{v,mono}$, and $EC_{mono}$ are known for this example for surface area, the *bioavailable* *polydisperse* effect concentration $EC_{poly}$ for the surface area ERM may then be calculated:
-
-```{r}
-EC_poly_sa <- (EC_mono * mu_sa.mono)/mu_sa.poly
-paste("EC_poly_sa:",signif(EC_poly_sa,5), "particles/L")
-```
-Again, to relate this *bioavailable*, *polydisperse* effect threshold ($EC_{poly,sa}$) to an environmentally relevant *polydisperse* mixture of particles for the surface area ERM, an additional correction must be applied to rescale the threshold to the size range of interest (e.g. 1-5,000 um) using $CF_{bio}$, identical as for particles. 
-
-```{r}
-EC_env_sa_ingestion <- EC_poly_sa * CF_bio
-paste("EC_env_sa = ",signif(EC_env_sa_ingestion,4), "Particles/L (1-5,000 um; marine surface water )")
-```
-
-### Mass
+### Mass (Translocation)
 In the case of an ERM of interest being total mass, $\mu_{x,mono}$ is equivalent to the average mass of a the monodisperse particle (i.e. $\mu_{m,mono}$), calculated as follows:
 
 $\mu_{m,mono} = m = pV*\frac{1}{1e12}*1e6$
@@ -359,11 +324,11 @@ p.ave = 1.1
 
 #lower limit
 x_LL_m = massfnx_poly(width = lower.ingestible.width.um, #smallest ingestible width
-               length = x1D_set, # smallest length 
+               length = lower.ingestible.length.um, # smallest length 
                p = p.ave) #average density
 #upper limit
-x_UL_m = massfnx_poly(width = upper.ingestible.width.um,
-               length = x2D_set, #upper default length
+x_UL_m = massfnx_poly(width = upper.tissue.trans.size.um,
+               length = upper.tissue.trans.size.um, #upper default length
                p = p.ave) #average density
 
 paste("x_UL = ",signif(x_UL_m,2), "ug",
@@ -394,7 +359,7 @@ EC_env_m <- EC_poly_m * CF_bio
 paste("EC_env_m = ",signif(EC_env_m,4), "Particles/L (1-5,000 um; marine surface water)")
 ```
 
-### Specific Surface Area
+### Specific Surface Area (Translocation)
 
 In the case of an ERM of interest being specific surface area, $\mu_{ssa,mono}$ is equivalent to the surface area of a 5 um PS sphere (i.e. $\mu_{sa,mono}$) divided by the mass (i.e. $\mu_{m,mono}$), calculated as follows:
 
@@ -494,7 +459,7 @@ paste("C_env =",signif(C_env,4), "particles/L (1 - 5,000 um; marine surface wate
 This measured rescaled environmental concentration $C_{env}$ may then be directly compared to the rescaled effect thresholds for various ERM $EC_{env,x}$ to determine if risk is present using the traditional PNEC/PEC formula:
 
 ```{r}
-risk <- tibble('ERM' = c("Particles", "Volume", "Surface Area", "Mass", "Specific Surface Area"),
+risk <- tibble('ERM' = c("Particles", "Volume (Ingestion)", "Surface Area (Translocation)", "Mass (Translocation)", "Specific Surface Area (Translocation)"),
                'EC_env' = c(EC_env, EC_env_v, EC_env_sa, EC_env_m, EC_env_ssa)) %>% 
   mutate('PNEC/PEC' =  C_env / EC_env)
 

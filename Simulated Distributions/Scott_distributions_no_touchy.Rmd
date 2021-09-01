@@ -2411,7 +2411,7 @@ t3.compare.points <- t3.food.points.j.real.agonstic %>% filter(type != "Environm
 #ggplot
 ggplot() +
   # geom_xribbon(data = t3.food.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
-  geom_line(data = t3.compare, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  geom_line(data = t3.compare.preds, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
   geom_point(data = t3.compare.points, aes(x = Conc, y =frac, color = type), alpha = 0.7) + 
   #geom_text_repel(data = food.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
