@@ -1951,10 +1951,10 @@ Alvina wants the figure with both freshwater and marine occurence data in the sa
 ## ECDF
 ### Food Dilution
 ```{r}
-Threshold1_food = 0.43 
-Threshold2_food = 4.02 
-Threshold3_food = 10.6
-Threshold4_food = 69.9
+Threshold1_food = 0.2 
+Threshold2_food = 2.0
+Threshold3_food = 5.4
+Threshold4_food = 33.9
 ```
 
 ```{r}
@@ -1998,10 +1998,10 @@ ECDF_all_food
 
 ### Translocation
 ```{r}
-Threshold1_translocation = 98.61
-Threshold2_translocation = 523.17
-Threshold3_translocation = 2378.08
-Threshold4_translocation = 9400.75
+Threshold1_translocation = 56.6
+Threshold2_translocation = 299
+Threshold3_translocation = 1385
+Threshold4_translocation = 5470
 ```
 
 ```{r}

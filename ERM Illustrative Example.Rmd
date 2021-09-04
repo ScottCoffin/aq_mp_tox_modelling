@@ -3,8 +3,8 @@ title: "ERM Illustrative Example"
 author: "Scott Coffin"
 date: "9/1/2021"
 output:
-  word_document: default
   html_document: default
+  word_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -77,9 +77,9 @@ mux.polyfnx = function(a.x,
 
 #define parameters for C.daphnia
 upper.ingestible.length.um = 115 #mouth size opening
-upper.ingestible.width.um = upper.ingestible.length.um * R.ave #length to width ratio
+upper.ingestible.width.um = upper.ingestible.length.um # * R.ave #length to width ratio
 lower.ingestible.length.um = 1
-lower.ingestible.width.um = lower.ingestible.length.um * R.ave
+lower.ingestible.width.um = lower.ingestible.length.um #* R.ave
 
 # marine surface water alpha for length
 alpha = 2.07
@@ -181,7 +181,7 @@ As discussed above, for the example of an organism of interest of *Cerodaphnia m
 ```{r}
 #note that the upper length for the polydiserpse volume should be 5,000 um
 volumefnx_poly = function(width, length){
-  height = 0.67 * width
+  height = width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
@@ -251,15 +251,16 @@ Since the probability distribution of ERM $sa$ (surface area) follows a power la
 
 
 ```{r}
+upper.tissue.trans.size.um = 83 #um
 # calculate lower
 x_LL_sa = SAfnx(a = 0.5 * lower.ingestible.length.um, #length
                 b = 0.5 * lower.ingestible.width.um, #width
-                c = 0.5 * 0.67 * lower.ingestible.width.um) #height = 0.67 * width
+                c = 0.5 * lower.ingestible.width.um) #height = 0.67 * width
 
 # calculate upper
 x_UL_sa = SAfnx(a = 0.5 * upper.tissue.trans.size.um, #()
-                b = 0.5 * R.ave * upper.tissue.trans.size.um, #()
-                c = 0.5 * R.ave * 0.67 * upper.tissue.trans.size.um)
+                b = 0.5 * upper.tissue.trans.size.um, #()
+                c = 0.5 * upper.tissue.trans.size.um)
 
 paste("x_UL = ",round(x_UL_sa,2), "um^2",
       ";x_LL = ", round(x_LL_sa,2), "um^2")
@@ -313,7 +314,7 @@ For mass, UL and LL are mass-based upper and lower limits of bioaccessibility ba
 
 ```{r}
 massfnx_poly = function(width, length, p){
-  height = 0.67 * width
+  height =  width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)

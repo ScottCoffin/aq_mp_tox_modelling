@@ -269,11 +269,11 @@ volumefnx = function(R, L){
   return(volume)}
 
 volumefnx_poly = function(width, length){
-  height = 0.67 * width
+  height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
-#max ingestible mass
+#max ingestible mass (only used for mu_mono calculations)
 massfnx = function(R, L, p){
   mass = p * #density (g/cm^3)
     0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -281,7 +281,7 @@ massfnx = function(R, L, p){
   return(mass)}
 
 massfnx_poly = function(width, length, p){
-  height = 0.67 * width
+  height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -397,14 +397,14 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   #### Surface area ERM ####
 ##--- environmental calculations ---###
   #calculate lower translocatable surface area
-  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set
+  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, #length
+                         b = 0.5 * x1D_set, #0.5 * R.ave * x1D_set, #width
+                         c = 0.5 * x1D_set  #0.5 * R.ave * 0.67 * x1D_set #height
                          )) %>%  
   #calculate upper translocatable surface area
   mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave * x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M
+                         b = 0.5 * x2M, #width #0.5 * R.ave * x2M, 
+                         c = 0.5 * x2M #heigth #0.5 * R.ave * 0.67 * x2M
                          )) %>%  
   #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
@@ -426,10 +426,10 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   #### volume ERM ####
 ##--- environmental calculations ---###
   #calculate lower translocatable volume 
-  mutate(x_LL_v = volumefnx_poly(width = x1D_set * R.ave, # lower width
+  mutate(x_LL_v = volumefnx_poly(width = x1D_set, # lower width
                                  length = x1D_set)) %>%
   #calculate maximum translocatable volume 
-  mutate(x_UL_v = volumefnx_poly(width = x2M * R.ave, #upper translocatable width
+  mutate(x_UL_v = volumefnx_poly(width = x2M, #upper translocatable width
                                  length = x2M)) %>% 
   # calculate mu.v.poly
   mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
@@ -451,11 +451,11 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
 ##--- environmental calculations ---###
   #calculate lower translocatable mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave, # lower width
+  mutate(x_LL_m = massfnx_poly(width = x1D_set, # lower width
                                length = x1D_set, # lower size limit
                                p = p.ave)) %>%  #average density
   #calculate upper translocatable mass
-  mutate(x_UL_m = massfnx_poly(width = x2M * R.ave, # upper width
+  mutate(x_UL_m = massfnx_poly(width = x2M, # upper width
                                length = x2M, # upper width
                                p = p.ave)) %>%  #average density
   # calculate mu.m.poly
@@ -496,7 +496,7 @@ aoc_final_small <- aoc_intermediate_alphas  %>%
 ```
 ##### Ingestion
 ```{r Data Alignments-2}
-##### SMALL TIER DATA ####
+##### LARGE TIER DATA ####
 ### Set size limits for tier
 x2D_set <- large_tier_upper_size #upper size range (default)
 x1D_set <- large_tier_lower_size #lower size range (default)
@@ -508,8 +508,8 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   filter(Group != "Algae") %>% 
   # define upper size length for ingestion 
   mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
-                         (max.size.ingest.um) < x2D_set ~ (max.size.ingest.um),
-                         (max.size.ingest.um) > x2D_set ~ (x2D_set)
+                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
+                         max.size.ingest.um > x2D_set ~ x2D_set
                          )) %>%  #set to 5,000 as upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
@@ -532,14 +532,14 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+                         b = 0.5 * x1D_set,# 0.5 * R.ave * x1D_set, 
+                         c = 0.5 * x1D_set)) %>% #0.5 * R.ave * 0.67 * x1D_set)) %>%  
   #calculate upper ingestible surface area
   mutate(x_UL_sa = SAfnx( 
     #CONSERVATIVE ASSUMPTION #a = 0.5 * x2D_set, #length is upper default limit by definition (accounts for fibers)
                          a = 0.5 * x2M, #LENGTH-limited (less conservative assumption)
-                         b = 0.5 * R.ave * x2M, #length-limited
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible length
+                         b = 0.5 * x2M,#0.5 * R.ave * x2M, #length-limited
+                         c = 0.5 * x2M)) %>%   #0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible length
  #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
   
@@ -560,7 +560,7 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible volume 
   mutate(x_LL_v = volumefnx_poly(length = x1D_set,
-                                 width = x1D_set * R.ave)) %>% 
+                                 width = x1D_set)) %>% 
   #calculate maximum ingestible volume 
   mutate(x_UL_v = volumefnx_poly(length = x2M, # length-limited
                                  #x2D_set, #upper definiton (accouunts for fibers) CONSERVATIVE
@@ -584,11 +584,11 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
   ##--- environmental calculations ---###
   #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave,
+  mutate(x_LL_m = massfnx_poly(width = x1D_set,
                                length = x1D_set,
                                p = p.ave)) %>% 
   #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx_poly(width = x2M * R.ave, #ingestible
+  mutate(x_UL_m = massfnx_poly(width = x2M, #ingestible
                                length = x2M, #length-limited
                                # CONSERVATIVE length = x2D_set, #upper definition
                                p = p.ave)) %>% #average density
@@ -1653,7 +1653,7 @@ study_list_fooddilution_1_2 <-tier1_2_large %>%
 
 #Translocation
 tier1_2_small <- aoc_final_small %>% 
-         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  #volume
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))#  %>% 
@@ -2032,7 +2032,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, 5000)) 
@@ -2071,7 +2071,7 @@ study_list_fooddilution_3_4 <-tier3_4_large %>%
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
@@ -2206,7 +2206,7 @@ plot(FoodDilution_Tier3_4_DataCollapse)
 #Food Dilution Median
 tier3_4_large_median <- tier3_4_large %>% 
   group_by(Species, Group) %>% 
-  summarize(Conc = median(dose_new))
+  summarize(Conc = quantile(dose_new, 0.5))
 
 #Translocation Median
 tier3_4_small_median <- tier3_4_small %>% 
@@ -2744,7 +2744,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, 5000))# %>% 
@@ -2757,7 +2757,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))#  %>% 
@@ -3343,7 +3343,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, 5000))# %>% 
@@ -3356,7 +3356,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_m.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_m.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))  
@@ -3832,7 +3832,7 @@ Data Quality = Pass Technical & Risk Quality Red Criteria
 tier3_4_large <-  aoc_final_large_marine %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, 5000)) #%>% 
@@ -3845,7 +3845,7 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 tier3_4_small <- aoc_final_small %>% 
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-         mutate(dose_new = EC_poly_sa.particles.mL / (af.time * af.noec)) %>%  
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new*1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um)) # %>% 
@@ -4062,7 +4062,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_912021_lessConservative.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_932021_lessConservative.xlsx")
 
 #Data Collapse
 
@@ -5176,13 +5176,13 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower translocatable surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set
+                         b = 0.5 * x1D_set, #width #0.5 * R.ave * x1D_set, 
+                         c = 0.5 * x1D_set #height #0.5 * R.ave * 0.67 * x1D_set
                          )) %>%  
   #calculate upper translocatable surface area
   mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave * x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M
+                         b = 0.5 * x2M, #width #0.5 * R.ave * x2M, 
+                         c = 0.5 * x2M #height #0.5 * R.ave * 0.67 * x2M
                          )) %>%  
   #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
@@ -5204,7 +5204,7 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
   #### volume ERM ####
 ##--- environmental calculations ---###
   #calculate lower translocatable volume 
-  mutate(x_LL_v = volumefnx_poly(width = x1D_set * R.ave, # lower width
+  mutate(x_LL_v = volumefnx_poly(width = x1D_set, # lower width
                                  length = x1D_set)) %>%
   #calculate maximum translocatable volume 
   mutate(x_UL_v = volumefnx_poly(width = x2M, #upper translocatable width
@@ -5229,7 +5229,7 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
 ##--- environmental calculations ---###
   #calculate lower translocatable mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave, # lower width
+  mutate(x_LL_m = massfnx_poly(width = x1D_set, # lower width
                                length = x1D_set, # lower size limit
                                p = p.ave)) %>%  #average density
   #calculate upper translocatable mass
@@ -5275,8 +5275,6 @@ aoc_final_small_lower <- aoc_intermediate_alphas  %>%
 
 ###### Ingestion
 ```{r}
-##### SMALL TIER DATA ####
-### Set size limits for tier
 x2D_set <- large_tier_upper_size #upper size range (default)
 x1D_set <- large_tier_lower_size #lower size range (default)
 x1M_set <- large_tier_lower_size #lower size range for measured
@@ -5285,11 +5283,11 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 aoc_final_large_lower <- aoc_intermediate_alphas  %>% 
   # remove algae, as food dilution MOE doesn't make sense for algae
   filter(Group != "Algae") %>% 
-  # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
+  # define upper size length for ingestion 
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
                          max.size.ingest.um < x2D_set ~ max.size.ingest.um,
                          max.size.ingest.um > x2D_set ~ x2D_set
-                         )) %>%  #set to upper limit or max size ingest, whichever is smaller
+                         )) %>%  #set to 5,000 as upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
@@ -5300,9 +5298,9 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
    #calculate CF_bio for all conversions
   mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
+                        x2M = x2M, #upper ingestible length
                         x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
+                        x2D = x2D_set,  #default upper size range
                         a = alpha)) %>%  
   ## Calculate environmentally relevant effect threshold for particles
   mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
@@ -5311,12 +5309,14 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+                         b = 0.5 * x1D_set,# 0.5 * R.ave * x1D_set, 
+                         c = 0.5 * x1D_set)) %>% #0.5 * R.ave * 0.67 * x1D_set)) %>%  
   #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, #CONSERVATIVE: x2D_set, #length is upper default limit by definition (accounts for fibers)
-                         b = 0.5 * R.ave * x2M, #length-limited
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible length
+  mutate(x_UL_sa = SAfnx( 
+    #CONSERVATIVE ASSUMPTION #a = 0.5 * x2D_set, #length is upper default limit by definition (accounts for fibers)
+                         a = 0.5 * x2M, #LENGTH-limited (less conservative assumption)
+                         b = 0.5 * x2M,#0.5 * R.ave * x2M, #length-limited
+                         c = 0.5 * x2M)) %>%   #0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible length
  #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
   
@@ -5325,7 +5325,7 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
-    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.lower, 
                                                     x_LL = particle.surface.area.um2.min,
                                                     x_UL = particle.surface.area.um2.max))) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
@@ -5337,11 +5337,11 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible volume 
   mutate(x_LL_v = volumefnx_poly(length = x1D_set,
-                                 width = x1D_set * R.ave)) %>% 
+                                 width = x1D_set)) %>% 
   #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx_poly(length = x2M, #length-limited
-                                  #length = x2D_set, #upper definiton (accouunts for fibers)
-                                 width = x2M * R.ave)) %>% #ingestion-limited
+  mutate(x_UL_v = volumefnx_poly(length = x2M, # length-limited
+                                 #x2D_set, #upper definiton (accouunts for fibers) CONSERVATIVE
+                                 width = x2M)) %>% #ingestion-limited
   # calculate mu.v.poly
   mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
   ##--- laboratory calculations ---###
@@ -5349,7 +5349,7 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.lower, 
                                                    x_LL = particle.volume.um3.min,
                                                    x_UL = particle.volume.um3.max))) %>% 
   
@@ -5361,13 +5361,13 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
   ##--- environmental calculations ---###
   #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave,
+  mutate(x_LL_m = massfnx_poly(width = x1D_set,
                                length = x1D_set,
                                p = p.ave)) %>% 
   #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx_poly(width = x2M * R.ave, #ingestible
+  mutate(x_UL_m = massfnx_poly(width = x2M, #ingestible
                                length = x2M, #length-limited
-                               #length = x2D_set, #upper definition
+                               # CONSERVATIVE length = x2D_set, #upper definition
                                p = p.ave)) %>% #average density
  # calculate mu.m.poly
   mutate(mu.m.poly = mux.polyfnx(a.m, x_UL_m, x_LL_m)) %>% 
@@ -5376,7 +5376,7 @@ aoc_final_large_lower <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.m.mono = case_when(
     polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.lower, #use alpha = 1 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.lower, 
                                                    x_UL = mass.per.particle.mg.max * 1000,
                                                    x_LL = mass.per.particle.mg.min * 1000))) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
@@ -5441,13 +5441,13 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower translocatable surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set
+                         b = 0.5 * x1D_set, 
+                         c = 0.5 * x1D_set
                          )) %>%  
   #calculate upper translocatable surface area
   mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave * x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M
+                         b = 0.5 * x2M, 
+                         c = 0.5 * x2M
                          )) %>%  
   #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
@@ -5469,7 +5469,7 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
   #### volume ERM ####
 ##--- environmental calculations ---###
   #calculate lower translocatable volume 
-  mutate(x_LL_v = volumefnx_poly(width = x1D_set * R.ave, # lower width
+  mutate(x_LL_v = volumefnx_poly(width = x1D_set, # lower width
                                  length = x1D_set)) %>%
   #calculate maximum translocatable volume 
   mutate(x_UL_v = volumefnx_poly(width = x2M, #upper translocatable width
@@ -5494,7 +5494,7 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
   #### mass ERM ###
 ##--- environmental calculations ---###
   #calculate lower translocatable mass
-  mutate(x_LL_m = massfnx_poly(width = x1D_set * R.ave, # lower width
+  mutate(x_LL_m = massfnx_poly(width = x1D_set, # lower width
                                length = x1D_set, # lower size limit
                                p = p.ave)) %>%  #average density
   #calculate upper translocatable mass
@@ -5540,8 +5540,6 @@ aoc_final_small_upper <- aoc_intermediate_alphas  %>%
 
 ###### Ingestion
 ```{r}
-##### SMALL TIER DATA ####
-### Set size limits for tier
 x2D_set <- large_tier_upper_size #upper size range (default)
 x1D_set <- large_tier_lower_size #lower size range (default)
 x1M_set <- large_tier_lower_size #lower size range for measured
@@ -5550,11 +5548,11 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 aoc_final_large_upper <- aoc_intermediate_alphas  %>% 
   # remove algae, as food dilution MOE doesn't make sense for algae
   filter(Group != "Algae") %>% 
-  # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ R.ave * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         (max.size.ingest.um * R.ave) < x2D_set ~ (R.ave * max.size.ingest.um),
-                         (max.size.ingest.um * R.ave) > x2D_set ~ (x2D_set * R.ave)
-                         )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
+  # define upper size length for ingestion 
+  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
+                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
+                         max.size.ingest.um > x2D_set ~ x2D_set
+                         )) %>%  #set to 5,000 as upper limit or max size ingest, whichever is smaller
  # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
@@ -5565,9 +5563,9 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
    #calculate CF_bio for all conversions
   mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
+                        x2M = x2M, #upper ingestible length
                         x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
+                        x2D = x2D_set,  #default upper size range
                         a = alpha)) %>%  
   ## Calculate environmentally relevant effect threshold for particles
   mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
@@ -5576,12 +5574,14 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
 ##--- environmental calculations ---###
   #calculate lower ingestible surface area
   mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+                         b = 0.5 * x1D_set,# 0.5 * R.ave * x1D_set, 
+                         c = 0.5 * x1D_set)) %>% #0.5 * R.ave * 0.67 * x1D_set)) %>%  
   #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2D_set, #length is upper default limit by definition (accounts for fibers)
-                         b = 0.5 * R.ave * x2M, #width-limited
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible width
+  mutate(x_UL_sa = SAfnx( 
+    #CONSERVATIVE ASSUMPTION #a = 0.5 * x2D_set, #length is upper default limit by definition (accounts for fibers)
+                         a = 0.5 * x2M, #LENGTH-limited (less conservative assumption)
+                         b = 0.5 * x2M,#0.5 * R.ave * x2M, #length-limited
+                         c = 0.5 * x2M)) %>%   #0.5 * R.ave * 0.67 * x2M)) %>%  #height based on ingestible length
  #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly = mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)) %>% 
   
@@ -5590,7 +5590,7 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
-    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.upper, 
                                                     x_LL = particle.surface.area.um2.min,
                                                     x_UL = particle.surface.area.um2.max))) %>% 
   #calculate polydisperse effect concentration for surface area (particles/mL)
@@ -5604,7 +5604,8 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   mutate(x_LL_v = volumefnx_poly(length = x1D_set,
                                  width = x1D_set)) %>% 
   #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx_poly(length = x2D_set, #upper definiton (accouunts for fibers)
+  mutate(x_UL_v = volumefnx_poly(length = x2M, # length-limited
+                                 #x2D_set, #upper definiton (accouunts for fibers) CONSERVATIVE
                                  width = x2M)) %>% #ingestion-limited
   # calculate mu.v.poly
   mutate(mu.v.poly = mux.polyfnx(a.v, x_UL_v, x_LL_v)) %>% 
@@ -5613,7 +5614,7 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.upper, 
                                                    x_LL = particle.volume.um3.min,
                                                    x_UL = particle.volume.um3.max))) %>% 
   
@@ -5630,7 +5631,8 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
                                p = p.ave)) %>% 
   #calculate upper ingestible mass
   mutate(x_UL_m = massfnx_poly(width = x2M, #ingestible
-                               length = x2D_set, #upper definition
+                               length = x2M, #length-limited
+                               # CONSERVATIVE length = x2D_set, #upper definition
                                p = p.ave)) %>% #average density
  # calculate mu.m.poly
   mutate(mu.m.poly = mux.polyfnx(a.m, x_UL_m, x_LL_m)) %>% 
@@ -5639,7 +5641,7 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.m.mono = case_when(
     polydispersity == "monodisperse" ~  mass.per.particle.mg * 1000, # use reported volume in monodisperse
-    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.upper, #use alpha = 2 eq.
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.m.upper, 
                                                    x_UL = mass.per.particle.mg.max * 1000,
                                                    x_LL = mass.per.particle.mg.min * 1000))) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
@@ -5666,87 +5668,116 @@ aoc_final_large_upper <- aoc_intermediate_alphas  %>%
   #calculate environmentally realistic effect threshold
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
+
 ### Calculate Thresholds
 ```{r}
 ####---- TISSUE TRANSLOCATION ------#####
 #### DEFAULT ####
-filtered.data.small.default <- aoc_final_small %>% 
+filtered.data.small.default_t1.2 <- aoc_final_small %>% 
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))
 
+filtered.data.small.default_t3.4 <- filtered.data.small.default_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
 # get thresholds
-small.default.t1 <- SSD_function_t1(filtered.data = filtered.data.small.default, hcxlcl = 5)
-small.default.t2 <- SSD_function_t2(filtered.data = filtered.data.small.default, hcx = 5)
-small.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.default, hcx = 5)
-small.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.default, hcx = 10)
+small.default.t1 <- SSD_function_t1(filtered.data = filtered.data.small.default_t1.2, hcxlcl = 5)
+small.default.t2 <- SSD_function_t2(filtered.data = filtered.data.small.default_t1.2, hcx = 5)
+small.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.default_t3.4, hcx = 5)
+small.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.default_t3.4, hcx = 10)
 
 #### LOWER ####
 #data filtering
-filtered.data.small.lower <- aoc_final_small_lower %>% 
-         mutate(dose_new =  EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+filtered.data.small.lower_t1.2 <- aoc_final_small_lower %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))
+
+filtered.data.small.lower_t3.4 <- filtered.data.small.lower_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
 # get thresholds
-small.lower.t1 <- SSD_function_t1(filtered.data = filtered.data.small.lower, hcxlcl = 5)
-small.lower.t2 <- SSD_function_t2(filtered.data = filtered.data.small.lower, hcx = 5)
-small.lower.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.lower, hcx = 5)
-small.lower.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.lower, hcx = 10)
+small.lower.t1 <- SSD_function_t1(filtered.data = filtered.data.small.lower_t1.2, hcxlcl = 5)
+small.lower.t2 <- SSD_function_t2(filtered.data = filtered.data.small.lower_t1.2, hcx = 5)
+small.lower.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.lower_t3.4, hcx = 5)
+small.lower.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.lower_t3.4, hcx = 10)
 
 #### upper ####
 #data filtering
-filtered.data.small.upper <- aoc_final_small_upper %>% 
-         mutate(dose_new =  EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+filtered.data.small.upper_t1.2 <- aoc_final_small_upper %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))
+
+filtered.data.small.upper_t3.4 <- filtered.data.small.upper_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
 # get thresholds
-small.upper.t1 <- SSD_function_t1(filtered.data = filtered.data.small.upper, hcxlcl = 5)
-small.upper.t2 <- SSD_function_t2(filtered.data = filtered.data.small.upper, hcx = 5)
-small.upper.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.upper, hcx = 5)
-small.upper.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.upper, hcx = 10)
+small.upper.t1 <- SSD_function_t1(filtered.data = filtered.data.small.upper_t1.2, hcxlcl = 5)
+small.upper.t2 <- SSD_function_t2(filtered.data = filtered.data.small.upper_t1.2, hcx = 5)
+small.upper.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.upper_t3.4, hcx = 5)
+small.upper.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.upper_t3.4, hcx = 10)
 
 ####---- Food Dilution ------#####
 #### DEFAULT ####
-filtered.data.large.default <- aoc_final_large %>% 
+filtered.data.large.default_t1.2 <- aoc_final_large %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000))
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set))
+
+filtered.data.large.default_t3.4 <- filtered.data.large.default_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
 
 # get thresholds
-large.default.t1 <- SSD_function_t1(filtered.data = filtered.data.large.default, hcxlcl = 5)
-large.default.t2 <- SSD_function_t2(filtered.data = filtered.data.large.default, hcx = 5)
-large.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.default, hcx = 5)
-large.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.default, hcx = 10)
+large.default.t1 <- SSD_function_t1(filtered.data = filtered.data.large.default_t1.2, hcxlcl = 5)
+large.default.t2 <- SSD_function_t2(filtered.data = filtered.data.large.default_t1.2, hcx = 5)
+large.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.default_t3.4, hcx = 5)
+large.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.default_t3.4, hcx = 10)
 
 #### LOWER ####
 #data filtering
-filtered.data.large.lower <- aoc_final_large_lower %>% 
+filtered.data.large.lower_t1.2 <- aoc_final_large_lower %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000))
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set))
+
+filtered.data.large.lower_t3.4 <- filtered.data.large.lower_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
 # get thresholds
-large.lower.t1 <- SSD_function_t1(filtered.data = filtered.data.large.lower, hcxlcl = 5)
-large.lower.t2 <- SSD_function_t2(filtered.data = filtered.data.large.lower, hcx = 5)
-large.lower.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.lower, hcx = 5)
-large.lower.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.lower, hcx = 10)
+large.lower.t1 <- SSD_function_t1(filtered.data = filtered.data.large.lower_t1.2, hcxlcl = 5)
+large.lower.t2 <- SSD_function_t2(filtered.data = filtered.data.large.lower_t1.2, hcx = 5)
+large.lower.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.lower_t3.4, hcx = 5)
+large.lower.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.lower_t3.4, hcx = 10)
 
 #### upper ####
 #data filtering
-filtered.data.large.upper <- aoc_final_large_upper %>% 
+filtered.data.large.upper_t1.2 <- aoc_final_large_upper %>% 
          mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000))
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set))
+
+filtered.data.large.upper_t3.4 <- filtered.data.large.upper_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
 # get thresholds
-large.upper.t1 <- SSD_function_t1(filtered.data = filtered.data.large.upper, hcxlcl = 5)
-large.upper.t2 <- SSD_function_t2(filtered.data = filtered.data.large.upper, hcx = 5)
-large.upper.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.upper, hcx = 5)
-large.upper.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.upper, hcx = 10)
+large.upper.t1 <- SSD_function_t1(filtered.data = filtered.data.large.upper_t1.2, hcxlcl = 5)
+large.upper.t2 <- SSD_function_t2(filtered.data = filtered.data.large.upper_t1.2, hcx = 5)
+large.upper.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.upper_t3.4, hcx = 5)
+large.upper.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.upper_t3.4, hcx = 10)
 
 # arrange
 polydispersity_sensitivity_thresholds <- tibble(
@@ -5756,8 +5787,8 @@ polydispersity_sensitivity_thresholds <- tibble(
   "Tissue Translocation (upper)" = c(small.upper.t1, small.upper.t2, small.upper.t3, small.upper.t4),
   "Food Dilution (Default)" = c(large.default.t1, large.default.t2, large.default.t3, large.default.t4),
   "Food Dilution (lower)" = c(large.lower.t1, large.lower.t2, large.lower.t3, large.lower.t4),
-  "Food Dilution (upper)" = c(large.upper.t1, large.upper.t2, large.upper.t3, large.upper.t4)
-)
+  "Food Dilution (upper)" = c(large.upper.t1, large.upper.t2, large.upper.t3, large.upper.t4))
+  
 write.csv(polydispersity_sensitivity_thresholds,
           "./Concentration data/Threshold_Manuscript_Figs/polydispersity_sensitivity.csv")
 
@@ -6222,10 +6253,10 @@ tier3_4_large_V_sens
 ## Export to Excel
 ```{r eval=FALSE, include=FALSE}
 library(openxlsx)
-write.xlsx(t1_2_SA, file="sensitivityAnalysis_8-31-2021.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
-write.xlsx(t3_4_SA, file="sensitivityAnalysis_8-31-2021.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
-write.xlsx(t1_2_volume, file="sensitivityAnalysis_8-31-2021.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
-write.xlsx(t3_4_volume, file="sensitivityAnalysi_8-31-2021s.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_SA, file="sensitivityAnalysis_9-3-2021.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
+write.xlsx(t3_4_SA, file="sensitivityAnalysis_9-3-2021.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_volume, file="sensitivityAnalysis_9-3-2021.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t3_4_volume, file="sensitivityAnalysi_9-3-2021s.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
 
 ## doesn't seem to work, so do manual export to .csv and append to excel file
 
