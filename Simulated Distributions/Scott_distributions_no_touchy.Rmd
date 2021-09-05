@@ -19,7 +19,7 @@ output:
 
 #Setup
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(fig.width=12, fig.height=10, fig.path='Figs/',
+knitr::opts_chunk$set(fig.width=10, fig.height=8, fig.path='Figs2/',
                       warning=FALSE, message=FALSE,time_it = TRUE) #report
 ```
 
@@ -257,7 +257,7 @@ volumefnx = function(R, L){
   return(volume)}
 
 volumefnx_poly = function(width, length){
-  height = 0.67 * width
+  height =  width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
@@ -269,7 +269,7 @@ massfnx = function(R, L, p){
   return(mass)}
 
 massfnx_poly = function(width, length, p){
-  height = 0.67 * width
+  height =  width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -329,12 +329,12 @@ aoc_final <- aoc_intermediate  %>%
   #### Surface area ERM ####
   #calculate lower ingestible surface area
   mutate(x_LL_sa_trans = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
+                         b = 0.5 *  x1D_set, 
+                         c = 0.5 * x1D_set)) %>%  
   #calculate upper ingestible surface area
   mutate(x_UL_sa_trans = SAfnx(a = 0.5 * x2M_trans, 
-                         b = 0.5 * R.ave *x2M_trans, 
-                         c = 0.5 * R.ave * 0.67 * x2M_trans)) %>%  
+                         b = 0.5 * x2M_trans, 
+                         c = 0.5 * x2M_trans)) %>%  
    #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly_trans = mux.polyfnx(a.sa, x_UL_sa_trans, x_LL_sa_trans)) %>% 
   ##--- laboratory calculations ---###
@@ -352,10 +352,10 @@ aoc_final <- aoc_intermediate  %>%
   mutate(EC_env_sa.particles.mL_trans = EC_poly_sa.particles.mL_trans * CF_bio_trans) %>% 
   
   ##### FOOD DILUTION ####
-  # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M_ingest = case_when(is.na(max.size.ingest.um) ~ R.ave * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         (max.size.ingest.um * R.ave) < x2D_set ~ (R.ave * max.size.ingest.um),
-                         (max.size.ingest.um * R.ave) > x2D_set ~ (x2D_set * R.ave)
+  # define upper size length for ingestion 
+  mutate(x2M_ingest = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
+                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
+                         max.size.ingest.um  > x2D_set ~ x2D_set
   )) %>%  #set to 5000 um for upper limit or max size ingest, whichever is smaller
    
    # calculate effect threshold for particles
@@ -383,11 +383,11 @@ aoc_final <- aoc_intermediate  %>%
                                                    x_LL = particle.volume.um3.min,
                                                    x_UL = particle.volume.um3.max))) %>% 
   #calculate lower ingestible volume 
-  mutate(x_LL_v_ingest = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
+  mutate(x_LL_v_ingest = volumefnx_poly(length = x1D_set,
+                                        width = x1D_set)) %>% 
   #calculate maximum ingestible volume 
-  mutate(x_UL_v_ingest = volumefnx(R = R.ave,
-                            L = x2M_ingest)) %>%  
+  mutate(x_UL_v_ingest = volumefnx_poly(length = x2M_ingest,
+                                        width = x2M_ingest)) %>% 
   # calculate mu.v.poly
     mutate(mu.v.poly_ingest = mux.polyfnx(a.v, x_UL_v_ingest, x_LL_v_ingest)) %>% 
   #calculate polydisperse effect concentration for volume (particles/mL)
@@ -1557,7 +1557,7 @@ composition_agnostic <- df_oxidative.stress %>%
   #lvl1_f = "Fitness",
  # life.stage = "Adult",
   exposure.route = "water",
-  environment = "Marine",
+  !environment %in% c("Terrestrial", "Not Reported"),
   acute.chronic_f = "Chronic",
   effect.metric = "NOEC"
   )
@@ -1597,7 +1597,7 @@ composition_realistic <- df_oxidative.stress %>%
   #lvl1_f = "Fitness",
  # life.stage = "Adult",
   exposure.route = "water",
-  environment = "Marine",
+  !environment %in% c("Terrestrial", "Not Reported"),
   acute.chronic_f = "Chronic",
   effect.metric = "NOEC"
   )
@@ -1653,10 +1653,10 @@ ggplot(ox.t1.preds.agnostic, aes_string(x = "est")) +
 ###### Empirical alone
 ```{r}
 ox.1.emp <- aoc_final %>%
-  filter(!environment == "Marine",
-         effect.metric != "HONEC",
+  filter(#environment == "Marine",
+         #effect.metric != "HONEC",
          tier_zero_tech_f == "Red Criteria Passed",
-         between(size.length.um.used.for.conversions, 1, 5000)) %>% 
+         between(size.length.um.used.for.conversions, 1, 83)) %>% 
       mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
@@ -2038,6 +2038,7 @@ ox.t3.preds$est[10]
 ```{r}
 #assign groups
 food.1 <- composition_agnostic %>% 
+  filter(organism.group != "Algae") %>%
  filter(bio.org %in% c("tissue", "organism", "population")) %>% 
   left_join(groups)
   
@@ -2081,7 +2082,8 @@ ggplot(food.t1.preds.agnostic, aes_string(x = "est")) +
 ##### Empirical alone
 ```{r}
 food.1.emp <- aoc_final %>%
-  filter(!environment == "Marine",
+  filter(Group != "Algae") %>% 
+  filter(!environment %in% c("Terrestrial", "Not Reported"),
          effect.metric != "HONEC",
          tier_zero_tech_f == "Red Criteria Passed",
          between(size.length.um.used.for.conversions, 1, 5000)) %>% 
@@ -2156,6 +2158,7 @@ groups <- aoc_z %>%
 
 #assign groups
 food.1.real <- composition_realistic %>% 
+  filter(organism.group != "Algae") %>%
    filter(bio.org %in% c("tissue", "organism", "population")) %>% 
   left_join(groups)
   
@@ -2236,6 +2239,7 @@ groups <- aoc_z %>%
 
 #assign groups
 food.3 <- composition_agnostic %>% 
+  filter(organism.group != "Algae") %>%
   filter(bio.org %in% c("organism", "population"),
          lvl1_f %in% c("Fitness")) %>%
   left_join(groups)
@@ -2282,6 +2286,7 @@ groups <- aoc_z %>%
 
 #assign groups
 food.3.real <- composition_realistic %>% 
+  filter(organism.group != "Algae") %>%
   filter(bio.org %in% c("organism", "population"),
          lvl1_f %in% c("Fitness")) %>%
   left_join(groups)
@@ -2325,7 +2330,8 @@ ggplot(food.t3.preds.real, aes_string(x = "est")) +
 ```{r}
 #Filter empirical data
 food.3.emp <- aoc_final %>% 
-  filter(!environment == "Marine",
+  filter(organism.group != "Algae") %>%
+  filter(!environment %in% c("Terrestrial", "Not Reported")
          effect.metric != "HONEC",
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria 
@@ -2460,7 +2466,7 @@ tier 3: 17 (hc5; organism and above, median)
 tier 4: 105 (hc10; organism and above, median)
 
 ```{r}
-tibble(
+hcxx <- tibble(
  "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
 "Empirical" = c(food.t1.emp.preds$lcl[5],  food.t1.emp.preds$est[5],  food.t3.emp.preds$est[5],  food.t3.emp.preds$est[10]),
 "Predicted" = c(
@@ -2476,10 +2482,11 @@ food.t3.preds.agnostic$est[10]),
 ) %>% 
   mutate(Empirical = Empirical * 1000,
          Predicted = Predicted * 1000,
-         `Environmentally Realistic Polymer/Shape Predicted` = `Environmentally Realistic Polymer/Shape Predicted` * 1000) %>% 
-  kable(caption = "Food Dilution Thresholds")
+         `Environmentally Realistic Polymer/Shape Predicted` = `Environmentally Realistic Polymer/Shape Predicted` * 1000)
 
+kable(hcxx, caption = "Food Dilution Thresholds")
 
+write.csv(hcxx, file = "Simulated Distributions/BigDataManuscript/foodDilutionhcxx.csv")
 ```
 
 
