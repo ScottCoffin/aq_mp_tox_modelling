@@ -949,7 +949,14 @@ aoc_z <- aoc_SA %>% # start with Heili's altered dataset (no filtration for terr
   mutate(max.size.ingest.mm = ifelse(is.na(max.size.ingest.mm), 
                                      10^(0.9341 * log10(body.length.cm) - 1.1200) * 10,  #(Jamm et al 2020 Nature paper)correction for cm to mm
                                      max.size.ingest.mm)) %>%  # if already present, just use that
-  mutate(dose.specific.surface.area.um2.mg.mL = particle.surface.area.um2.mg * dose.particles.mL.master) 
+  mutate(dose.specific.surface.area.um2.mg.mL = particle.surface.area.um2.mg * dose.particles.mL.master)  %>% 
+  #tell model if data if size is translocatable or not
+  mutate(translocatable = as.factor(case_when(size.length.um.used.for.conversions >1 & size.length.um.used.for.conversions< 83 ~ "translocatable",
+                                    size.length.um.used.for.conversions >83 ~ "non-translocatable",
+                                    size.length.um.used.for.conversions < 1 ~ "nano"
+  ))) %>% 
+  mutate(ingestible = as.factor(case_when(size.length.um.used.for.conversions < (max.size.ingest.mm * 1000) ~ "ingestible",
+                                size.length.um.used.for.conversions > (max.size.ingest.mm * 1000) ~ "non-ingestible")))
  
 
 # final cleanup and factoring  

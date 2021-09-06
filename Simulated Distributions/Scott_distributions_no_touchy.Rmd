@@ -100,11 +100,6 @@ aoc_intermediate <- aoc_z %>%
   #Remove 26C temperature treatment data from Jaimukar et al. 2018
   filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) %>%   #makes it less confusing below
-   #tell model if data if size is translocatable or not
-  mutate(translocatable = case_when(size.length.um.used.for.conversions >1 & size.length.um.used.for.conversions< 83 ~ "translocatable",
-                        size.length.um.used.for.conversions >83 ~ "non-translocatable",
-                        size.length.um.used.for.conversions < 1 ~ "nano"
-                                    )) %>% 
   droplevels()  #eliminate polymer aand shape data that's not needed
 ```
 
@@ -1180,8 +1175,8 @@ pdp_classif_rf_PE  <- model_profile(explainer_classif_rf_oxidative.stress, varia
 
 
 rf_PE <- plot(pdp_classif_rf_PE$agr_profiles) +
-  ggtitle("Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
-  xlab("PE Fraction") +
+  ggtitle("Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+  xlab("Fiber Fraction") +
   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
   scale_color_discrete(name = "Model x Effect Metric") +
   theme_minimal() +
@@ -2374,7 +2369,8 @@ ggplot() +
   labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
        subtitle = "Tier 3/4, 1 - 83 µm; ERM = Surface Area") +
   coord_trans(x = "log10") +
-  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+  scale_x_continuous(name = "Particles/mL (1 - 5,000 µm)",
+                       breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
   #scale_fill_manual(name = "SSD Data") +
   #fill.type + #user-selected
