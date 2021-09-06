@@ -5546,6 +5546,7 @@ x1M_set <- large_tier_lower_size #lower size range for measured
 # calculate ERM for each species
 
 aoc_final_large_upper <- aoc_intermediate_alphas  %>% 
+  #filter(lvl1 == "fitness") %>% 
   # remove algae, as food dilution MOE doesn't make sense for algae
   filter(Group != "Algae") %>% 
   # define upper size length for ingestion 

@@ -80,7 +80,34 @@ require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+## Data filtering
 ```
+
+To ensure quality data feeds the model, we are filtering for technical red criteria.
+```{r}
+## First filter data with global filters
+aoc_intermediate <- aoc_z %>% 
+  filter(size.length.um.used.for.conversions > 1) %>%  #alignments only valid above 1 um
+  filter(tier_zero_tech_f == "Red Criteria Passed",
+         #tier_zero_risk_f == "Red Criteria Passed",
+         polymer != "Not Reported",
+         !environment %in% c("Terrestrial", "Not Reported"),
+         #org_f != "Bacterium",
+         org_f != "Plant",
+         #effect.metric != "HONEC",
+         risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+         ) %>% 
+  #Remove 26C temperature treatment data from Jaimukar et al. 2018
+  filter(!(article == 42 & media.temp == 26)) %>% 
+  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) %>%   #makes it less confusing below
+   #tell model if data if size is translocatable or not
+  mutate(translocatable = case_when(size.length.um.used.for.conversions >1 & size.length.um.used.for.conversions< 83 ~ "translocatable",
+                        size.length.um.used.for.conversions >83 ~ "non-translocatable",
+                        size.length.um.used.for.conversions < 1 ~ "nano"
+                                    )) %>% 
+  droplevels()  #eliminate polymer aand shape data that's not needed
+```
+
 
 The idea here is we want to be able to just change the dataset and model here and then the entire code base will react to the update. The challenge is that making the right synthetic and uniform datasets will differ depending on the column types. Is it safe to assume that there will be no numeric variables in the model besides the concentrations which will be present in the development of the synthetic and uniform datasets?  
 
@@ -108,7 +135,7 @@ Environment_poly <- tibble(
   mutate(type = "environment")
 
 # plot
-aoc_z %>% 
+aoc_intermediate %>% 
   filter(polymer != "Not Reported") %>% 
   group_by(polymer) %>% 
   summarize(count = n()) %>% 
@@ -128,6 +155,7 @@ aoc_z %>%
         legend.position = "top") +
   scale_fill_d3(labels = c("Environment", "Toxicity Database"))
 ```
+
 ## Shape
 ```{r}
 Environment_shape <- tibble(
@@ -143,7 +171,7 @@ Environment_shape <- tibble(
   mutate(type = "environment")
 
 # plot
-aoc_z %>% 
+aoc_intermediate %>% 
   filter(shape != "Not Reported") %>% 
   group_by(shape) %>% 
   summarize(count = n()) %>% 
@@ -167,19 +195,6 @@ aoc_z %>%
 
 
 # Model Build
-## Data filtering
-
-To ensure quality data feeds the model, we are filtering for technical red criteria.
-```{r}
-
-## First filter data with global filters
-aoc_intermediate <- aoc_z %>% 
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         polymer != "Not Reported") %>% 
-  droplevels() %>%  #eliminate polymer aand shape data that's not needed
-  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
-```
-
 
 ### Alignment
 
@@ -197,10 +212,19 @@ a.ssa = 1.98 # A_SSA for marine surface water
 #define additional parameters for calculations based on averages in the environment
 R.ave = 0.77 #average width to length ratio for microplastics in marine enviornment
 p.ave = 1.10 #average density in marine surface water
+
+#join alpha values for each data point
+aoc_intermediate_alphas <- aoc_intermediate %>% 
+  mutate(alpha = alpha) %>% 
+  mutate(a.sa = a.sa) %>% 
+   mutate(a.v =  a.v) %>% 
+   mutate(a.m =  a.m) %>% 
+   mutate(a.ssa = a.ssa) %>% 
+   mutate(R.ave = R.ave) %>% 
+   mutate(p.ave = p.ave)
 ```
 
 #### Functions
-#### Equations
 ```{r}
 ###function to derive correction factor (CF) from Koelmans et al (equation 2)
 CFfnx = function(a, #default alpha from Koelmans et al (2020)
@@ -257,11 +281,11 @@ volumefnx = function(R, L){
   return(volume)}
 
 volumefnx_poly = function(width, length){
-  height =  width
+  height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
-#max ingestible mass
+#max ingestible mass (only used for mu_mono calculations)
 massfnx = function(R, L, p){
   mass = p * #density (g/cm^3)
     0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -269,7 +293,7 @@ massfnx = function(R, L, p){
   return(mass)}
 
 massfnx_poly = function(width, length, p){
-  height =  width
+  height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -287,13 +311,12 @@ SSA.inversefnx = function(sa, #surface area, calcaulted elsewhere
                   m){ #mass, calculated elsewhere
   SSA.inverse = m / sa
     return(SSA.inverse)}
-
 ```
-
 
 #### Calculate
 
 Here we will calculate two aligned exposure concentrations: surface area (1 - 83 um), and volume (1 - 5,000 um). For both, the upper aligned value is the smaller of either the nominal size listed or the mouth size of the species.
+##### Tissue Translocation 
 ```{r}
 ###define sizes for alignment##
 x1M_set <- 1 #um lower size for all alignments
@@ -302,14 +325,15 @@ x2D_set <- 5000 #um
 upper.tissue.trans.size.um <- 83 #10 #um #set size for x2M
 
 # calculate ERM for each species
-aoc_final <- aoc_intermediate  %>% 
-  #### TISSUE TRANSLOCATION ####
-   # define upper size length for Translocation 
+aoc_final <- aoc_intermediate_alphas  %>% 
+   #### TISSUE TRANSLOCATION ####
+# define upper size length for Translocation 
 #set to 83um for upper limit or max size ingest, whichever is smaller
-  mutate(x2M_trans = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
-                         max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
-                         max.size.ingest.um  > upper.tissue.trans.size.um ~ upper.tissue.trans.size.um)) %>%  
-   # calculate effect threshold for particles
+mutate(x2M_trans = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
+                             max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
+                             max.size.ingest.um  > upper.tissue.trans.size.um ~ upper.tissue.trans.size.um)) %>% 
+  
+ # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL_trans = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
   mutate(mu.p.poly_trans = mux.polyfnx(a.x = alpha, #alpha for particles
@@ -319,7 +343,7 @@ aoc_final <- aoc_intermediate  %>%
   mutate(EC_poly_p.particles.mL_trans = (EC_mono_p.particles.mL_trans * mu.p.mono)/mu.p.poly_trans) %>% 
    #calculate CF_bio for all conversions
   mutate(CF_bio_trans = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M_trans, #upper ingestible
+                        x2M = x2M_trans, #upper translocatable
                         x1D = x1D_set, #default
                         x2D = x2D_set,  #default
                         a = alpha)) %>%  
@@ -327,26 +351,30 @@ aoc_final <- aoc_intermediate  %>%
   mutate(EC_env_p.particles.mL_trans = EC_poly_p.particles.mL_trans * CF_bio_trans) %>%  #aligned particle effect concentraiton (1-5000 um)
   
   #### Surface area ERM ####
-  #calculate lower ingestible surface area
-  mutate(x_LL_sa_trans = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 *  x1D_set, 
-                         c = 0.5 * x1D_set)) %>%  
-  #calculate upper ingestible surface area
+##--- environmental calculations ---###
+  #calculate lower translocatable surface area
+  mutate(x_LL_sa_trans = SAfnx(a = 0.5 * x1D_set, #length
+                               b = 0.5 * x1D_set, #0.5 * R.ave * x1D_set, #width
+                               c = 0.5 * x1D_set  #0.5 * R.ave * 0.67 * x1D_set #height
+                               )) %>%  
+  #calculate upper translocatable surface area
   mutate(x_UL_sa_trans = SAfnx(a = 0.5 * x2M_trans, 
-                         b = 0.5 * x2M_trans, 
-                         c = 0.5 * x2M_trans)) %>%  
-   #calculate mu_x_poly (env) for surface area
+                               b = 0.5 * x2M_trans, #width #0.5 * R.ave * x2M, 
+                               c = 0.5 * x2M_trans #heigth #0.5 * R.ave * 0.67 * x2M
+                               )) %>%  
+  #calculate mu_x_poly (env) for surface area
   mutate(mu.sa.poly_trans = mux.polyfnx(a.sa, x_UL_sa_trans, x_LL_sa_trans)) %>% 
+  
   ##--- laboratory calculations ---###
   ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
   #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.sa.mono = case_when(
     polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
     polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa, 
-                                                    x_LL = particle.surface.area.um2.min,
-                                                    x_UL = particle.surface.area.um2.max))) %>% 
+                                  x_LL = particle.surface.area.um2.min,
+                                  x_UL = particle.surface.area.um2.max))) %>% 
   
-  #calculate polydisperse effect concentration for surface area (particles/mL)
+   #calculate polydisperse effect concentration for surface area (particles/mL)
   mutate(EC_poly_sa.particles.mL_trans = (EC_mono_p.particles.mL_trans * mu.sa.mono)/mu.sa.poly_trans) %>%  
   #calculate environmentally realistic effect threshold
   mutate(EC_env_sa.particles.mL_trans = EC_poly_sa.particles.mL_trans * CF_bio_trans) %>% 
@@ -355,50 +383,168 @@ aoc_final <- aoc_intermediate  %>%
   # define upper size length for ingestion 
   mutate(x2M_ingest = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
                          max.size.ingest.um < x2D_set ~ max.size.ingest.um,
-                         max.size.ingest.um  > x2D_set ~ x2D_set
-  )) %>%  #set to 5000 um for upper limit or max size ingest, whichever is smaller
-   
-   # calculate effect threshold for particles
+                         max.size.ingest.um > x2D_set ~ x2D_set
+                         )) %>%  #set to 5,000 as upper limit or max size ingest, whichever is smaller
+ # calculate effect threshold for particles
   mutate(EC_mono_p.particles.mL_ingest = dose.particles.mL.master) %>% 
   mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
   mutate(mu.p.poly_ingest = mux.polyfnx(a.x = alpha, #alpha for particles
-                                 x_UL= x2M_ingest, #upper ingestible size limit (width of particle)
+                                 x_UL= x2M_ingest, #upper ingestible size limit
                                  x_LL = x1M_set)) %>% 
   # polydisperse effect threshold for particles
   mutate(EC_poly_p.particles.mL_ingest = (EC_mono_p.particles.mL_ingest * mu.p.mono)/mu.p.poly_ingest) %>% 
    #calculate CF_bio for all conversions
   mutate(CF_bio_ingest = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M_ingest, #upper ingestible
+                        x2M = x2M_ingest, #upper ingestible length
                         x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
+                        x2D = x2D_set,  #default upper size range
                         a = alpha)) %>%  
   ## Calculate environmentally relevant effect threshold for particles
   mutate(EC_env_p.particles.mL_ingest = EC_poly_p.particles.mL_ingest * CF_bio_ingest) %>%  #aligned particle effect concentraiton (1-5000 um)
   
+  
   #### volume ERM ####
-#define mu_x_mono for alignment to ERM
+##--- environmental calculations ---###
+  #calculate lower ingestible volume 
+  mutate(x_LL_v_ingest = volumefnx_poly(length = x1D_set,
+                                 width = x1D_set)) %>% 
+  #calculate maximum ingestible volume 
+  mutate(x_UL_v_ingest = volumefnx_poly(length = x2M_ingest, # length-limited
+                                 #x2D_set, #upper definiton (accouunts for fibers) CONSERVATIVE
+                                 width = x2M_ingest)) %>% #ingestion-limited
+  # calculate mu.v.poly
+  mutate(mu.v.poly_ingest = mux.polyfnx(a.v, x_UL_v_ingest, x_LL_v_ingest)) %>% 
+  ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
   mutate(mu.v.mono = case_when(
     polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
     polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v, 
                                                    x_LL = particle.volume.um3.min,
                                                    x_UL = particle.volume.um3.max))) %>% 
-  #calculate lower ingestible volume 
-  mutate(x_LL_v_ingest = volumefnx_poly(length = x1D_set,
-                                        width = x1D_set)) %>% 
-  #calculate maximum ingestible volume 
-  mutate(x_UL_v_ingest = volumefnx_poly(length = x2M_ingest,
-                                        width = x2M_ingest)) %>% 
-  # calculate mu.v.poly
-    mutate(mu.v.poly_ingest = mux.polyfnx(a.v, x_UL_v_ingest, x_LL_v_ingest)) %>% 
+  
   #calculate polydisperse effect concentration for volume (particles/mL)
   mutate(EC_poly_v.particles.mL_ingest = (EC_mono_p.particles.mL_ingest * mu.v.mono)/mu.v.poly_ingest) %>%  
     #calculate environmentally realistic effect threshold
-  mutate(EC_env_v.particles.mL_ingest = EC_poly_v.particles.mL_ingest * CF_bio_ingest)%>% 
+  mutate(EC_env_v.particles.mL_ingest = EC_poly_v.particles.mL_ingest * CF_bio_ingest) %>% 
   
-  ###### CLEANUP #####
+   ###### CLEANUP #####
   mutate(particles.mL.ox.stress = EC_env_sa.particles.mL_trans,
          particles.mL.food.dilution = EC_env_v.particles.mL_ingest)
 ```
+
+####Test to see if same thresholds attained in main risk calculation
+##### SSD Functions
+```{r}
+#### define function for SSD generation for tier 1 ####
+SSD_function_t1 <- function(filtered.data, hcxlcl){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
+#values to extract
+print(hc5lcl)
+}
+
+# Leave-one-out by study function
+sensitivity_t1 <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function_t1(train, hcxlcl = y)
+})
+
+#### define function for SSD generation for tier 2 ####
+SSD_function_t2 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+
+#### define function for SSD generation for tiers 3 and 4 ####
+SSD_function_t3_4 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  #filter specific things for tiers 3 and 4
+   filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.50))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+```
+##### Base Thresholds
+```{r}
+####---- TISSUE TRANSLOCATION ------#####
+filtered.data.small.default_t1.2 <- aoc_final %>% 
+          mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))
+
+filtered.data.small.default_t3.4 <- filtered.data.small.default_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
+# get thresholds
+small.default.t1 <- SSD_function_t1(filtered.data = filtered.data.small.default_t1.2, hcxlcl = 5)
+small.default.t2 <- SSD_function_t2(filtered.data = filtered.data.small.default_t1.2, hcx = 5)
+small.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.default_t3.4, hcx = 5)
+small.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.default_t3.4, hcx = 10)
+
+####---- Food Dilution ------#####
+filtered.data.large.default_t1.2 <- aoc_final %>% 
+   # remove algae, as food dilution MOE doesn't make sense for algae
+  filter(Group != "Algae") %>% 
+         mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set))
+
+filtered.data.large.default_t3.4 <- filtered.data.large.default_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
+# get thresholds
+large.default.t1 <- SSD_function_t1(filtered.data = filtered.data.large.default_t1.2, hcxlcl = 5)
+large.default.t2 <- SSD_function_t2(filtered.data = filtered.data.large.default_t1.2, hcx = 5)
+large.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.default_t3.4, hcx = 5)
+large.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.default_t3.4, hcx = 10)
+
+base_thresholds <- tibble(
+  "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
+  "Tissue Translocation (Default)" = c(small.default.t1, small.default.t2, small.default.t3, small.default.t4),
+  "Food Dilution (Default)" = c(large.default.t1, large.default.t2, large.default.t3, large.default.t4))
+
+base_thresholds
+```
+
+
 
 ### Oxidative Stress
 ```{r GLM build 1}
@@ -428,9 +574,11 @@ df_oxidative.stress <- aoc_final %>%
                   polymer, 
                   shape,
                   #density.g.cm3,
-                  #size.length.um.used.for.conversions, 
+                  #size.length.um.used.for.conversions, #we can't use size because we're using mixtures of particles! Have to specify translocatable or not
+                  translocatable,
     ### Effect data ####
                  # effect, 
+                  effect.score, #relative numerical strength of effect
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
                   lvl2_f,
@@ -453,6 +601,7 @@ mutate(value = 1) %>%
                 .fns = ~replace(., is.na(.), 0),
                 .names = "{.col}_frac")) %>% 
   mutate(effect.metric = (case_when(
+    effect.metric == "NOEC" ~ "NOEC",
     effect.metric == "NONEC" ~ "NOEC",
     effect.metric == "HONEC" ~ "NOEC",
     effect.metric == "LOEC" ~ "LOEC",
@@ -474,7 +623,10 @@ mutate(value = 1) %>%
   #   )) %>%
   # mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(rowid, EVA, LTX, PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
+  dplyr::select(-c(rowid, EVA,
+                   lvl2_f_frac,
+                   #LTX,
+                   PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
    drop_na()  #drop missing
 
 #ensure completeness
@@ -508,7 +660,7 @@ test_x <- as.data.frame(test %>% dplyr::select(- particles.mL.ox.stress))
 test_y <- as.numeric(as.vector(test$particles.mL.ox.stress))
 ```
 
-##### Build GLM and EBM
+##### Build GLM, RF, EBM
 ```{r}
 ###build explainable boosting machine model #####
 # ebm_oxidative.stress <- ebm_classify(train_x, #features
@@ -837,7 +989,7 @@ rf_pdp %>%
        subtitle = "Random Forest") +
   xlab("Level of Biological Organization") +
   ylab("Average Prediction for Exposure Concentration (log10(particles/mL))") +
-  coord_cartesian(ylim = c(3.4, 3.55)) +
+ # coord_cartesian(ylim = c(3.4, 3.55)) +
   scale_color_discrete(name = "Model x Level of Biological Organization") +
   fill.type +
   theme.type +
@@ -871,7 +1023,7 @@ pdp_classif_xgbTree_fiber  <- model_profile(explainer_classif_xgbTree_oxidative.
 
 #plot together
 glm_fiber <- plot(pdp_classif_glm_fiber$agr_profiles) +
-  ggtitle("GLM: Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+  ggtitle("Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
   xlab("Fiber Fraction") +
   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
   scale_color_discrete(name = "Model x Effect Metric") +
@@ -880,7 +1032,7 @@ glm_fiber <- plot(pdp_classif_glm_fiber$agr_profiles) +
   theme(plot.title = element_text(hjust = 0.5))
 
 rf_fiber <- plot(pdp_classif_rf_fiber$agr_profiles) +
-  ggtitle("GLM: Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+  ggtitle("Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
   xlab("Fiber Fraction") +
   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
   scale_color_discrete(name = "Model x Effect Metric") +
@@ -888,7 +1040,7 @@ rf_fiber <- plot(pdp_classif_rf_fiber$agr_profiles) +
   theme(plot.title = element_text(hjust = 0.5))
 
 xgbTree_fiber <- plot(pdp_classif_xgbTree_fiber$agr_profiles) +
-  ggtitle("GLM: Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
+  ggtitle("Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
    xlab("Fiber Fraction") +
   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
   scale_color_discrete(name = "Model x Effect Metric") +
@@ -897,6 +1049,9 @@ xgbTree_fiber <- plot(pdp_classif_xgbTree_fiber$agr_profiles) +
 
 #pllot togeher
 grid.arrange(glm_fiber, rf_fiber, xgbTree_fiber)
+```
+```{r}
+plot(xgbTree_fiber)
 ```
 
 
@@ -1025,7 +1180,7 @@ pdp_classif_rf_PE  <- model_profile(explainer_classif_rf_oxidative.stress, varia
 
 
 rf_PE <- plot(pdp_classif_rf_PE$agr_profiles) +
-  ggtitle("GLM: Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
+  ggtitle("Partial Dependence Profiles by PE Fraction and Effect Metric", "") +
   xlab("PE Fraction") +
   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
   scale_color_discrete(name = "Model x Effect Metric") +
@@ -1036,7 +1191,24 @@ rf_PE <- plot(pdp_classif_rf_PE$agr_profiles) +
 #pllot togeher
 grid.arrange(rf_PE)
 ```
+###### Translocatable
+```{r}
+#Partial Dependence by effect metric and PE fraction
+pdp_classif_rf_translocatable  <- model_profile(explainer_classif_rf_oxidative.stress,
+                                                variable = "translocatable", 
+                                 groups = "effect.metric"
+                                 )
 
+rf_translocatable <- plot(pdp_classif_rf_translocatable$agr_profiles) +
+  ggtitle("Partial Dependence Profile by translocatable particles", "") +
+  xlab("Translocatable particles") +
+  ylab("Average Prediction for Oxidative Stress Exposure Concentration (particles/mL)") +
+  scale_color_discrete(name = "Model x Effect Metric") +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+rf_translocatable
+```
 
 ##### LIME (Local Interpretable Model-Agnostic Explanations)
 Behind the workings of lime lies the (big) assumption that every complex model is linear on a local scale. While this is not justified in the paper it is not difficult to convince yourself that this is generally sound — you usually expect two very similar observations to behave predictably even in a complex model. lime then takes this assumption to its natural conclusion by asserting that it is possible to fit a simple model around a single observation that will mimic how the global model behaves at that locality. The simple model can then be used to explain the predictions of the more complex model locally.
@@ -1101,8 +1273,10 @@ df_food.dilution <- aoc_final %>%
                   shape,
                   #density.g.cm3,
                   #size.length.um.used.for.conversions, 
+                  translocatable,
     ### Effect data ####
-                  effect, 
+                  #effect, 
+                  effect.score,
                   effect.metric, #train on all, but only specify "NOEC" for SSD build
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
                   lvl2_f#,
@@ -1146,7 +1320,10 @@ mutate(value = 1) %>%
   #   )) %>%
   # mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c( rowid, EVA, LTX, PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
+  dplyr::select(-c( rowid, EVA, 
+                    #LTX,
+                    PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere,
+                    lvl2_f_frac)) %>% 
    drop_na()  #drop missing
 
 #ensure completeness
@@ -1522,18 +1699,21 @@ return(list(preds, ssd_frame))
 Part of me just wants to set the uniform distribution to the distinct version of the dataset. That way we can define uncertainty for each dose response curve and are not extrapolating within ranges (sometimes people just get data for the max and min in a distribution that doesn't mean that we know what the middle should be.)
 
 ### COMPOSITION
-
 #### Polymer/Shape Agnostic
-
+By commenting out translocatable below, I can specify it for oxidative stress, which allows me to increase the number of species that feeds into the SSD. I can't do this for food dilution however.
 ```{r}
 #define base parameters for all SSDs
 composition_agnostic <- df_oxidative.stress %>% 
   # make entry for each species
   distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f, 
            #lvl3_f, 
-           exposure.duration.d, organism.group,
+           exposure.duration.d, organism.group, effect.metric, effect.score,
+           acute.chronic_f, environment,  exposure.route, 
+           #translocatable,
            # make synonymous with training data for true comparison
-          EVA_frac, LTX_frac, PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+          EVA_frac,
+          #LTX_frac,
+          PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
@@ -1552,15 +1732,23 @@ composition_agnostic <- df_oxidative.stress %>%
   #       fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
   #       fragment_frac = 0.31 * 1.1627,
   #       sphere_frac = 0.065 * 1.1627,
-  effect = "N",
+  #effect = "N",
   #common metrics for all SSDs
   #lvl1_f = "Fitness",
  # life.stage = "Adult",
-  exposure.route = "water",
-  !environment %in% c("Terrestrial", "Not Reported"),
-  acute.chronic_f = "Chronic",
-  effect.metric = "NOEC"
-  )
+ # exposure.route = "water",
+ # environment = "Marine",
+  #acute.chronic_f = "Chronic",
+  #effect.metric = "NOEC"
+  ) %>% 
+  mutate(af.time = case_when(acute.chronic_f == "Chronic" ~ 1,
+                             acute.chronic_f == "Acute" ~ 10)) %>% 
+  mutate(af.noec = case_when(effect.metric == "HONEC" ~ 1,
+                             effect.metric == "LOEC" ~ 2,
+                             effect.metric == "EC10" ~ 1,
+                             effect.metric == "EC50" ~ 10,
+                             effect.metric == "LC50" ~ 10)) %>% 
+  drop_na()
 ```
 
 #### Realistic Polymers and Shapes in Environment
@@ -1570,8 +1758,16 @@ Abundance of most commonly found polymers based on Table S3 of kooi and Kolemans
 composition_realistic <- df_oxidative.stress %>% 
   # make entry for each species
   distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f,
+           effect.score,
+           effect.metric,
            #lvl3_f, 
-           exposure.duration.d, organism.group,
+           exposure.duration.d, 
+           organism.group,
+           #effect.metric,
+           acute.chronic_f, 
+           environment,
+           exposure.route, 
+           #translocatable,
            # make synonymous with training data for true comparison
           # EVA_frac, LTX_frac, PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
            ) %>% 
@@ -1592,15 +1788,27 @@ composition_realistic <- df_oxidative.stress %>%
         fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
         fragment_frac = 0.31 * 1.1627,
         sphere_frac = 0.065 * 1.1627,
-  effect = "N",
+  #effect = "N",
   #common metrics for all SSDs
-  #lvl1_f = "Fitness",
- # life.stage = "Adult",
-  exposure.route = "water",
-  !environment %in% c("Terrestrial", "Not Reported"),
-  acute.chronic_f = "Chronic",
-  effect.metric = "NOEC"
-  )
+  #exposure.route = "water",
+  #make distinct above instead of forcing here
+  #environment = "Marine",
+  #acute.chronic_f = "Chronic",
+ # effect.metric = "NOEC"
+  ) %>% 
+  mutate(af.time = case_when(acute.chronic_f == "Chronic" ~ 1,
+                             acute.chronic_f == "Acute" ~ 10)) %>% 
+  mutate(af.noec = case_when(effect.metric == "HONEC" ~ 1,
+                             effect.metric == "LOEC" ~ 2,
+                             effect.metric == "NOEC" ~ 1,
+                             effect.metric == "EC10" ~ 1,
+                             effect.metric == "EC50" ~ 10,
+                             effect.metric == "LC50" ~ 10,
+                             #effect.metric == "not_available" ~ 1
+                             )) %>% 
+  drop_na()
+
+skim(composition_realistic)
 ```
 ## Oxidative Stress
 ### Tier 1/2
@@ -1612,17 +1820,24 @@ groups <- aoc_final %>%
 
 #assign groups
 ox.1 <- composition_agnostic %>% 
-  filter(bio.org %in% c("tissue", "organism", "population")) %>% 
+  mutate(translocatable = "translocatable") %>% 
   left_join(groups)
   
 # predict NOEC
-ox.1$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.1, type = "raw")
+ox.1$particles.mL.ox.stress_log10 <- predict(classif_rf_oxidative.stress, ox.1, type = "raw")
 
 #Data collapse
 ox1.summary <- ox.1 %>%
-    rename(Species = species_f) %>% 
+  rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.50)) #convert from log10
+  #filter(organism.group != "Algae") %>%
+  filter(#environment == "Marine",
+         exposure.route == "water",
+         translocatable == "translocatable"#,  # 1- 83 um
+       #  lvl1_f %in% c("Fitness")
+       ) %>%  
+  mutate(particles.mL.ox.stress = (10 ^ particles.mL.ox.stress_log10) / (af.time * af.noec)) %>%  
+  summarise(dose_new = quantile(particles.mL.ox.stress, 0.50)) #convert from log10
 
 ## SSD build
 ox.t1.ssd <- SSD_function_t1(filtered.data = ox1.summary, hcxlcl = 5)
@@ -1653,11 +1868,12 @@ ggplot(ox.t1.preds.agnostic, aes_string(x = "est")) +
 ###### Empirical alone
 ```{r}
 ox.1.emp <- aoc_final %>%
+  #use same data categories as assigned above for prediction in model. NOTE this is different from thresholds derived in main assessment
   filter(#environment == "Marine",
-         #effect.metric != "HONEC",
-         tier_zero_tech_f == "Red Criteria Passed",
-         between(size.length.um.used.for.conversions, 1, 83)) %>% 
-      mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
+         exposure.route == "water",
+        # lvl1_f == "Fitness", #keep constant
+         translocatable == "translocatable") %>%  # 1- 83 um
+      mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>% #converts effect metrics to NOECs and exposures to chronic
          drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
   summarise(dose_new = quantile(dose_new, 0.50))
@@ -1800,17 +2016,23 @@ groups <- aoc_z %>%
 
 #assign groups
 ox.1.real <- composition_realistic %>% 
-  filter(bio.org %in% c("tissue", "organism", "population")) %>% 
-  left_join(groups)
+  left_join(groups) %>% 
+  mutate(translocatable = "translocatable")
   
 # predict NOEC
-ox.1.real$particles.mL.ox.stress <- predict(classif_rf_oxidative.stress, ox.1.real, type = "raw")
+ox.1.real$particles.mL.ox.stress_log10 <- predict(classif_rf_oxidative.stress, ox.1.real, type = "raw")
 
 #Data collapse
 ox1.summary.real <- ox.1.real %>%
+  filter(#environment == "Marine",
+         exposure.route == "water",
+         lvl1_f == "Fitness", #keep constant
+         translocatable == "translocatable") %>%  # 1- 83 um
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.ox.stress, 0.50)) #convert from log10
+   mutate(particles.mL.ox.stress = (10 ^ particles.mL.ox.stress_log10) / (af.time * af.noec)) %>% 
+  summarise(dose_new = quantile(particles.mL.ox.stress, 0.50)) 
+
 
 ## SSD build
 ox.t1.ssd.real <- SSD_function_t1(filtered.data = ox1.summary.real, hcxlcl = 5)
@@ -1969,8 +2191,19 @@ compare %>%
 #t1.ox.points.j <- rbind(t1.x.1.e, t1.x.1.p)
 ```
 
-### Tier 3/4
+#####Compare summary statistics
+```{r}
+compare %>% 
+  group_by(type.y) %>% 
+  summarize(species = n(),
+            taxa = n_distinct(Group.x),
+            min = min(Conc.e),
+            median = median(Conc.e),
+            max = max(Conc.e))
+```
 
+### Tier 3/4
+#### Predicted (agnostic)
 ```{r}
 #Get organism group for each species
 groups <- aoc_z %>% 
@@ -1978,36 +2211,41 @@ groups <- aoc_z %>%
 
 #assign groups
 ox.3 <- composition_agnostic %>% 
-  filter(bio.org %in% c("organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+  mutate(translocatable = "translocatable") %>% 
+  filter(
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable")) %>%  # 1- 83 um) %>%
   left_join(groups)
   
 # predict NOEC
-ox.3$particles.mL.ox.stress <- predict(classif_xgbTree_oxidative.stress, ox.3, type = "raw")
+ox.3$particles.mL.ox.stress_log10 <- predict(classif_rf_oxidative.stress, ox.3, type = "raw")
 
-#Data collapse
+#Data collapse %>% 
 ox3.summary <- ox.3 %>%
-  mutate(particles.mL.ox.stress = 10 ^particles.mL.ox.stress) %>% 
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
+   mutate(particles.mL.ox.stress = (10 ^ particles.mL.ox.stress_log10) / (af.time * af.noec)) %>% 
   summarise(dose_new = quantile(particles.mL.ox.stress, 0.50))
 
 ## SSD build
 ox.t3.ssd <- SSD_function_t1(filtered.data = ox3.summary, hcxlcl = 5)
 
 #extract data frames from object
-ox.t3.preds <- as.data.frame(ox.t3.ssd[1])
-ox.t3.points <- as.data.frame(ox.t3.ssd[2])
+ox.t3.preds.agnostic <- as.data.frame(ox.t3.ssd[1])
+ox.t3.points.agnostic <- as.data.frame(ox.t3.ssd[2])
 
 #ggplot
-ggplot(ox.t3.preds, aes_string(x = "est")) +
+ggplot(ox.t3.preds.agnostic, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = ox.t3.points,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = ox.t3.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = ox.t3.points.agnostic,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t3.points.agnostic, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
   labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
-       subtitle = "Tier 3/4, 1 - 83 µm; ERM = Surface Area ",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
        x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
@@ -2016,6 +2254,185 @@ ggplot(ox.t3.preds, aes_string(x = "est")) +
   color.type + #user-selected
   theme.type #user theme
 ```
+#### Predicted (Realistic)
+```{r}
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+ox.3.real <- composition_realistic %>% 
+  mutate(translocatable = "translocatable") %>% 
+   filter(
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  # 1- 83 um) %>%
+  left_join(groups)
+  
+# predict NOEC
+ox.3.real$particles.mL.ox.stress_log10 <- predict(classif_rf_oxidative.stress, ox.3.real, type = "raw")
+
+#Data collapse %>% 
+ox3.real.summary <- ox.3.real %>%
+  mutate(particles.mL.ox.stress_log10 = 10^particles.mL.ox.stress_log10) %>% 
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(particles.mL.ox.stress_log10, 0.50))
+
+## SSD build
+ox.t3.real.ssd <- SSD_function_t1(filtered.data = ox3.real.summary, hcxlcl = 5)
+
+#extract data frames from object
+ox.t3.preds.real <- as.data.frame(ox.t3.real.ssd[1])
+ox.t3.points.real <- as.data.frame(ox.t3.real.ssd[2])
+
+#ggplot
+ggplot(ox.t3.preds.real, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = ox.t3.points.real,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t3.points.real, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+
+#### Empirical
+```{r}
+#Filter empirical data
+ox.3.emp <- aoc_final %>% 
+  filter(#environment == "Marine",
+         translocatable == "translocatable",
+         bio.org %in% c("organism", "population"),
+         lvl1_f %in% c("Fitness")) %>%  
+  mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
+    drop_na(dose_new) %>% 
+  group_by(Species, Group) %>% 
+  summarise(dose_new = quantile(dose_new, 0.50)) #convert from log10  
+  
+## SSD build
+ox.t3.ssd <- SSD_function_t1(filtered.data = ox.3.emp, hcxlcl = 5)
+
+#extract data frames from object
+ox.t3.emp.preds <- as.data.frame(ox.t3.ssd[1])
+ox.t3.emp.points <- as.data.frame(ox.t3.ssd[2])
+
+#ggplot
+ggplot(ox.t3.emp.preds, aes_string(x = "est")) +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
+  geom_line(aes_string(y = "percent/100"), color = "gray") +
+  geom_point(data = ox.t3.emp.points,aes(x = Conc, y =frac, color = Group)) + 
+  geom_text_repel(data = ox.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+    fill.type + #user-selected
+  color.type + #user-selected
+  theme.type #user theme
+```
+
+##### Comparison of Realistic, empirical, and Agnostic SSDs
+```{r}
+# give uniq id
+t3.x.p.agnostic <-  ox.t3.preds.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic")
+t3.x.p.real <-  ox.t3.preds.real %>% 
+  mutate(type = "Environmentally Realistic")
+t3.x.1.p.agnostic <- ox.t3.points.agnostic %>% 
+  mutate(type = "Polymer and Shape Agnostic") 
+t3.x.1.p.real <-  ox.t3.points.real %>% 
+  mutate(type = "Environmentally Realistic")
+t3.x.e <- ox.t3.emp.preds %>% 
+  mutate(type = "Empirical") 
+t3.x.1.e <- ox.t3.emp.points %>% 
+  mutate(type = "Empirical") 
+
+#join dataframes
+t3.ox.preds.j.real.agonstic <- rbind(t3.x.p.agnostic, t3.x.p.real, t3.x.e)
+t3.ox.points.j.real.agonstic <- rbind(t3.x.1.p.agnostic, t3.x.1.p.real, t3.x.1.e)
+
+#ggplot
+ggplot() +
+  geom_xribbon(data = t3.ox.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
+  geom_line(data = t3.ox.preds.j.real.agonstic, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  #geom_point(data = t3.ox.points.j.real.agonstic, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
+  #geom_text_repel(data = ox.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 3/4, 1 - 83 µm; ERM = Surface Area") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type + #user theme
+  theme(legend.position = "top")
+```
+
+Sample plot but displaying all points and only showing empirical vs. agnostic to demonstrate more data points on predicted.
+
+```{r}
+t3.compare.preds <- t3.ox.preds.j.real.agonstic %>% filter(type != "Environmentally Realistic")
+t3.compare.points <- t3.ox.points.j.real.agonstic %>% filter(type != "Environmentally Realistic")
+
+#ggplot
+ggplot() +
+  # geom_xribbon(data = t3.ox.preds.j.real.agonstic, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.3) +
+  geom_line(data = t3.compare.preds, aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  geom_point(data = t3.compare.points, aes(x = Conc, y =frac, color = type), alpha = 0.7) + 
+  #geom_text_repel(data = ox.t3.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type + #user theme
+  theme(legend.position = "top")
+```
+#####Compare summary statistics
+```{r}
+t3.compare.points %>% 
+  group_by(type) %>% 
+  summarize(species = n(),
+            taxa = n_distinct(Group),
+            min = min(Conc),
+            median = median(Conc),
+            max = max(Conc))
+```
+
+Relative Uncertainty of Tier 3 ox Dilution SSDs (mean(predicted / standard error))
+```{r}
+t3.ox.preds.j.real.agonstic %>% 
+  group_by(type) %>% 
+  summarize(relative.uncertainty = mean(se / est))
+```
+```{r}
+t3.ox.preds.j.real.agonstic %>% 
+  group_by(type) %>% 
+  summarize(HC5 = est[5],
+            se = se[5]) 
+```
+
+
 
 For comparison, the surface area particles/L for tiers 1-4 are:
 tier 1: 236 (hc5 lower 95% CI; tissue and above, 1st quantile)
@@ -2026,30 +2443,146 @@ tier 4: 14,397 (hc10; organism and above, median)
 ```{r}
 ox.t1.preds.agnostic$lcl[5]
 ox.t1.preds.agnostic$est[5]
-ox.t3.preds$est[5]
-ox.t3.preds$est[10]
+ox.t3.preds.real$est[5]
+ox.t3.preds.real$est[10]
 ```
 
 
 
 ## Food Dilution
+#### Polymer/Shape Agnostic
+Translocatable is included below.
+```{r}
+#define base parameters for all SSDs
+composition_agnostic_food <- df_oxidative.stress %>% 
+  # make entry for each species
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f, 
+           #lvl3_f, 
+           exposure.duration.d, organism.group, effect.metric, acute.chronic_f, environment, 
+           exposure.route, 
+           effect.score,
+           translocatable,
+           # make synonymous with training data for true comparison
+          EVA_frac,
+          #LTX_frac,
+          PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+           ) %>% 
+  #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
+  mutate(
+  #       EVA_frac = 0.06,
+  #       LTX_frac = 0,
+  #       PA_frac = 0.12,
+  #       PC_frac = 0,
+  #       PE_frac = 0.25,
+  #       PET_frac = 0.165,
+  #       PLA_frac = 0,
+  #       PMMA_frac = 0,
+  #       PP_frac = 0.145,
+  #       PS_frac = 0.085,
+  #       PUR_frac = 0,
+  #       PVC_frac = 0.02,
+  #       fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
+  #       fragment_frac = 0.31 * 1.1627,
+  #       sphere_frac = 0.065 * 1.1627,
+  #effect = "N",
+  #common metrics for all SSDs
+  #lvl1_f = "Fitness",
+ # life.stage = "Adult",
+ # exposure.route = "water",
+ # environment = "Marine",
+  #acute.chronic_f = "Chronic",
+  #effect.metric = "NOEC"
+  ) %>% 
+  mutate(af.time = case_when(acute.chronic_f == "Chronic" ~ 1,
+                             acute.chronic_f == "Acute" ~ 10)) %>% 
+  mutate(af.noec = case_when(effect.metric == "HONEC" ~ 1,
+                             effect.metric == "LOEC" ~ 2,
+                             effect.metric == "NOEC" ~ 1,
+                             effect.metric == "EC10" ~ 1,
+                             effect.metric == "EC50" ~ 10,
+                             effect.metric == "LC50" ~ 10,
+                             #effect.metric == "not_available" ~ 1
+                             )) %>% 
+
+  drop_na()
+```
+
+#### Realistic Polymers and Shapes in Environment
+Abundance of most commonly found polymers based on Table S3 of kooi and Kolemans 2019. Shape abundance based on the main text of Kooi and Koelmans 2019. Since there are no training data for films (5.5% in envirnoment) or foam (3.5% in environment), they were omitted from this synthetic dataset and all other categories were increased by a factor of 1.16 to reach 100%. https://pubs.acs.org/doi/suppl/10.1021/acs.estlett.9b00379/suppl_file/ez9b00379_si_001.pdf
+```{r}
+#define base parameters for all SSDs
+composition_realistic_food <- df_oxidative.stress %>% 
+  # make entry for each species
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f,
+           effect.score,
+           #lvl3_f, 
+           exposure.duration.d, 
+           organism.group,
+           effect.metric,
+           acute.chronic_f, environment,  exposure.route, 
+           translocatable,
+           # make synonymous with training data for true comparison
+          # EVA_frac, LTX_frac, PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+           ) %>% 
+  #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
+  mutate(
+        EVA_frac = 0.06,
+        #LTX_frac = 0,
+        PA_frac = 0.12,
+        PC_frac = 0,
+        PE_frac = 0.25,
+        PET_frac = 0.165,
+        PLA_frac = 0,
+        PMMA_frac = 0,
+        PP_frac = 0.145,
+        PS_frac = 0.085,
+        PUR_frac = 0,
+        PVC_frac = 0.02,
+        fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
+        fragment_frac = 0.31 * 1.1627,
+        sphere_frac = 0.065 * 1.1627,
+  #effect = "N",
+  #common metrics for all SSDs
+  #exposure.route = "water",
+  #make distinct above instead of forcing here
+  #environment = "Marine",
+  #acute.chronic_f = "Chronic",
+ # effect.metric = "NOEC"
+  ) %>% 
+  mutate(af.time = case_when(acute.chronic_f == "Chronic" ~ 1,
+                             acute.chronic_f == "Acute" ~ 10)) %>% 
+  mutate(af.noec = case_when(effect.metric == "HONEC" ~ 1,
+                             effect.metric == "LOEC" ~ 2,
+                             effect.metric == "NOEC" ~ 1,
+                             effect.metric == "EC10" ~ 1,
+                             effect.metric == "EC50" ~ 10,
+                             effect.metric == "LC50" ~ 10,
+                             #effect.metric == "not_available" ~ 1
+                             )) %>% 
+  drop_na()
+
+skim(composition_realistic_food)
+```
 ### Tier 1
 
 ```{r}
 #assign groups
-food.1 <- composition_agnostic %>% 
-  filter(organism.group != "Algae") %>%
- filter(bio.org %in% c("tissue", "organism", "population")) %>% 
+food.1 <- composition_agnostic_food %>% 
+   filter(organism.group != "Algae", #all food dilution
+         lvl1_f %in% c("Fitness"),
+         ##environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  # 1- 83 um) %>%
   left_join(groups)
   
 # predict NOEC
-food.1$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.1, type = "raw") 
+food.1$particles.mL.food.dilution_log10 <- predict(classif_rf_food.dilution, food.1, type = "raw") 
 
 #Data collapse
 food1.summary <- food.1 %>%
-  mutate(particles.mL.food.dilution = 10 ^particles.mL.food.dilution) %>% #make linear
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
+  mutate(particles.mL.food.dilution = (10 ^ particles.mL.food.dilution_log10) / (af.time * af.noec)) %>% 
   summarise(dose_new = quantile(particles.mL.food.dilution, 0.50)) 
 
 ## SSD build
@@ -2083,11 +2616,10 @@ ggplot(food.t1.preds.agnostic, aes_string(x = "est")) +
 ```{r}
 food.1.emp <- aoc_final %>%
   filter(Group != "Algae") %>% 
-  filter(!environment %in% c("Terrestrial", "Not Reported"),
-         effect.metric != "HONEC",
-         tier_zero_tech_f == "Red Criteria Passed",
+  filter(lvl1_f == "Fitness",
+        # #environment == "Marine",
          between(size.length.um.used.for.conversions, 1, 5000)) %>% 
-      mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
+         mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
   summarise(dose_new = quantile(dose_new, 0.50))
@@ -2157,19 +2689,24 @@ groups <- aoc_z %>%
   distinct(species_f, Group)
 
 #assign groups
-food.1.real <- composition_realistic %>% 
-  filter(organism.group != "Algae") %>%
-   filter(bio.org %in% c("tissue", "organism", "population")) %>% 
+food.1.real <- composition_realistic_food %>% 
+   filter(organism.group != "Algae", #all food dilution
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  # 1- 83 um) %>%
   left_join(groups)
   
 # predict NOEC
-food.1.real$particles.mL.food.dilution <- predict(classif_rf_food.dilution, food.1.real, type = "raw")
+food.1.real$particles.mL.food.dilution_log10 <- predict(classif_rf_food.dilution, food.1.real, type = "raw")
 
 #Data collapse
 food1.summary.real <- food.1.real %>%
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
-  summarise(dose_new = quantile(10 ^ particles.mL.food.dilution, 0.50)) #convert from log10
+   mutate(particles.mL.food.dilution = (10 ^ particles.mL.food.dilution_log10) / (af.time * af.noec)) %>% 
+  summarise(dose_new = quantile(particles.mL.food.dilution, 0.50)) #convert from log10
 
 ## SSD build
 food.t1.ssd.real <- SSD_function_t1(filtered.data = food1.summary.real, hcxlcl = 5)
@@ -2238,20 +2775,23 @@ groups <- aoc_z %>%
   distinct(species_f, Group)
 
 #assign groups
-food.3 <- composition_agnostic %>% 
-  filter(organism.group != "Algae") %>%
-  filter(bio.org %in% c("organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+food.3 <- composition_agnostic_food %>% 
+  filter(organism.group != "Algae", #all food dilution
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  # 1- 83 um) %>%
   left_join(groups)
   
 # predict NOEC
-food.3$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.3, type = "raw")
+food.3$particles.mL.food.dilution_log10 <- predict(classif_xgbTree_food.dilution, food.3, type = "raw")
 
 #Data collapse %>% 
 food3.summary <- food.3 %>%
-  mutate(particles.mL.food.dilution = 10^particles.mL.food.dilution) %>% 
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
+   mutate(particles.mL.food.dilution = (10 ^ particles.mL.food.dilution_log10) / (af.time * af.noec)) %>% 
   summarise(dose_new = quantile(particles.mL.food.dilution, 0.50))
 
 ## SSD build
@@ -2285,18 +2825,21 @@ groups <- aoc_z %>%
   distinct(species_f, Group)
 
 #assign groups
-food.3.real <- composition_realistic %>% 
-  filter(organism.group != "Algae") %>%
-  filter(bio.org %in% c("organism", "population"),
-         lvl1_f %in% c("Fitness")) %>%
+food.3.real <- composition_realistic_food %>% 
+   filter(organism.group != "Algae", #all food dilution
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  
   left_join(groups)
   
 # predict NOEC
-food.3.real$particles.mL.food.dilution <- predict(classif_xgbTree_food.dilution, food.3.real, type = "raw")
+food.3.real$particles.mL.food.dilution_log10 <- predict(classif_xgbTree_food.dilution, food.3.real, type = "raw")
 
 #Data collapse %>% 
 food3.real.summary <- food.3.real %>%
-  mutate(particles.mL.food.dilution = 10^particles.mL.food.dilution) %>% 
+  mutate(particles.mL.food.dilution = 10^particles.mL.food.dilution_log10) %>% 
     rename(Species = species_f) %>% 
   group_by(Species, Group) %>% 
   summarise(dose_new = quantile(particles.mL.food.dilution, 0.50))
@@ -2331,13 +2874,10 @@ ggplot(food.t3.preds.real, aes_string(x = "est")) +
 #Filter empirical data
 food.3.emp <- aoc_final %>% 
   filter(organism.group != "Algae") %>%
-  filter(!environment %in% c("Terrestrial", "Not Reported")
-         effect.metric != "HONEC",
-         tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria 
+  filter(#environment == "Marine",
          between(size.length.um.used.for.conversions, 1, 5000),
          bio.org %in% c("organism", "population"),
-          lvl1_f %in% c("Fitness")) %>%  
+         lvl1_f %in% c("Fitness")) %>%  
   mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
     drop_na(dose_new) %>% 
   group_by(Species, Group) %>% 
@@ -2466,7 +3006,7 @@ tier 3: 17 (hc5; organism and above, median)
 tier 4: 105 (hc10; organism and above, median)
 
 ```{r}
-hcxx <- tibble(
+hcxx_food <- tibble(
  "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
 "Empirical" = c(food.t1.emp.preds$lcl[5],  food.t1.emp.preds$est[5],  food.t3.emp.preds$est[5],  food.t3.emp.preds$est[10]),
 "Predicted" = c(
@@ -2484,11 +3024,33 @@ food.t3.preds.agnostic$est[10]),
          Predicted = Predicted * 1000,
          `Environmentally Realistic Polymer/Shape Predicted` = `Environmentally Realistic Polymer/Shape Predicted` * 1000)
 
-kable(hcxx, caption = "Food Dilution Thresholds")
+kable(hcxx_food, caption = "Food Dilution Thresholds")
 
-write.csv(hcxx, file = "Simulated Distributions/BigDataManuscript/foodDilutionhcxx.csv")
+write.csv(hcxx_food, file = "Simulated Distributions/BigDataManuscript/foodDilutionhcxx.csv")
 ```
+```{r}
+hcxx_ox <- tibble(
+ "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
+"Empirical" = c(ox.t1.emp.preds$lcl[5],  ox.t1.emp.preds$est[5],  ox.t3.emp.preds$est[5],  ox.t3.emp.preds$est[10]),
+"Predicted" = c(
+ox.t1.preds.agnostic$lcl[5],
+ox.t1.preds.agnostic$est[5],
+ox.t3.preds.agnostic$est[5],
+ox.t3.preds.agnostic$est[10]),
+"Environmentally Realistic Polymer/Shape Predicted" = c(
+  ox.t1.preds.real$lcl[5],
+  ox.t1.preds.real$est[5],
+  ox.t3.preds.real$est[5],
+  ox.t3.preds.real$est[10])
+) %>% 
+  mutate(Empirical = Empirical * 1000,
+         Predicted = Predicted * 1000,
+         `Environmentally Realistic Polymer/Shape Predicted` = `Environmentally Realistic Polymer/Shape Predicted` * 1000)
 
+kable(hcxx_ox, caption = "ox Dilution Thresholds")
+
+write.csv(hcxx_ox, file = "Simulated Distributions/BigDataManuscript/oxDilutionhcxx.csv")
+```
 
 
 
