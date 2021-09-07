@@ -58,6 +58,8 @@ library(ggrepel)
 library(scales)
 library(ggdark)
 library(ggsci)
+library(bestNormalize)
+library(ppsr)
 ```
 
 ```{r Theme, include=FALSE}
@@ -117,6 +119,17 @@ aoc_intermediate <- aoc_z %>%
                         #size.length.um.used.for.conversions >83 ~ "non-translocatable",
                         #size.length.um.used.for.conversions < 1 ~ "nano"
                         #            )) %>% 
+   mutate(effect.metric = (case_when(
+    effect.metric == "NOEC" ~ "NOEC",
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+ mutate(effect.metric = as.character(effect.metric)) %>% 
+   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
   droplevels()  #eliminate polymer aand shape data that's not needed
 ```
 
@@ -449,6 +462,12 @@ mutate(x2M_trans = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size
 
 ## Determine how important features are for predicting concentration
 ```{r}
+
+returnOrderNormedData <- function(x){
+  orderNorm(x)$x.t
+}
+
+
 test_mutual_information <- aoc_final %>%
   #filter data select predictor variables#
   dplyr::select(c(
@@ -460,7 +479,7 @@ test_mutual_information <- aoc_final %>%
                   dose.particles.mL.master, 
     ### Organism characteristics ###
                   organism.group, 
-                  life.stage, #use adults for prediction
+                  #life.stage, #use adults for prediction
                   species_f, 
                   max.size.ingest.mm,
     ### Exposure Conditions ####              
@@ -482,33 +501,44 @@ test_mutual_information <- aoc_final %>%
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
                   lvl2_f,
                   #lvl3_f
-                  )) #%>%
-  drop_na()
+                  )) %>%
+  drop_na() %>%
+  mutate_if(is.numeric, returnOrderNormedData) %>%
+  mutate_if(is.character, as.factor)
 
 
+skim(test_mutual_information)
 ```
 
 
 ```{r}
+#fit <- ppsr::score_df(df = test_mutual_information, do_parallel = T)#, confidence = T)
+#visualize_pps(test_mutual_information)
 
- x2y(x = test_mutual_information$dose.mg.L.master, y = test_mutual_information$organism.group)
+#ppsmatrix <- score_matrix(test_mutual_information)
 
+df <- expand.grid(names(test_mutual_information), names(test_mutual_information))
+remove <- c(122, 138, 161, 191, 207, 306, 322, 329, 345, 467, 483, 490, 506, 513)
+
+logical <- !1:nrow(df) %in% remove
+rows <- 1:nrow(df)
+
+#Does not like species trying to predict organism with lvl2 or species, also species doesn't like to be predicted by lvl2. 
+for(row in rows[logical]) {
+  df[row, "pps"] <- ppsr::score(test_mutual_information, x = as.character(df[row,1]), y = as.character(df[row,2]), algorithm = 'tree')[['pps']]
+  #df[row, "lower"] <- fit$CI_95_Lower
+  #df[row, "upper"] <- fit$CI_95_Upper
+  print(row)
+}
+
+write.csv(df, "Tox Data/mutualinformation.csv")
+
+ggplot(data = df, aes(x=Var1, y=Var2, fill=pps)) + 
+  geom_tile() + 
+  theme(axis.text.x = element_text(angle = 90))
 ```
 
 
-```{r}
-# Let's generate the data again
-set.seed(42)
-
-library(rpart)
-preds <- predict(rpart(organism.group~dose.mg.L.master, data = test_mutual_information, method = "class"), type = "vector")
-
-# Set up a chart
-ggplot(data = test_mutual_information) +
-  geom_point(aes(x = dose.mg.L.master, y = organism.group), size = 0.5) +
-  #geom_line(aes(y=preds, color = '2')) +
-  scale_x_log10()
-```
 
 
 
