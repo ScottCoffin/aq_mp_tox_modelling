@@ -50,6 +50,7 @@ library(doParallel)
 library(modelplotr)
 library(gridExtra)
 library(interpret) #explainable boosting machine
+library(modelsummary)
 ```
 
 ```{r include=FALSE}
@@ -58,6 +59,16 @@ require(readr)
 #source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
+# Data summary
+First let's build a manuscript-ready table of all parameters and their completeness using skimr
+```{r}
+require(modelsummary)
+#datasummary_skim(aoc_z)
+
+full_skim <- skim(aoc_z)
+write.csv(full_skim, "Simulated Distributions/BigDataManuscript/full_skim.csv")
+```
+
 # Data Selection
 
 **Important**: this dataset has ONLY been filtered for 'red' criteria for technical quality.
@@ -91,7 +102,6 @@ df <- aoc_z %>%
                   species_f, 
                   max.size.ingest.mm,
     ### Exposure Conditions ####              
-                  bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
                   environment, #train on all
                   acute.chronic_f, #use 'chronic' for SSD build
                   exposure.duration.d, 
@@ -103,6 +113,7 @@ df <- aoc_z %>%
                   ingestible, #dependent on species mouth size and particle size
                   translocatable, #translocatable, non-translocatable, or nanoparticle
     ### Effect data ####
+                  bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
                   effect, #convert to response variable then remove below
                   effect.score, #relative numerical strength of effect
                   lvl1_f, #keep it generic for easy SSD build (use fitness)
@@ -134,6 +145,12 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>% #scale data for better model
 #ensure completeness
 skim(df)
 ```
+### Publication-Ready Table
+```{r}
+skim_df <- skim(df)
+write.csv(skim_df, "Simulated Distributions/BigDataManuscript/skim_df.csv")
+```
+
 
 ```{r}
 # create train, validation, and test splits
@@ -227,6 +244,7 @@ explainer_classif_xgbTree <- DALEX::explain(classif_svm,  label = "eXtreme Gradi
 ```
 # Modelling
 ## Model Performance
+
 ```{r model performance, include=FALSE}
 ### EBM model ###
 proba_test <- ebm_predict_proba(ebm, test_x) #keeps giving NA's for some reason...
@@ -239,6 +257,12 @@ mp_classif_decTree <- model_performance(explainer_classif_decTree)
 mp_classif_nnet <- model_performance(explainer_classif_nnet)
 mp_classif_xgbTree <- model_performance(explainer_classif_xgbTree)
 ```
+
+### Manuscript Table
+```{r}
+compare_models()
+```
+
 
 ### Histogram of Residuals
 ```{r}
@@ -277,6 +301,8 @@ resid_box <- plot(mp_classif_rf, mp_classif_glm, mp_classif_svm, mp_classif_decT
         theme(legend.position = 'bottom',
               plot.title = element_text(hjust = 0.5)) 
 resid_box
+
+
 ```
 ```{r}
 require(gridExtra)
@@ -379,10 +405,9 @@ plot_cumresponse(data = plot_input,highlight_ntile = 20,
 plot_multiplot(data = plot_input,  custom_line_colors = RColorBrewer::brewer.pal(2,'Accent'))
 ```
 
-
 ### Roc Curves
 ```{r}
-plot(mp_classif_rf, 
+roc <- plot(mp_classif_rf, 
      #mp_classif_glm, 
      mp_classif_svm, 
      #mp_classif_decTree, 
@@ -397,7 +422,13 @@ plot(mp_classif_rf,
 #,  "AUC_glm = 0.799  AUC_svm = 0.798 AUC_decTree = AUC_nnet = AUC_xgbTree = ") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+roc
 ```
+```{r}
+grid.arrange(resid_box, roc,
+             nrow = 1, ncol = 2)
+```
+
 
 ### Variable Importance
 ```{r fig.height=7, fig.width=5, warning=FALSE}
