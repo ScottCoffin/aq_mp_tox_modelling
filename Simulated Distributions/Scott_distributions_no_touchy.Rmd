@@ -2143,7 +2143,7 @@ t1.x.1.p <-  ox.t1.points.agnostic %>%
 ###join dataframes
 #t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
 compare <- left_join(t1.x.1.e, t1.x.1.p, by = "Species") %>% 
-    mutate(diff = Conc.e - Conc.y)
+    mutate(percent.diff = (Conc.e - Conc.y)/Conc.e)
 
 # Make color scale for speceis on y axis
 # library(scales)
@@ -2157,22 +2157,21 @@ compare <- left_join(t1.x.1.e, t1.x.1.p, by = "Species") %>%
 
 ## Plot Residuals
 compare %>% 
-  mutate(Species = fct_reorder(Species, diff)) %>% 
-  ggplot(aes(x = -log10(abs(diff)), y = Species, color = Group.x)) +
- # geom_boxplot() +
+  drop_na() %>% 
+  mutate(Species = fct_reorder(Species, percent.diff)) %>% 
+  ggplot(aes(x = (percent.diff), y = Species, color = Group.x)) +
   geom_boxplot(fill = "red", color = "black") +
   geom_point(size = 2.5) +
- # scale_x_log10() +
- # scale_x_continuous(limits = c(-7500,100)) +
+  scale_x_continuous(labels = scales::percent) +
   labs(title = "Residuals for Predicted NOECs"#,
      # subtitle = "Random Forest Predicted NOECs"
        ) +
-  xlab("Empirical - Predicted NOEC (log10 scale)") +
+  xlab("% Difference between Empirical and Predicted NOEC (log10 scale)") +
   ylab("Species") +
   geom_vline(xintercept = 0, linetype = "dashed", size = 1.5, alpha = 0.4) +
  # scale_color_manual(values = rainbow(13)) +
   #scale_color_brewer()
-  scale_color_futurama(name = "Taxa") +
+  #scale_color_futurama(name = "Taxa") +
  # coord_trans(x = "log10") +
   theme.type +
   #dark_theme_minimal(base_size = 14) +
@@ -2188,13 +2187,13 @@ compare %>%
 
 #####Compare summary statistics
 ```{r}
-compare %>% 
-  group_by(type.y) %>% 
+t1.ox.points.j.real.agonstic %>% 
+  group_by(type) %>% 
   summarize(species = n(),
-            taxa = n_distinct(Group.x),
-            min = min(Conc.e),
-            median = median(Conc.e),
-            max = max(Conc.e))
+            taxa = n_distinct(Group),
+            min = min(Conc),
+            median = median(Conc),
+            max = max(Conc))
 ```
 
 ### Tier 3/4
@@ -2763,6 +2762,258 @@ ggplot() +
   theme.type + #user theme
   theme(legend.position = "top")
 ```
+
+
+```{r}
+#plot residuals
+#empirical
+t1.x.1.e <- t1.x.1.e %>% 
+  mutate(Conc.e= Conc)
+#predicted
+t1.x.1.p <-  t1.x.1.p.agnostic %>% 
+  mutate(Conc.y = Conc)
+###join dataframes
+#t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
+compare_food <- left_join(t1.x.1.e, t1.x.1.p, by = "Species") %>% 
+    mutate(percent.diff = (Conc.e - Conc.y)/Conc.e)
+
+## Plot Residuals
+compare_food %>% 
+  drop_na() %>% 
+  mutate(Species = fct_reorder(Species, percent.diff)) %>% 
+  ggplot(aes(x = (percent.diff), y = Species, color = Group.x)) +
+  geom_boxplot(fill = "red", color = "black") +
+  geom_point(size = 2.5) +
+  scale_x_continuous(labels = scales::percent) +
+  labs(title = "Residuals for Predicted NOECs"#,
+     # subtitle = "Random Forest Predicted NOECs"
+       ) +
+  xlab("% Difference between Empirical and Predicted NOEC (log10 scale)") +
+  ylab("Species") +
+  geom_vline(xintercept = 0, linetype = "dashed", size = 1.5, alpha = 0.4) +
+ # scale_color_manual(values = rainbow(13)) +
+  #scale_color_brewer()
+  #scale_color_futurama(name = "Taxa") +
+ # coord_trans(x = "log10") +
+  theme.type +
+  #dark_theme_minimal(base_size = 14) +
+  theme(
+    plot.title = element_text(hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5)#,
+#    axis.text.y = element_text(colour=rainbow(13)[compare$Group.x])
+    )
+
+
+```
+##### Is polymer or shape more important for changes in SSD?
+To determine what's causing the  shift in the SSD towards the right when using environmentally realistic polymers and shapes, let's just change shapes and again polymers to compare.
+
+```{r}
+#define base parameters for all SSDs
+composition_realistic_polymers_food <- df_oxidative.stress %>% 
+  # make entry for each species
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f,
+           effect.score,
+           #lvl3_f, 
+           exposure.duration.d, 
+           organism.group,
+           effect.metric,
+           acute.chronic_f, environment,  exposure.route, 
+           translocatable,
+           # make synonymous with training data for true comparison
+           #EVA_frac, LTX_frac, PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, 
+           fiber_frac, fragment_frac, sphere_frac # just change polymers
+           ) %>% 
+  #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
+  mutate(
+        EVA_frac = 0.06,
+        #LTX_frac = 0,
+        PA_frac = 0.12,
+        PC_frac = 0,
+        PE_frac = 0.25,
+        PET_frac = 0.165,
+        PLA_frac = 0,
+        PMMA_frac = 0,
+        PP_frac = 0.145,
+        PS_frac = 0.085,
+        PUR_frac = 0,
+        PVC_frac = 0.02,
+      #  fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
+       # fragment_frac = 0.31 * 1.1627,
+        #sphere_frac = 0.065 * 1.1627,
+  #effect = "N",
+  #common metrics for all SSDs
+  #exposure.route = "water",
+  #make distinct above instead of forcing here
+  #environment = "Marine",
+  #acute.chronic_f = "Chronic",
+ # effect.metric = "NOEC"
+  ) %>% 
+  mutate(af.time = case_when(acute.chronic_f == "Chronic" ~ 1,
+                             acute.chronic_f == "Acute" ~ 10)) %>% 
+  mutate(af.noec = case_when(effect.metric == "HONEC" ~ 1,
+                             effect.metric == "LOEC" ~ 2,
+                             effect.metric == "NOEC" ~ 1,
+                             effect.metric == "EC10" ~ 1,
+                             effect.metric == "EC50" ~ 10,
+                             effect.metric == "LC50" ~ 10,
+                             #effect.metric == "not_available" ~ 1
+                             )) %>% 
+  drop_na()
+
+skim(composition_realistic_polymers_food)
+```
+
+```{r}
+#define base parameters for all SSDs
+composition_realistic_shapes_food <- df_oxidative.stress %>% 
+  # make entry for each species
+  distinct(species_f, max.size.ingest.mm, life.stage, bio.org, lvl1_f, lvl2_f,
+           effect.score,
+           #lvl3_f, 
+           exposure.duration.d, 
+           organism.group,
+           effect.metric,
+           acute.chronic_f, environment,  exposure.route, 
+           translocatable,
+           # make synonymous with training data for true comparison
+           EVA_frac,
+           #LTX_frac, 
+           PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, 
+          # fiber_frac, fragment_frac, sphere_frac 
+           ) %>% 
+  #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
+  mutate(
+        # EVA_frac = 0.06,
+        # #LTX_frac = 0,
+        # PA_frac = 0.12,
+        # PC_frac = 0,
+        # PE_frac = 0.25,
+        # PET_frac = 0.165,
+        # PLA_frac = 0,
+        # PMMA_frac = 0,
+        # PP_frac = 0.145,
+        # PS_frac = 0.085,
+        # PUR_frac = 0,
+        # PVC_frac = 0.02,
+        fiber_frac = 0.485 * 1.1627, #correction factor to get to 100% because training data doesn't have film
+        fragment_frac = 0.31 * 1.1627,
+        sphere_frac = 0.065 * 1.1627,
+  #effect = "N",
+  #common metrics for all SSDs
+  #exposure.route = "water",
+  #make distinct above instead of forcing here
+  #environment = "Marine",
+  #acute.chronic_f = "Chronic",
+ # effect.metric = "NOEC"
+  ) %>% 
+  mutate(af.time = case_when(acute.chronic_f == "Chronic" ~ 1,
+                             acute.chronic_f == "Acute" ~ 10)) %>% 
+  mutate(af.noec = case_when(effect.metric == "HONEC" ~ 1,
+                             effect.metric == "LOEC" ~ 2,
+                             effect.metric == "NOEC" ~ 1,
+                             effect.metric == "EC10" ~ 1,
+                             effect.metric == "EC50" ~ 10,
+                             effect.metric == "LC50" ~ 10,
+                             #effect.metric == "not_available" ~ 1
+                             )) %>% 
+  drop_na()
+
+skim(composition_realistic_shapes_food)
+```
+
+
+```{r}
+#### BUILD SSD FOR REALISTIC POLYMERS ####
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+food.1.polymer <- composition_realistic_polymers_food %>% 
+   filter(organism.group != "Algae", #all food dilution
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  # 1- 83 um) %>%
+  left_join(groups)
+  
+# predict NOEC
+food.1.polymer$particles.mL.food.dilution_log10 <- predict(classif_rf_food.dilution, food.1.polymer, type = "raw")
+
+#Data collapse
+food1.summary.polymer <- food.1.polymer %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+   mutate(particles.mL.food.dilution = (10 ^ particles.mL.food.dilution_log10) / (af.time * af.noec)) %>% 
+  summarise(dose_new = quantile(particles.mL.food.dilution, 0.50)) #convert from log10
+
+## SSD build
+food.t1.ssd.polymer <- SSD_function_t1(filtered.data = food1.summary.polymer, hcxlcl = 5)
+
+#extract data frames from object
+food.t1.preds.polymer <- as.data.frame(food.t1.ssd.polymer[1]) %>%  mutate(type = "Realistic Polymers")
+food.t1.points.polymer <- as.data.frame(food.t1.ssd.polymer[2]) %>%  mutate(type = "Realistic Polymers")
+
+#### BUILD SSD FOR REALISTIC shapeS ####
+#Get organism group for each species
+groups <- aoc_z %>% 
+  distinct(species_f, Group)
+
+#assign groups
+food.1.shape <- composition_realistic_shapes_food %>% 
+   filter(organism.group != "Algae", #all food dilution
+         lvl1_f %in% c("Fitness"),
+         bio.org %in% c("organism", "population"), #special for tier 3/4
+         #environment == "Marine",
+         exposure.route == "water",
+         translocatable %in% c("translocatable", "non-translocatable")) %>%  # 1- 83 um) %>%
+  left_join(groups)
+  
+# predict NOEC
+food.1.shape$particles.mL.food.dilution_log10 <- predict(classif_rf_food.dilution, food.1.shape, type = "raw")
+
+#Data collapse
+food1.summary.shape <- food.1.shape %>%
+    rename(Species = species_f) %>% 
+  group_by(Species, Group) %>% 
+   mutate(particles.mL.food.dilution = (10 ^ particles.mL.food.dilution_log10) / (af.time * af.noec)) %>% 
+  summarise(dose_new = quantile(particles.mL.food.dilution, 0.50)) #convert from log10
+
+## SSD build
+food.t1.ssd.shape <- SSD_function_t1(filtered.data = food1.summary.shape, hcxlcl = 5)
+
+#extract data frames from object
+food.t1.preds.shape <- as.data.frame(food.t1.ssd.shape[1]) %>%  mutate(type = "Realistic Shapes")
+food.t1.points.shape <- as.data.frame(food.t1.ssd.shape[2]) %>%  mutate(type = "Realistic Shapes")
+
+#join dataframes
+food.preds.all <- rbind(t1.food.preds.j.real.agonstic, food.t1.preds.shape, food.t1.preds.polymer)
+food.points.all <- rbind(t1.food.points.j.real.agonstic, food.t1.points.shape, food.t1.points.polymer)
+
+#ggplot
+food.preds.all %>% 
+  filter(!type %in% c("Polymer and Shape Agnostic", "Environmentally Realistic")) %>% 
+  ggplot() +
+  geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.1) +
+  geom_line(aes_string(x = "est", y = "percent/100", fill = "type", color = "type")) +
+  #geom_point(data = t1.food.points.j.real.agonstic, aes(x = Conc, y =frac, color = type), alpha = 0.2) + 
+  #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
+  labs(title = "Realistic Shapes vs. Polymers vs. Empirical Species Sensitivity Distribution",
+       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
+       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
+                     labels = trans_format("log10", scales::math_format(10^.x))) + 
+  #scale_fill_manual(name = "SSD Data") +
+  #fill.type + #user-selected
+  #color.type + #user-selected
+  theme.type + #user theme
+  theme(legend.position = "top")
+```
+
 ### Tier 3/4
 #### Predicted (agnostic)
 ```{r}

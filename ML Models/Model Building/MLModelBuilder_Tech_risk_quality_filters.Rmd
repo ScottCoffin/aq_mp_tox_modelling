@@ -50,6 +50,7 @@ library(doParallel)
 library(modelplotr)
 library(gridExtra)
 library(interpret) #explainable boosting machine
+library(modelsummary)
 ```
 
 ```{r include=FALSE}
@@ -58,61 +59,98 @@ require(readr)
 #source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
 ```
+# Data summary
+First let's build a manuscript-ready table of all parameters and their completeness using skimr
+```{r}
+require(modelsummary)
+#datasummary_skim(aoc_z)
+
+full_skim <- skim(aoc_z)
+write.csv(full_skim, "Simulated Distributions/BigDataManuscript/full_skim.csv")
+```
+
 # Data Selection
 
 **Important**: this dataset has ONLY been filtered for 'red' criteria for technical quality.
+Goal is to determine relative feature importance, with effect "y/n" as response variable.
 
 ```{r}
 df <- aoc_z %>% 
-  filter(tech.tier.zero == "Pass") %>% #gives studies that pass technical quality criteria
+  filter(tier_zero_tech_f == "Red Criteria Passed",
+         exposure.route == "water",
+         #tier_zero_risk_f == "Red Criteria Passed",
+         polymer != "Not Reported",
+         !environment %in% c("Terrestrial", "Not Reported"),
+         #org_f != "Bacterium",
+         org_f != "Plant",
+         #effect.metric != "HONEC",
+         risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+         ) %>% 
+  #Remove 26C temperature treatment data from Jaimukar et al. 2018
+  filter(!(article == 42 & media.temp == 26)) %>% 
   #filter(risk.tier.zero == "Pass") %>%  #only studies applicable for risk assessment. VERY RESTRICTIVE 
-  dplyr::select(c(organism.group, 
-                  #exposure.duration.d, 
-                  #lvl1_f, 
-                  dose.um3.mL.master, 
-                  #dose.mg.L.master, 
-                  #dose.particles.mL.master, 
-                  #life.stage,
-                  bio.org, 
-                  #polymer, 
-                  #shape,
-                  #size.length.um.used.for.conversions, 
-                  #treatments, 
-                  effect, 
-                  effect.metric,
-                  #particle.volume.um3,
-                  #density.mg.um.3,
-                  #environment,
-                  exposure.route,
+  dplyr::select(c(
+    ### DOSE METRICS ####
+                  dose.mg.L.master, 
                   dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
-                  lvl1_f
+                  dose.particles.mL.master, 
+                  dose.um3.mL.master,
+                  dose.specific.surface.area.um2.mg.mL,
+    ### Organism characteristics ###
+                  organism.group, 
+                  life.stage, #use adults for prediction
+                  species_f, 
+                  max.size.ingest.mm,
+    ### Exposure Conditions ####              
+                  environment, #train on all
+                  acute.chronic_f, #use 'chronic' for SSD build
+                  exposure.duration.d, 
+    ### Particle characteristics ####
+                  polymer, 
+                  shape,
+                  density.g.cm3,
+                  size.length.um.used.for.conversions, 
+                  ingestible, #dependent on species mouth size and particle size
+                  translocatable, #translocatable, non-translocatable, or nanoparticle
+    ### Effect data ####
+                  bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
+                  effect, #convert to response variable then remove below
+                  effect.score, #relative numerical strength of effect
+                  lvl1_f, #keep it generic for easy SSD build (use fitness)
+                  lvl2_f,
+                  #lvl3_f
                   )) %>% 
-  mutate(effect.metric = as.character(effect.metric)) %>% 
-  mutate(effect.metric = (case_when(
-    effect.metric == "NONEC" ~ "NOEC",
-    effect.metric == "HONEC" ~ "NOEC",
-    effect.metric == "LOEC" ~ "LOEC",
-    effect.metric == "LC50" ~ "LC50",
-    effect.metric == "EC50" ~"EC50",
-    effect.metric == "EC10" ~ "EC10"
-  ))) %>% 
-  mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
-  #filter(effect.metric != "not_available") %>% 
-  filter(exposure.route == "water") %>% 
-  mutate(effect.metric = as.factor(effect.metric)) %>% 
+  # mutate(effect.metric = as.character(effect.metric)) %>% 
+  # mutate(effect.metric = (case_when(
+  #   effect.metric == "NONEC" ~ "NOEC",
+  #   effect.metric == "HONEC" ~ "NOEC",
+  #   effect.metric == "LOEC" ~ "LOEC",
+  #   effect.metric == "LC50" ~ "LC50",
+  #   effect.metric == "EC50" ~"EC50",
+  #   effect.metric == "EC10" ~ "EC10"
+  # ))) %>% 
+  # mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  # #filter(effect.metric != "not_available") %>% 
+  # mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
-mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+mutate_if(~is.numeric(.) && (.) > 0, log10) %>% #scale data for better model
   mutate(effect_10 = case_when( #convert ordinal to numeric
       effect == "Y" ~ 1,
       effect == "N" ~ 0
     )) %>%
   mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(effect, exposure.route, effect.metric))
+  dplyr::select(-c(effect))
 
 #ensure completeness
 skim(df)
 ```
+### Publication-Ready Table
+```{r}
+skim_df <- skim(df)
+write.csv(skim_df, "Simulated Distributions/BigDataManuscript/skim_df.csv")
+```
+
 
 ```{r}
 # create train, validation, and test splits
@@ -206,6 +244,7 @@ explainer_classif_xgbTree <- DALEX::explain(classif_svm,  label = "eXtreme Gradi
 ```
 # Modelling
 ## Model Performance
+
 ```{r model performance, include=FALSE}
 ### EBM model ###
 proba_test <- ebm_predict_proba(ebm, test_x) #keeps giving NA's for some reason...
@@ -218,6 +257,12 @@ mp_classif_decTree <- model_performance(explainer_classif_decTree)
 mp_classif_nnet <- model_performance(explainer_classif_nnet)
 mp_classif_xgbTree <- model_performance(explainer_classif_xgbTree)
 ```
+
+### Manuscript Table
+```{r}
+compare_models()
+```
+
 
 ### Histogram of Residuals
 ```{r}
@@ -256,6 +301,8 @@ resid_box <- plot(mp_classif_rf, mp_classif_glm, mp_classif_svm, mp_classif_decT
         theme(legend.position = 'bottom',
               plot.title = element_text(hjust = 0.5)) 
 resid_box
+
+
 ```
 ```{r}
 require(gridExtra)
@@ -358,10 +405,9 @@ plot_cumresponse(data = plot_input,highlight_ntile = 20,
 plot_multiplot(data = plot_input,  custom_line_colors = RColorBrewer::brewer.pal(2,'Accent'))
 ```
 
-
 ### Roc Curves
 ```{r}
-plot(mp_classif_rf, 
+roc <- plot(mp_classif_rf, 
      #mp_classif_glm, 
      mp_classif_svm, 
      #mp_classif_decTree, 
@@ -376,7 +422,13 @@ plot(mp_classif_rf,
 #,  "AUC_glm = 0.799  AUC_svm = 0.798 AUC_decTree = AUC_nnet = AUC_xgbTree = ") +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
+roc
 ```
+```{r}
+grid.arrange(resid_box, roc,
+             nrow = 1, ncol = 2)
+```
+
 
 ### Variable Importance
 ```{r fig.height=7, fig.width=5, warning=FALSE}
