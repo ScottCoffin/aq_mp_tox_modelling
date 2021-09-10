@@ -51,6 +51,8 @@ library(modelplotr)
 library(gridExtra)
 library(interpret) #explainable boosting machine
 library(modelsummary)
+library(bestNormalize)
+library(ppsr)
 ```
 
 ```{r include=FALSE}
@@ -75,7 +77,7 @@ write.csv(full_skim, "Simulated Distributions/BigDataManuscript/full_skim.csv")
 Goal is to determine relative feature importance, with effect "y/n" as response variable.
 
 ```{r}
-df <- aoc_z %>% 
+df_intermediate <- aoc_z %>% 
   filter(tier_zero_tech_f == "Red Criteria Passed",
          exposure.route == "water",
          #tier_zero_risk_f == "Red Criteria Passed",
@@ -133,7 +135,7 @@ df <- aoc_z %>%
   # #filter(effect.metric != "not_available") %>% 
   # mutate(effect.metric = as.factor(effect.metric)) %>% 
   drop_na() %>%  #drop missing
-mutate_if(~is.numeric(.) && (.) > 0, log10) %>% #scale data for better model
+  #mutate_if(~is.numeric(.) && (.) > 0, log10) %>% #scale data for better model
   mutate(effect_10 = case_when( #convert ordinal to numeric
       effect == "Y" ~ 1,
       effect == "N" ~ 0
@@ -143,14 +145,31 @@ mutate_if(~is.numeric(.) && (.) > 0, log10) %>% #scale data for better model
   dplyr::select(-c(effect))
 
 #ensure completeness
-skim(df)
-```
-### Publication-Ready Table
-```{r}
-skim_df <- skim(df)
-write.csv(skim_df, "Simulated Distributions/BigDataManuscript/skim_df.csv")
+skim(df_intermediate)
 ```
 
+### Publication-Ready Table
+```{r}
+skim_df <- skim(df_intermediate)
+write.csv(skim_df, "Simulated Distributions/BigDataManuscript/skim_df.csv")
+```
+### Normalize data
+```{r}
+#function to normalize data
+returnOrderNormedData <- function(x){
+  orderNorm(x)$x.t
+}
+df <- df_intermediate %>% 
+  mutate_if(is.numeric, returnOrderNormedData) #normalization function
+
+#visualize distributions
+df %>%  
+  keep(is.numeric) %>%                     # Keep only numeric columns
+  gather() %>%                             # Convert to key-value pairs
+  ggplot(aes(value)) +                     # Plot the values
+    facet_wrap(~ key, scales = "free") +   # In separate panels
+    geom_density()     
+```
 
 ```{r}
 # create train, validation, and test splits
@@ -260,7 +279,7 @@ mp_classif_xgbTree <- model_performance(explainer_classif_xgbTree)
 
 ### Manuscript Table
 ```{r}
-compare_models()
+
 ```
 
 
@@ -762,6 +781,85 @@ saveRDS(ebm, file="ML Models/ebm_model.rds")
 saveRDS(classif_decTree, "ML Models/decisionTree.rds")
 ```
 
+# Decision Tree
+
+Decision trees are highly interpretable. An alternative package will be used to build and display a decision tree.
+
+```{r, echo = FALSE}
+#get column index of predicted variable in dataset
+typeColNum <- grep("effect",names(all))
+
+#build tree
+require(rpart)
+set.seed(15097)
+
+t1 <- rpart(effect_10 ~ .,
+            method = "class", #classification because response is discrete
+            control = rpart.control(minbucket = 20, cp=0.008), #requires that there be at least 19 cases (responded + nonrespondents) in the final grouping of variable values of the terminal node of the tre..
+            data = train)
+
+# t1 <- rpart(effect_10 ~ dose.surface.area.um2.mL.master + lvl2_f + 
+#               #exposure.route + 
+#               effect.metric +
+#               dose.um3.mL.master + bio.org + organism.group,
+#             method = "class", #classification because response is discrete
+#             control = rpart.control(minbucket = 20, cp=0.008), #requires that there be at least 19 cases (responded + nonrespondents) in the final grouping of variable values of the terminal node of the tre..
+#             data = train)
+print(t1, digits=4)
+```
+
+
+Plot an interpretable tree.
+```{r, echo = FALSE}
+require(rpart.plot)
+cols <- ifelse(t1$frame$yval == 1, "gray50", "black")
+
+interpretable_tree <- prp(t1, main="Tree for Effect",
+    extra=106, # display prob of survival and percent of obs
+    nn=TRUE, # display node numbers
+    fallen.leaves=TRUE, # put leaves on the bottom of page
+    branch=.5, # change angle of branch lines
+    faclen=0, # do not abbreviate factor levels
+    trace=1, # print automatically calculated cex
+    shadow.col="gray", # shadows under the leaves
+    branch.lty=1, # draw branches using solid lines
+    branch.type=5, # branch lines width = weight(frame$wt), no. of cases here
+    split.cex=1.2, # make split text larger than node text
+    split.prefix="is ", # put "is " before split text
+    split.suffix="?", # put "?" after split text
+    col=cols, border.col=cols, # cols[2] if survived
+    split.box.col="lightgray", # lightgray split boxes (default is white)
+    split.border.col="darkgray", # darkgray border on split boxes
+    split.round=0.5) # round the split box corners a tad
+
+interpretable_tree
+```
+## Confusion matrix
+```{r}
+#make prediction
+t1_pred <- predict(t1, test, type = "class")
+#build confusion matrix
+confMat <- data.frame(confusionMatrix(t1_pred, test$effect_10)$table)
+#get accuracy
+table <- table(test$effect_10, t1_pred)
+decTreeAccuracy <- sum(diag(table))/sum(table)
+
+plotTable <- confMat %>%
+  mutate(goodbad = ifelse(confMat$Prediction == confMat$Reference, "good", "bad")) %>%
+  group_by(Reference) %>%
+  mutate(prop = Freq/sum(Freq))
+
+# fill alpha relative to sensitivity/specificity by proportional outcomes within reference groups (see dplyr code above as well as original confusion matrix for comparison)
+ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
+  geom_tile() +
+  ggtitle(paste("Decision Tree Confusion Matrix (Accuracy = ", 100 * round(decTreeAccuracy,3), "%)")) +
+  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
+  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
+  scale_x_discrete(labels = c("No Effect", "Effect")) +
+  scale_y_discrete(labels = c("No Effect", "Effect")) +
+  theme_bw()
+```
+
 
 # Random Forest Tuning
 All in all random forest is my final model of choice: it appears the more balanced and is the most accurate overall. This model will now be tuned and refined for maximum performance.
@@ -1151,75 +1249,6 @@ ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = pro
 ##### What parameters bias the model?
 Test residuals for size, dose, etc.
 
-# Decision Tree
-
-Decision trees are highly interpretable. An alternative package will be used to build and display a decision tree.
-
-```{r, echo = FALSE}
-#get column index of predicted variable in dataset
-typeColNum <- grep("effect",names(all))
-
-#build tree
-require(rpart)
-set.seed(15097)
-t1 <- rpart(effect_10 ~ dose.surface.area.um2.mL.master + lvl2_f + 
-              #exposure.route + 
-              effect.metric +
-              dose.um3.mL.master + bio.org + organism.group,
-            method = "class", #classification because response is discrete
-            control = rpart.control(minbucket = 20, cp=0.008), #requires that there be at least 19 cases (responded + nonrespondents) in the final grouping of variable values of the terminal node of the tre..
-            data = train)
-print(t1, digits=4)
-```
-
-
-Plot an interpretable tree.
-```{r, echo = FALSE}
-require(rpart.plot)
-cols <- ifelse(t1$frame$yval == 1, "gray50", "black")
-prp(t1, main="Tree for Effect",
-    extra=106, # display prob of survival and percent of obs
-    nn=TRUE, # display node numbers
-    fallen.leaves=TRUE, # put leaves on the bottom of page
-    branch=.5, # change angle of branch lines
-    faclen=0, # do not abbreviate factor levels
-    trace=1, # print automatically calculated cex
-    shadow.col="gray", # shadows under the leaves
-    branch.lty=1, # draw branches using solid lines
-    branch.type=5, # branch lines width = weight(frame$wt), no. of cases here
-    split.cex=1.2, # make split text larger than node text
-    split.prefix="is ", # put "is " before split text
-    split.suffix="?", # put "?" after split text
-    col=cols, border.col=cols, # cols[2] if survived
-    split.box.col="lightgray", # lightgray split boxes (default is white)
-    split.border.col="darkgray", # darkgray border on split boxes
-    split.round=0.5) # round the split box corners a tad
-```
-## Confusion matrix
-```{r}
-#make prediction
-t1_pred <- predict(t1, test, type = "class")
-#build confusion matrix
-confMat <- data.frame(confusionMatrix(t1_pred, test$effect_10)$table)
-#get accuracy
-table <- table(test$effect_10, t1_pred)
-decTreeAccuracy <- sum(diag(table))/sum(table)
-
-plotTable <- confMat %>%
-  mutate(goodbad = ifelse(confMat$Prediction == confMat$Reference, "good", "bad")) %>%
-  group_by(Reference) %>%
-  mutate(prop = Freq/sum(Freq))
-
-# fill alpha relative to sensitivity/specificity by proportional outcomes within reference groups (see dplyr code above as well as original confusion matrix for comparison)
-ggplot(data = plotTable, mapping = aes(x = Reference, y = Prediction, fill = prop)) +
-  geom_tile() +
-  ggtitle(paste("Decision Tree Confusion Matrix (Accuracy = ", 100 * round(decTreeAccuracy,3), "%)")) +
-  geom_text(aes(label = Freq), vjust = .5, fontface  = "bold", alpha = 1) +
-  scale_fill_gradient(low = "white", high = "cyan4", name = "Proportion") +
-  scale_x_discrete(labels = c("No Effect", "Effect")) +
-  scale_y_discrete(labels = c("No Effect", "Effect")) +
-  theme_bw()
-```
 
 
 # Machine Settings

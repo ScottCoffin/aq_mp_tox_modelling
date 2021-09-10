@@ -145,6 +145,9 @@ ggsave(filename = "translocation_histogram.jpeg",
        bg = "white")
 ```
 
+```{r}
+skim(joined)
+```
 
 ## Quality Screening
 
@@ -217,6 +220,11 @@ predictors <- as.data.frame(df %>% dplyr::select(size.um))
 #build explainer for easy interpretation
 explainer_glm_model <- DALEX::explain(glm_model, label = "glm", data = predictors, y = response)
 ```
+```{r}
+explainer_glm_model$model$metric
+```
+
+
 ```{r}
 library(jtools)
 plot_summs(simple, scale = TRUE, inner_ci_level = 0.95, plot.distributions = TRUE)
