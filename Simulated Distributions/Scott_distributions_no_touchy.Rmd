@@ -47,6 +47,7 @@ library(ggrepel)
 library(scales)
 library(ggdark)
 library(ggsci)
+library(ggpubr)
 ```
 
 ```{r Theme, include=FALSE}
@@ -112,7 +113,7 @@ The idea here is we want to be able to just change the dataset and model here an
 require(reshape2)
 Environment_poly <- tibble(
         EVA = 0.06,
-        LTX = 0,
+       # LTX = 0,
         PA = 0.12,
         PC = 0,
         PE = 0.25,
@@ -130,7 +131,7 @@ Environment_poly <- tibble(
   mutate(type = "environment")
 
 # plot
-aoc_intermediate %>% 
+polymer_plot <- aoc_intermediate %>% 
   filter(polymer != "Not Reported") %>% 
   group_by(polymer) %>% 
   summarize(count = n()) %>% 
@@ -141,14 +142,16 @@ aoc_intermediate %>%
   rbind(Environment_poly) %>% 
   ggplot(aes(x = freq, y = polymer, fill = type)) +
   geom_col(position = "dodge") +
-  labs(title = "Microplastics Polymers in Environment vs. Toxicity Database") +
-  scale_x_continuous(labels = scales::percent) +
+ # labs(title = "Microplastics Polymers in Environment vs. Toxicity Database") +
+  scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
   xlab("Relative Frequency") +
   theme.type +
   theme(plot.title = element_text(hjust = 0.5),
         legend.title = element_blank(),
         legend.position = "top") +
   scale_fill_d3(labels = c("Environment", "Toxicity Database"))
+
+polymer_plot
 ```
 
 ## Shape
@@ -166,7 +169,7 @@ Environment_shape <- tibble(
   mutate(type = "environment")
 
 # plot
-aoc_intermediate %>% 
+shape_plot <- aoc_intermediate %>% 
   filter(shape != "Not Reported") %>% 
   group_by(shape) %>% 
   summarize(count = n()) %>% 
@@ -177,15 +180,28 @@ aoc_intermediate %>%
   rbind(Environment_shape) %>% 
   ggplot(aes(x = freq, y = shape, fill = type)) +
   geom_col(position = "dodge") +
-  labs(title = "Microplastics Shape Abundances in Environment vs. Toxicity Database") +
+ # labs(title = "Microplastics Shape Abundances in Environment vs. Toxicity Database") +
   xlab("Relative Frequency") +
-  scale_x_continuous(labels = scales::percent) +
+  scale_x_continuous(labels = scales::label_percent(accuracy = 1)) +
   theme.type +
   theme(plot.title = element_text(hjust = 0.5),
         legend.title = element_blank(),
         legend.position = "top") +
   scale_fill_d3(labels = c("Environment", "Toxicity Database"))
 
+shape_plot
+```
+```{r}
+env_tox_composition <- ggarrange(shape_plot, polymer_plot,
+                        labels = c("A", "B"), common.legend = TRUE, legend = "bottom", 
+                        ncol = 2, nrow = 1)
+
+plot(env_tox_composition)
+
+ggsave(filename = "env_tox_composition.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       plot = env_tox_composition, width = 10, height = 10, units = "in",
+       dpi = 300, bg = "white")
 ```
 
 
@@ -722,17 +738,33 @@ plot(mp_classif_rf_oxidative.stress, mp_classif_glm_oxidative.stress, mp_classif
 ```{r}
 resid <- rbind(mp_classif_rf_oxidative.stress$residuals, mp_classif_glm_oxidative.stress$residuals, mp_classif_xgbTree_oxidative.stress$residuals)
 
-resid %>% 
-ggplot(aes(x = diff, y = label, fill = label)) +
+residuals_oxidative.stress <- resid %>% 
+   mutate(label_clean = case_when(
+    label == "rf" ~ "Random Forest",
+    label == "xgbTree" ~ "Extreme Gradient Boosted Trees",
+    label == "glm" ~ "General Linear Model"
+  )) %>% 
+ggplot(aes(x = diff, y = label_clean, fill = label_clean)) +
   geom_boxplot() +
-  scale_x_log10() +
+ # scale_x_log10() +
+  xlab("Residuals (Oxidative Stress log10(particles/mL))") +
   scale_fill_tron(name = "Model",
                   labels = c("Extreme Gradient Boosting Trees", "Random Forest", "Linear Model")) +
-  labs(title = "Model Performance",
-       subtitle = "Residuals") +
+  # labs(title = "Model Performance",
+  #      subtitle = "Residuals") +
   theme.type +
+  theme(legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())+
   color.type
 
+ggsave(plot =residuals_oxidative.stress,
+       filename = "residuals_oxstress_regression.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       width = 9, height = 5, units = "in", bg = "white",
+       dpi = 300)
+
+residuals_oxidative.stress
 ```
 
 
@@ -911,6 +943,36 @@ plot(pdp_classif_rf)
 ```
 
 ```{r}
+#ggplot
+#rearrange factors in order
+rf_pdp <- pdp_classif_rf$agr_profiles %>%
+  tibble() %>%
+  arrange(`_yhat_`)
+#change levels
+#rf_pdp$`_x_` <- factor(rf_pdp$`_x_`)
+
+taxa_pdp <- rf_pdp %>%
+ # mutate(groups = fct_reorder(`_x_`,`_yhat_`)) %>%
+  ggplot(aes(x = `_x_`, y = `_yhat_`, color= `_groups_`)) +
+   geom_line() +
+  scale_color_discrete(
+                        name = "Taxa") +
+  scale_x_continuous(name = "Exposure Duration (d)") +
+  scale_y_continuous(name = "Average Predicted Effect Concentration (log10(particles/mL))") +
+  theme_light()
+
+taxa_pdp
+
+
+ggsave(plot =taxa_pdp,
+       filename = "taxa_pdp_regression.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       width = 5, height = 5, units = "in", bg = "white",
+       dpi = 300)
+```
+
+
+```{r}
 #Partial Dependence by dose.surface.area.um2.mL.master a
 pdp_classif_rf  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "exposure.duration.d")#, 
                                 # groups = "organism.group")
@@ -938,7 +1000,7 @@ rf_pdp %>%
        subtitle = "Random Forest") +
   xlab("Life Stage") +
   ylab("Average Prediction for Exposure Concentration (log10(particles/mL))") +
-  coord_cartesian(ylim = c(3.45, 4.40)) +
+  #coord_cartesian(ylim = c(3.45, 4.40)) +
   scale_color_discrete(name = "Model x Level of Biological Organization") +
   fill.type +
   theme.type +
@@ -1170,21 +1232,23 @@ grid.arrange(glm_PE, rf_PE, xgbTree_PE)
 ```
 ```{r}
 #Partial Dependence by effect metric and PE fraction
-pdp_classif_rf_PE  <- model_profile(explainer_classif_rf_oxidative.stress, variable = "fiber_frac", 
+pdp_classif_rf_fiber  <- model_profile(explainer_classif_rf_oxidative.stress,
+                                       N = 1000, #use all observations
+                                       type = "partial",
+                                       variable = "fiber_frac", 
                                  groups = "effect.metric")
 
-
-rf_PE <- plot(pdp_classif_rf_PE$agr_profiles) +
+rf_fiber <- plot(pdp_classif_rf_fiber$agr_profiles) +
   ggtitle("Partial Dependence Profiles by Fiber Fraction and Effect Metric", "") +
   xlab("Fiber Fraction") +
   ylab("Average Prediction for Exposure Concentration (particles/mL)") +
-  scale_color_discrete(name = "Model x Effect Metric") +
+  scale_color_discrete(name = "Model x Effect Metric",
+                       labels = c("LOEC", "NOEC", "")) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5))
 
 
-#pllot togeher
-grid.arrange(rf_PE)
+rf_fiber
 ```
 ###### Translocatable
 ```{r}
@@ -1400,12 +1464,70 @@ mp_classif_rf_food.dilution <- model_performance(explainer_classif_rf_food.dilut
 mp_classif_xgbTree_food.dilution <- model_performance(explainer_classif_xgbTree_food.dilution)
 mp_classif_glm_food.dilution <- model_performance(explainer_classif_glm_food.dilution)
 ```
+
+```{r}
+resid_food <- rbind(mp_classif_rf_food.dilution$residuals, mp_classif_glm_food.dilution$residuals, mp_classif_xgbTree_food.dilution$residuals)
+
+residuals_food <- resid_food %>% 
+  mutate(label_clean = case_when(
+    label == "rf" ~ "Random Forest",
+    label == "xgbTrees" ~ "Extreme Gradient Boosted Trees",
+    label == "glm" ~ "General Linear Model"
+  )) %>% 
+ggplot(aes(x = diff, y = label_clean, fill = label_clean)) +
+  geom_boxplot() +
+ # scale_x_log10() +
+  xlab("Residuals (Food Dilution log10(particles/mL))") +
+  scale_fill_tron(name = "Model",
+                  labels = c("Extreme Gradient Boosting Trees", "Random Forest", "Linear Model")) +
+  # labs(title = "Model Performance",
+  #      subtitle = "Residuals") +
+  theme.type +
+  theme(#legend.position = "none",
+        axis.title.y = element_blank(),
+        axis.text.y = element_blank())+
+  color.type
+
+
+
+ggsave(plot =residuals_food,
+       filename = "residuals_food_regression.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       width = 9, height = 5, units = "in", bg = "white",
+       dpi = 300)
+
+residuals_food
+```
+
+```{r}
+residuals <- ggarrange(residuals_oxidative.stress,residuals_food,
+          nrow = 1, labels = c("A", "B"),
+          common.legend = TRUE,
+          legend = "bottom")
+
+ggsave(plot =residuals,
+       filename = "residuals.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       width = 10, height = 5, units = "in", bg = "white",
+       dpi = 300)
+```
+
+
 ###### R-squared
 ```{r}
 tibble(mp_classif_glm_food.dilution$measures$r2, mp_classif_rf_food.dilution$measures$r2, mp_classif_xgbTree_food.dilution$measures$r2#,
        #mp_classif_nnet_food.dilution$measures$r2
        )
 ```
+
+```{r}
+tibble(mp_classif_glm_food.dilution$measures, mp_classif_rf_food.dilution$measures, mp_classif_xgbTree_food.dilution$measures#,
+       #mp_classif_nnet_food.dilution$measures$r2
+       )
+
+mp_classif_glm_food.dilution$measures
+```
+
 
 ##### RoC Curves
 ```{r eval=FALSE, include=FALSE}
@@ -1913,23 +2035,37 @@ t1.ox.preds.j <- rbind(t1.x.e, t1.x.p)
 t1.ox.points.j <- rbind(t1.x.1.e, t1.x.1.p)
 
 #ggplot
-ggplot() +#, aes_string(x = "est")) +
+empirical.vs.predicted.ox <- ggplot() +#, aes_string(x = "est")) +
   geom_xribbon(data = t1.ox.preds.j, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.4) +
   geom_line(data = t1.ox.preds.j, aes_string(x = "est", y = "percent/100", fill = "type")) +
   geom_point(data = t1.ox.points.j, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
   #geom_text_repel(data = ox.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (polymer/shape - agnostic)",
-       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area",
-       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  # labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (polymer/shape - agnostic)",
+  #      subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area",
+  #      x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
   coord_trans(x = "log10") +
+  xlab("Particles/mL") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
   #scale_fill_manual(name = "SSD Data") +
   #fill.type + #user-selected
   #color.type + #user-selected
   theme.type #user theme
+
+empirical.vs.predicted.ox
 ```
+
+###### F Test
+```{r}
+#line
+var.test(t1.x.p$est, t1.x.e$est)
+
+#upper 95% CI
+var.test(t1.x.p$lcl, t1.x.e$ucl)
+```
+
+
 ##### Residuals
 ```{r}
 # give uniq id
@@ -2627,21 +2763,28 @@ food.t1.emp.preds <- as.data.frame(food.t1.emp.ssd[1])
 food.t1.emp.points <- as.data.frame(food.t1.emp.ssd[2])
 
 #ggplot
-ggplot(food.t1.emp.preds, aes_string(x = "est")) +
+empirical.SSD <- ggplot(food.t1.emp.preds, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = food.t1.emp.points,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = food.t1.emp.points,aes(x = Conc, y =frac, 
+                                           #color = Group
+                                           )) + 
+  geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, 
+                                                 #color = Group
+                                                 ), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Polymer and Shape Agnostic)",
-       subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
-       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  # labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Polymer and Shape Agnostic)",
+  #      subtitle = "Tier 1/2, 1 - 83 µm; ERM = Surface Area ",
+  #      x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  xlab("Particles/mL") +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
     fill.type + #user-selected
   color.type + #user-selected
   theme.type #user theme
+
+empirical.SSD
 ```
 ##### Overlay
 ```{r}
@@ -2660,23 +2803,32 @@ t1.food.preds.j <- rbind(t1.x.e, t1.x.p.agnostic)
 t1.food.points.j <- rbind(t1.x.1.e, t1.x.1.p.agnostic)
 
 #ggplot
-ggplot() +#, aes_string(x = "est")) +
+empirical.vs.predicted.food <- ggplot() +#, aes_string(x = "est")) +
   geom_xribbon(data = t1.food.preds.j, aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.4) +
   geom_line(data = t1.food.preds.j, aes_string(x = "est", y = "percent/100", fill = "type")) +
   geom_point(data = t1.food.points.j, aes(x = Conc, y =frac, color = Group), alpha = 0.7) + 
   #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (Polymer and Shape Agnostic)",
-       subtitle = "Tier 1/2, 1 - 5,000 µm; ERM = Volume",
-       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  # labs(title = "Predicted vs. Empirical Microplastics Species Sensitivity Distribution (Polymer and Shape Agnostic)",
+  #      subtitle = "Tier 1/2, 1 - 5,000 µm; ERM = Volume",
+  #      x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
   coord_trans(x = "log10") +
+  xlab("Particles/mL") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
   #scale_fill_manual(name = "SSD Data") +
   #fill.type + #user-selected
   #color.type + #user-selected
-  theme.type #user theme
+  theme.type + #user theme
+  theme(axis.title.y = element_blank())
+
+empirical.vs.predicted.food
 ```
+###### F Test
+```{r}
+var.test(t1.x.p$est, t1.x.e$est)
+```
+
 #### Realistic Environmental Polymers and Shapes
 ```{r}
 #Get organism group for each species
@@ -2710,23 +2862,47 @@ food.t1.ssd.real <- SSD_function_t1(filtered.data = food1.summary.real, hcxlcl =
 food.t1.preds.real <- as.data.frame(food.t1.ssd.real[1])
 food.t1.points.real <- as.data.frame(food.t1.ssd.real[2])
 
+
+
 #ggplot
-ggplot(food.t1.preds.real, aes_string(x = "est")) +
+environmental.realistic.SSD <- ggplot(food.t1.preds.real, aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "blue", fill = "lightblue") +
   geom_line(aes_string(y = "percent/100"), color = "gray") +
-  geom_point(data = food.t1.points.real,aes(x = Conc, y =frac, color = Group)) + 
-  geom_text_repel(data = food.t1.points.real, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
+  geom_point(data = food.t1.points.real,aes(x = Conc, y =frac,
+                                            #color = Group
+                                            )) + 
+  geom_text_repel(data = food.t1.points.real, aes(x = Conc, y = frac, label = Species, 
+                                                  #color = Group
+                                                  ), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Realistic Shapes and Polymers)",
-       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Surface Area ",
-       x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+#  labs(title = "Model-Predicted Microplastics Species Sensitivity Distribution (Realistic Shapes and Polymers)",
+ #      subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Surface Area ",
+  #     x = "particles/L (aligned to 1-5,000 um; translocation limited)") +
+  xlab("Particles/mL") +
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
     fill.type + #user-selected
   color.type + #user-selected
-  theme.type #user theme
+  theme.type + #user theme
+  theme(axis.title.y = element_blank())
+
+environmental.realistic.SSD
 ```
+
+```{r}
+food.dilution.SSDs<- ggarrange(empirical.SSD, environmental.realistic.SSD,
+            labels = c("A", "B"), common.legend = TRUE, legend = "bottom", 
+                        ncol = 2, nrow = 1)
+
+plot(food.dilution.SSDs)
+
+ggsave(filename = "food.dilution.SSDs.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       plot = food.dilution.SSDs, width = 10, height = 5, units = "in",
+       dpi = 300, bg = "white")
+```
+
 
 ##### Comparison of Realistic, empirical, and Agnostic SSDs
 ```{r}
@@ -2993,7 +3169,7 @@ food.preds.all <- rbind(t1.food.preds.j.real.agonstic, food.t1.preds.shape, food
 food.points.all <- rbind(t1.food.points.j.real.agonstic, food.t1.points.shape, food.t1.points.polymer)
 
 #ggplot
-food.preds.all %>% 
+food.compare.polymer.shape <- food.preds.all %>% 
   filter(!type %in% c("Polymer and Shape Agnostic", "Environmentally Realistic")) %>% 
   ggplot() +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100", fill = "type"), alpha = 0.1) +
@@ -3001,10 +3177,11 @@ food.preds.all %>%
   #geom_point(data = t1.food.points.j.real.agonstic, aes(x = Conc, y =frac, color = type), alpha = 0.2) + 
   #geom_text_repel(data = food.t1.emp.points, aes(x = Conc, y = frac, label = Species, color = Group), nudge_x = 0.2, size = 3, segment.alpha = 0.5) + 
   scale_y_continuous("Species Affected (%)", labels = scales::percent, limits = c(0,1)) +
-  labs(title = "Realistic Shapes vs. Polymers vs. Empirical Species Sensitivity Distribution",
-       subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
-       x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
+  # labs(title = "Realistic Shapes vs. Polymers vs. Empirical Species Sensitivity Distribution",
+  #      subtitle = "Tier 1/2, 1 - variable (mouth size) µm; ERM = Volume",
+  #      x = "particles/L (aligned to 1-5,000 um; ingestion limited)") +
   coord_trans(x = "log10") +
+  xlab("Particles/mL") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x, n = 15),
                      labels = trans_format("log10", scales::math_format(10^.x))) + 
   #scale_fill_manual(name = "SSD Data") +
@@ -3012,6 +3189,25 @@ food.preds.all %>%
   #color.type + #user-selected
   theme.type + #user theme
   theme(legend.position = "top")
+
+ggsave(filename = "food.compare.polymer.shape.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       plot = food.compare.polymer.shape, width = 10, height = 5, units = "in",
+       dpi = 300, bg = "white")
+
+food.compare.polymer.shape
+```
+```{r}
+
+final.comparison <- food.preds.all %>% 
+ group_by(type) %>% 
+  summarize(HC5 = est[5],
+            se = se[5]) #%>% 
+  #mutate_if(is.numeric ~ . * 1000)
+
+final.comparison
+
+#write.csv(final.comparison, "Simulated Distributions/BigDataManuscript/")
 ```
 
 ### Tier 3/4
@@ -3333,6 +3529,21 @@ for(row in 1:nrow(org_endpoint_comb)){
   ggsave(plot = plot, filename = paste0(paste0(as.character(unlist(slice)), collapse = "_"), ".png"), path = "Tox Data/figures")
 }  
 ```
+
+### Figures
+```{r}
+ssd_comparison <- ggarrange(empirical.vs.predicted.ox, empirical.vs.predicted.food,
+            labels = c("A", "B"), common.legend = TRUE, legend = "bottom", 
+                        ncol = 2, nrow = 1)
+
+plot(ssd_comparison)
+
+ggsave(filename = "ssd_comparison.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       plot = ssd_comparison, width = 10, height = 5, units = "in",
+       dpi = 300, bg = "white")
+```
+
 
 # SSD
 
