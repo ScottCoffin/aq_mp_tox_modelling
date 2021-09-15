@@ -36,13 +36,16 @@ library(knitr)
 library(ggdark)
 library(viridis)
 library(ggpubr)
+library(ggsci)
 #library(overlapping)
 ```
 
 # Hazard Concentration and Alignment Parameters
 ```{r}
 ###### Choose concentration alignment parameters####
-alpha = 2.07 #personal comm. with Bart suggests 2.07 for marine surface water #(use 1.6 or 2.5)
+alpha.marine = 2.07 #table s4 for marine surface water. length
+alpha.freshwater = 2.64 #table s4 for freshwater surface water. length
+
 x2D_set = 5000 #100 #upper size range (microns)
 x1D_set = 1 #1 #lower size range (microns)
 
@@ -51,10 +54,22 @@ AF = 1#5
 
 ##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 0.5 / AF
-Threshold2 = 8.1 / AF
-Threshold3 = 14.1 / AF
-Threshold4 = 93.8 / AF
+Threshold1 = 0.2 / AF
+Threshold2 = 2.0 / AF
+Threshold3 = 5.4 / AF
+Threshold4 = 33.9 / AF
+
+#Food dilution
+Threshold1_food = 0.2 / AF
+Threshold2_food = 2.0 / AF
+Threshold3_food = 5.4 / AF
+Threshold4_food = 33.9 / AF
+
+#Oxidative stress
+Threshold1_oxidative.stress = 56.6 / AF
+Threshold2_oxidative.stress = 299.4 / AF
+Threshold3_oxidative.stress = 1385 / AF
+Threshold4_oxidative.stress = 5470 / AF
 ```
 
 ```{r Theme, include=FALSE}
@@ -98,7 +113,8 @@ kable(data.frame(
 #print table of sizes
 kable(data.frame(
   Category = c("Concentration Alignment Parameters"),
-  alpha = alpha,
+  "Marine Alpha" = alpha.marine,
+  "Freshwater Alpha" = alpha.freshwater,
   "lower_size_range_microns" = x1D_set,
   "upper_size_range_microns" = x2D_set))
 ```
@@ -112,6 +128,9 @@ Covernton, Garth A., Christopher M. Pearce, Helen J. Gurney-Smith, Stephen G. Ch
 
 ```{r}
 #data import
+#read in tox data
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+
 # Adam et al (2019) data needs correcting
 adam <- read.csv("Concentration Data/Datasets/adam2019.csv", na.strings = "N.A.") %>% 
   rename(Sampling.apparatus = ï..Sampling.apparatus) %>% 
@@ -154,8 +173,10 @@ CFfnx = function(a = alpha, #default alpha from Koelmans et al (2020)
 #verify it works (expected answer is 40.37)
 #CFfnx(x1M = 333, x2M = 5000)
 
-adam <- adam %>% 
-  mutate(CF = CFfnx(x1M = x1M, x2M = x2M)) %>%  #create new column with correction factor 
+adam_new <- adam %>% 
+  mutate(CF = case_when(
+    freshwater_saltwater == "Freshwater" ~ CFfnx(a = alpha.freshwater, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+    freshwater_saltwater == "Saltwater" ~ CFfnx(a = alpha.marine, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set))) %>%  #create new column with correction factor 
   mutate(particles.m3.corrected = CF * Single.Measurement.conc....m3.) %>% #convert single concenetrations
   mutate(particles.m3.corrected_mean = CF * Mean.conc....m3.) %>%  #convert mean concentrations from distributions
   mutate(particles.m3.corrected_median = CF * Median.conc....m3.) %>%   #convert mean concentrations from distributions
@@ -163,22 +184,29 @@ adam <- adam %>%
   mutate(particles.m3.master = ifelse(is.na(particles.single.median.m3), particles.m3.corrected_mean, particles.single.median.m3)) %>% 
   mutate(particle.L.master = particles.m3.master/1000) %>% 
   filter(particle.L.master > 0) %>% 
+  #rename(unaligned.particle.L.master = particles.L.blank.corrected) %>% 
   mutate(System = factor(System)) %>% 
   mutate(source = "Adam")
 
 # correct aquatic concentrations for SF Bay
-sfBay <- sfBay %>% 
-  mutate(CF = CFfnx(x1M = x1M, x2M = x2M)) %>%  #create new column with correction factor 
+sfBay_new <- sfBay %>% 
+  mutate(CF = case_when(
+    System == "Estuary" ~ CFfnx(a = alpha.marine, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+   is.na(System) ~ CFfnx(a = alpha.freshwater, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set))) %>%  #create new column with correction factor 
   mutate(particle.L.master = particles.L.blank.corrected * CF) %>% 
+  rename(unaligned.particle.L.master = particles.L.blank.corrected) %>% 
   mutate(source = "SFEI") %>% 
   mutate(Reference = "Zhu et. al 2021") %>% 
   rename(Sampling.location = general.location) %>% 
   select(-c(particles.L.blank.corrected, particles.kg.blank.corrected, particles.fish.blank.corrected))
 
 # correct aquatic concentrations for Ocean Samples
-covernton <- covernton %>% 
-  mutate(CF = CFfnx(x1M = x1M, x2M = x2M)) %>%  #create new column with correction factor 
+covernton_new <- covernton %>% 
+   mutate(CF = case_when(
+    System == "Ocean" ~ CFfnx(a = alpha.marine, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+   is.na(System) ~ CFfnx(a = alpha.freshwater, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set))) %>% 
   mutate(particle.L.master = conc....m3. * CF) %>% 
+  rename(unaligned.particle.L.master = conc....m3.) %>% 
   mutate(source = "Covernton") %>% 
   rename(Reference = study) %>% 
   rename(Sampling.location = Sampling.Location) %>% 
@@ -193,7 +221,7 @@ covernton <- covernton %>%
 
 ## join datasets ##
 #first ensure that both datasets share all columns
-adam_sub <- adam %>% 
+adam_sub <- adam_new %>% 
   select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, CF,particle.L.master, source, Reference)) %>% 
   mutate(sampleID = NA,
          specific.location = NA,
@@ -204,7 +232,13 @@ adam_sub <- adam %>%
          )
 
 #join data
-globalData <- rbind(adam_sub, sfBay, covernton) %>% 
+globalData <- rbind(adam_sub, sfBay_new, covernton_new) %>% 
+  mutate(compartment = case_when(
+    System == "Lake" ~ "freshwater",
+    System == "River" ~ "freshwater",
+    System == "Estuary" ~ "marine",
+    System == "Ocean" ~ "marine",
+  )) %>% 
   mutate(Conc = particle.L.master) %>% 
   mutate_if(is.character, as.factor)
 ```
@@ -266,7 +300,7 @@ globalData %>%
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   labs(title = "Global Surface Water Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha))+
+       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha.marine))+
   dark_theme_minimal(base_size = 25) +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
@@ -286,21 +320,25 @@ globalData %>%
              fill = source,
             # color = source, 
              binwidth = binwidth)) +
- geom_boxplot() +
-   scale_fill_manual(name = "Location", labels = c("Rivers and Lakes",
-                                                  "Oceans",
-                                                  "San Francisco Bay"
+ geom_boxplot(notch = TRUE) +
+   scale_fill_manual(name = "Location", 
+                     labels = c("Rivers and Lakes",
+                                "Oceans",
+                                  "San Francisco Bay"
                                                   ),
                     values = cal_palette("superbloom3")) + 
                     #values = c("#00798c", "#d1495b")) +
-  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
+  scale_x_continuous(name = "Particles/L (1-5,000 um)",
+                     breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha))+
-  theme.type +
-  theme(#legend.position = "none",
+       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha.marine))+
+  #theme.type +
+  dark_theme_bw() +
+  theme(legend.position = "top",
     plot.title = element_text(hjust = 0.5, size = 20),
+        axis.text.y = element_blank(),
         axis.title = element_text(size = 16),
         axis.text =  element_text(size = 16),
         legend.text = element_text(size =14),
@@ -340,7 +378,7 @@ dfADAM_exceedance %>%
                                "above Threshold 4" = "gray33")) +
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha))+
+       caption = paste("Concentration data from n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha.marine))+
   theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
@@ -415,7 +453,7 @@ dfSFEI_exceedance %>%
                                "above Threshold 4" = "gray33")) +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("n = 107; corrected for size, blanks. Alpha = ",alpha))+
+       caption = paste("n = 107; corrected for size, blanks. Alpha = ",alpha.marine))+
   theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
@@ -519,7 +557,7 @@ globalData %>%
   theme.type +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha))+
+       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha.marine))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 18),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
@@ -552,7 +590,7 @@ globalData %>%
   theme.type +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha))+
+       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha.marine))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 18),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
@@ -582,7 +620,7 @@ globalData %>%
   theme.type +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha))+
+       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha.marine))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 18),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
@@ -590,7 +628,7 @@ globalData %>%
 
 ## Modelling
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 surfaceData <- globalData %>% 
   filter(sample.matrix.specific == "surface water") %>% 
   dplyr::select(Conc) %>% 
@@ -628,7 +666,7 @@ sample_pred_ADAM # The resultant object is a data frame of the estimated concent
 
 ```
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 sample_pred_ADAM %>% mutate_if(is.numeric, ~ signif(., 3)) %>% 
   datatable(rownames = FALSE,
             extensions = c('Buttons', 'Scroller'),
@@ -651,7 +689,7 @@ sampleSSDADAM$frac <- ppoints(samplesADAM$Conc, 0.5)
 ```
 
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 ECDF_model_occurrence_ADAM <- ggplot(sample_pred_ADAM,aes_string(x = "est")) +
   geom_xribbon(aes_string(xmin = "lcl", xmax = "ucl", y = "percent/100"), alpha = 0.2, color = "#81a88d", fill = "#81a88d") +
   geom_line(aes_string(y = "percent/100"), linetype = 'dashed', alpha = 0.8) +
@@ -689,7 +727,7 @@ ECDF_model_occurrence_ADAM_white
 
 ```
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 #dark mode
 ECDF_model_occurrence_ADAM_dark <- ECDF_model_occurrence_ADAM +
   geom_vline(xintercept = Threshold1, linetype = 'dashed', color = 'goldenrod2', size = 1.3) +
@@ -710,7 +748,7 @@ ECDF_model_occurrence_ADAM_dark
 ```
 
 # SFEI Data (uncorrected for blanks, do not use)
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 # SFEI data
 sfei <- read.csv("Concentration data/Datasets/SFEI.csv", na.strings = "N.A.") %>% 
   #filter(Below_LOD == "N") %>% 
@@ -735,7 +773,7 @@ dfsfei <- rbind(sampleSimplesfei)#,food.dilution.simple)
 
 
 ## Exceedances
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 #calculate exceedance
 dfsfei_exceedance <- dfsfei %>% 
   mutate(aboveThreshold = factor(case_when(
@@ -757,7 +795,7 @@ exceedance <- dfsfei_exceedance  %>%
 kable(exceedance)
 ```
 ## Histogram
-```{r eval=FALSE, include=FALSE}
+```{r include=FALSE}
 #generate plot
 dfsfei_exceedance %>% 
   filter(Conc > 0) %>% 
@@ -787,7 +825,7 @@ dfsfei_exceedance %>%
                                "above Threshold 4" = "gray33")) +
   labs(title = "SF Bay and Sanctuary Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from sfeis et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
+       caption = paste("Concentration data from sfeis et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha.marine))+
   theme.type +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
@@ -799,7 +837,7 @@ dfsfei_exceedance %>%
 ```
 ## ECDF
 
-```{r eval=FALSE, include=FALSE}
+```{r eval=TRUE, include=FALSE}
 #ECDF by System
 sfei %>% 
 filter(System != "") %>% 
@@ -824,14 +862,14 @@ filter(System != "") %>%
   theme.type +
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from sfeis et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))+
+       caption = paste("Concentration data from sfeis et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha.marine))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 18),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
 ```
 
 # Compare to all tox data
-## MARINE
+## Prep Data
 ```{r ERM}
 ###define sizes for filtering and alignment##
 # smaller size bin
@@ -842,23 +880,64 @@ upper.tissue.trans.size.um <- 83 #10 #um #set size for filtering data and x2M
 large_tier_lower_size <- 1 #um
 large_tier_upper_size <- 5000 #um
 
-#read in data
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+## parametrization ##
+
+# Define params for correction #
+alpha.marine = 2.07 #table s4 for marine surface water. length
+alpha.freshwater = 2.64 #table s4 for freshwater surface water. length
+# define parameters for power law coefficients
+a.sa.marine = 1.5 #marine surface area power law
+a.sa.freshwater = 2.00 #freshwater surface area power law
+a.v.marine = 1.48 #a_V for marine surface water volume
+a.v.freshwater = 1.68 #a_V for Freshwater surface water volume
+a.m.marine = 1.32 # upper limit fora_m for mass for marine surface water in table S4
+a.m.freshwater = 1.65 # upper limit fora_m for mass for freshwater surface water in table S4 
+a.ssa.marine = 1.98 # A_S1/SA for marine surface water
+a.ssa.freshwater = 2.71 # A_1/SSA for freshwater surface water
+
+#define additional parameters for calculations based on averages in the environment
+R.ave.marine = 0.77 #average width to length ratio for microplastics in marine enviornment
+p.ave.marine = 1.10 #average density in marine surface water
+R.ave.freshwater = 0.67 #average width to length ratio for microplastics in surface freshwater
+p.ave.freshwater = 1.04 #average density in freshwater surface water
 
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
   filter(!environment %in% c("Terrestrial", "Not Reported"),
          org_f != "Bacterium",
          org_f != "Plant",
-         effect.metric != "HONEC",
+         #effect.metric != "HONEC", #need these below
          tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
          risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
          ) %>%  
+   #Remove 26C temperature treatment data from Jaimukar et al. 2018
+  filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
-#### Ecologically Relevant Metric calculations ####
 
+#join alpha values for each data point
+aoc_intermediate_alphas <- aoc_intermediate %>% 
+  #assign values to align marine waters
+  mutate(alpha.marine = alpha.marine) %>% 
+  mutate(a.sa.marine = a.sa.marine) %>% 
+   mutate(a.v.marine =  a.v.marine) %>% 
+   mutate(a.m.marine =  a.m.marine) %>% 
+   mutate(a.ssa.marine = a.ssa.marine) %>% 
+   mutate(R.ave.marine = R.ave.marine) %>% 
+   mutate(p.ave.marine = p.ave.marine) %>% 
+#assign values to align freshwater waters
+  mutate(alpha.freshwater = alpha.freshwater) %>% 
+  mutate(a.sa.freshwater = a.sa.freshwater) %>% 
+   mutate(a.v.freshwater =  a.v.freshwater) %>% 
+   mutate(a.m.freshwater =  a.m.freshwater) %>% 
+   mutate(a.ssa.freshwater = a.ssa.freshwater) %>% 
+   mutate(R.ave.freshwater = R.ave.freshwater) %>% 
+   mutate(p.ave.freshwater = p.ave.freshwater)
+```
 
+### Alignments
+#### Functions
+```{r}
 ###function to derive correction factor (CF) from Koelmans et al (equation 2)
 CFfnx = function(a, #default alpha from Koelmans et al (2020)
                  x2D, #set detault values to convert ranges to (1-5,000 um) #5mm is upper defuault 
@@ -868,17 +947,35 @@ CFfnx = function(a, #default alpha from Koelmans et al (2020)
   return(CF)}
 
 #### equations for mu_x_poly (note that there are three depending on certain alphas for limits of equation)
-###### if alpha does not equal 2 #####
-mux.polyfnx = function(a.x, 
-                       x_UL, 
-                       x_LL){
-  mux.poly = ((1-a.x)/(2-a.x)) * ((x_UL^(2-a.x) - x_LL^(2-a.x))/(x_UL^(1-a.x) - x_LL^(1-a.x)))
-  return(mux.poly)}
+#generalizable if a.x =2 or not
+mux.polyfnx_generalizable = Vectorize(function(a.x, x_UL, x_LL){
+  if(a.x == 1){ # in case a.x = 1
+    mux.poly = (x_UL - x_LL)/(log(x_UL/x_LL))
+    return(mux.poly)}
+  if(a.x == 2){ # in case a.x = 2
+     mux.poly = (log10(x_UL/x_LL))/(x_LL^(-1) - x_UL^-1)
+     return(mux.poly)}
+  else{ #in case alpha is not 2 or 1
+    mux.poly = ((1-a.x)/(2-a.x)) * ((x_UL^(2-a.x) - x_LL^(2-a.x))/(x_UL^(1-a.x) - x_LL^(1-a.x)))
+    return(mux.poly)}
+  },
+  vectorize.args = "a.x") # if Vectorize isn't here, the if else won't work
+## ^^ Note that the above generalizable function doesn't play well with mutate(case_when), likely due to some bug with dplyr. I don't have a solution to this, so a special equation will need to be used when those values are used...
+
+#in case alpha is not 1 or 2
+mux.polyfnx = function(a.x, x_UL, x_LL){
+    mux.poly = ((1-a.x)/(2-a.x)) * ((x_UL^(2-a.x) - x_LL^(2-a.x))/(x_UL^(1-a.x) - x_LL^(1-a.x)))
+    return(mux.poly)}
 
 ##### If alpha does equal 2 #####
-mux.polyfnx.2 = function(x_UL,x_LL){
+mux.polyfnx2 = function(a.x, x_UL,x_LL){
   mux.poly = (log(x_UL/x_LL))/(x_LL^(-1) - x_UL^-1)
   return(mux.poly)}
+
+##### If alpha equals 1 #####
+mux.polyfnx1 = function(a.x, x_UL, x_LL){
+     mux.poly = (x_UL - x_LL)/(log(x_UL/x_LL)) #natural log
+    return(mux.poly)}
 
 ### Calculating max ingestible parameters ###
 ## function to calcualte min and max ingestible surface area ##
@@ -890,15 +987,29 @@ SAfnx = function(a, # a = 0.5 * length
   return(SA)}
 
 ## max ingestible volume ##
+
 volumefnx = function(R, L){
   volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
   return(volume)}
 
-#max ingestible mass
+volumefnx_poly = function(width, length){
+  height = width #0.67 * width
+  volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
+  return(volume)}
+
+#max ingestible mass (only used for mu_mono calculations)
 massfnx = function(R, L, p){
   mass = p * #density (g/cm^3)
     0.111667 * pi * R^2 * L^3 * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
-    1/1e12 * 1e6 #correction factors
+    1/1e12 * 1e6 #correction factor
+  return(mass)}
+
+massfnx_poly = function(width, length, p){
+  height = width #0.67 * width
+  volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
+  mass = p * #density (g/cm^3)
+    volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
+    1/1e12 * 1e6 #correction factor
   return(mass)}
 
 #max ingestible specific surface area
@@ -907,219 +1018,199 @@ SSAfnx = function(sa, #surface area, calcaulted elsewhere
   SSA = sa/m
     return(SSA)}
 
-## parametrization ##
-# Define params for correction #
-alpha = 2.07 #table s4 for marine surface water. length
-# define parameters for power law coefficients
-a.sa = 1.5 #marine surface area power law
-a.v = 1.48 #a_V for marine surface water volume
-a.m = 1.32 # upper limit fora_m for mass for marine surface water in table S4 
-a.ssa = 1.98 # A_SSA for marine surface water
-
-#define additional parameters for calculations based on averages in the environment
-R.ave = 0.77 #average width to length ratio for microplastics in marine enviornment
-p.ave = 1.10 #average density in marine surface water
-
-
-##### SMALL TIER DATA ####
-### Set size limits for tier
-x2D_set = small_tier_upper_size #upper size range (default)
-x1D_set = small_tier_lower_size #lower size range (default)
-x1M_set = small_tier_lower_size #lower size range for measured
-
-# calculate ERM for each species
-aoc_final_small <- aoc_intermediate  %>% 
-   # define upper size length for Translocation
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
-                         max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
-                         max.size.ingest.um  > upper.tissue.trans.size.um ~ upper.tissue.trans.size.um)) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
- # calculate effect threshold for particles
-  mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
-  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
-  mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
-                                 x_UL= x2M, #upper ingestible size limit (width of particle)
-                                 x_LL = x1M_set)) %>% 
-  # polydisperse effect threshold for particles
-  mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
-   #calculate CF_bio for all conversions
-  mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
-                        x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
-                        a = alpha)) %>%  
-  ## Calculate environmentally relevant effect threshold for particles
-  mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
-  
-  #### Surface area ERM ####
-  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  #calculate lower ingestible surface area
-  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
-  #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave *x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
-  #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
-  #calculate polydisperse effect concentration for surface area (particles/mL)
-  mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
-  
-  #### volume ERM ####
-#define mu_x_mono for alignment to ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% 
-  #calculate lower ingestible volume 
-  mutate(x_LL_v = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
-  #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave,
-                            L = x2M)) %>%  
-  # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
-    #calculate environmentally realistic effect threshold
-  mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
-  
-  #### mass ERM ###
-  #define mu_x_mono for alignment to ERM (ug)
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
-  #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
-  #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
-  # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
-  
-  ##### specific surface area ERM ####
-  mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible SSA
-  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
-                           m = x_LL_m) #mass
-         ) %>% 
-  #calculate upper ingestible SSA  (um^2/ug)
-  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
-                           m = x_UL_m) #mass
-         ) %>% 
-  #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
-  #calculate polydisperse effect concentration for specific surface area (particles/mL)
-  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
-
-##### LARGE TIER DATA ####
-### Set size limits for large tier
-x2D_set <- large_tier_upper_size #upper size range (default)
-x1D_set <- large_tier_lower_size #lower size range (default)
-x1M_set <- large_tier_lower_size #lower size range for measured
-# calculate ERM for each species
-
-aoc_final_large <- aoc_intermediate  %>% 
-  # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
-                         max.size.ingest.um > x2D_set ~ x2D_set
-                         )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
- # calculate effect threshold for particles
-  mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
-  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
-  mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
-                                 x_UL= x2M, #upper ingestible size limit
-                                 x_LL = x1M_set)) %>% 
-  # polydisperse effect threshold for particles
-  mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
-   #calculate CF_bio for all conversions
-  mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
-                        x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
-                        a = alpha)) %>%  
-  ## Calculate environmentally relevant effect threshold for particles
-  mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
-  #### Surface area ERM ####
-  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  #calculate lower ingestible surface area
-  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
-  #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave *x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
-  #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
-  #calculate polydisperse effect concentration for surface area (particles/mL)
-  mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
-  
-  #### volume ERM ####
-#define mu_x_mono for alignment to ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% 
-  #calculate lower ingestible volume 
-  mutate(x_LL_v = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
-  #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave,
-                            L = x2M)) %>%  
-  # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
-    #calculate environmentally realistic effect threshold
-  mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
-  
-  #### mass ERM ###
-  #define mu_x_mono for alignment to ERM (ug)
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
-  #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
-  #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
-  # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
-  
-  ##### specific surface area ERM ####
-  mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible SSA
-  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
-                           m = x_LL_m) #mass
-         ) %>% 
-  #calculate upper ingestible SSA  (um^2/ug)
-  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
-                           m = x_UL_m) #mass
-         ) %>% 
-  #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
-  #calculate polydisperse effect concentration for specific surface area (particles/mL)
-  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
+#max ingestible specific surface area
+SSA.inversefnx = function(sa, #surface area, calcaulted elsewhere
+                  m){ #mass, calculated elsewhere
+  SSA.inverse = m / sa
+    return(SSA.inverse)}
 ```
 
+#### Calculate
+
+Here we will calculate two aligned exposure concentrations: surface area (1 - 83 um), and volume (1 - 5,000 um). For both, the upper aligned value is the smaller of either the nominal size listed or the mouth size of the species.
+
+```{r}
+# calculate ERM for each species
+aoc_final <- aoc_intermediate_alphas  %>% 
+   #### TISSUE TRANSLOCATION ####
+# define upper size length for Translocation 
+#set to 83um for upper limit or max size ingest, whichever is smaller
+mutate(x2M_trans = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
+                             max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
+                             max.size.ingest.um  > upper.tissue.trans.size.um ~ upper.tissue.trans.size.um)) %>% 
+###### ``````````````````CONSTANTS (not environmnet specific)`````````````` ####
+ mutate(EC_mono_p.particles.mL_trans = dose.particles.mL.master) %>% 
+  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
+   #calculate lower translocatable surface area
+  mutate(x_LL_sa_trans = SAfnx(a = 0.5 * x1D_set, #length
+                               b = 0.5 * x1D_set, #0.5 * R.ave * x1D_set, #width
+                               c = 0.5 * x1D_set  #0.5 * R.ave * 0.67 * x1D_set #height
+                               )) %>%  
+  #calculate upper translocatable surface area
+  mutate(x_UL_sa_trans = SAfnx(a = 0.5 * x2M_trans, 
+                               b = 0.5 * x2M_trans, #width #0.5 * R.ave * x2M, 
+                               c = 0.5 * x2M_trans #heigth #0.5 * R.ave * 0.67 * x2M
+                               )) %>%  
+    ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.sa.mono = case_when(
+    polydispersity == "monodisperse" ~ particle.surface.area.um2, # use reported surface area in monodisperse
+    polydispersity == "polydisperse" ~  mux.polyfnx(a.x = a.sa.marine, # same alignment in main threshold paper 
+                                  x_LL = particle.surface.area.um2.min,
+                                  x_UL = particle.surface.area.um2.max))) %>% 
+  
+   # define upper size length for ingestion 
+  mutate(x2M_ingest = case_when(is.na(max.size.ingest.um) ~ x2D_set, 
+                         max.size.ingest.um < x2D_set ~ max.size.ingest.um,
+                         max.size.ingest.um > x2D_set ~ x2D_set
+                         )) %>%  #set to 5,000 as upper limit or max size ingest, whichever is smaller
+ # calculate effect threshold for particles
+  mutate(EC_mono_p.particles.mL_ingest = dose.particles.mL.master) %>% 
+  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
+   #calculate lower ingestible volume 
+  mutate(x_LL_v_ingest = volumefnx_poly(length = x1D_set,
+                                 width = x1D_set)) %>% 
+  #calculate maximum ingestible volume 
+  mutate(x_UL_v_ingest = volumefnx_poly(length = x2M_ingest, # length-limited
+                                 #x2D_set, #upper definiton (accouunts for fibers) CONSERVATIVE
+                                 width = x2M_ingest)) %>% #ingestion-limited
+  
+   ##--- laboratory calculations ---###
+  ## define mu_x_mono OR mu_x_poly (lab) for alignment to ERM  #
+  #(note that if mixed particles were used, a different equation must be used)
+  mutate(mu.v.mono = case_when(
+    polydispersity == "monodisperse" ~ particle.volume.um3, # use reported volume in monodisperse
+    polydispersity == "polydisperse" ~ mux.polyfnx(a.x = a.v.marine, 
+                                                   x_LL = particle.volume.um3.min,
+                                                   x_UL = particle.volume.um3.max))) %>%
+    
+  #####------------------------------ Freshwater ---------------------------------####
+ # calculate effect threshold for particles
+  mutate(mu.p.poly_trans_freshwater = mux.polyfnx(a.x = alpha.freshwater, #alpha for particles
+                                 x_UL= x2M_trans, #upper ingestible size limit (width of particle)
+                                 x_LL = x1D_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL_trans_freshwater = (EC_mono_p.particles.mL_trans * mu.p.mono)/mu.p.poly_trans_freshwater) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio_trans_freshwater = CFfnx(x1M = x1D_set,#lower size bin
+                        x2M = x2M_trans, #upper translocatable
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default
+                        a = alpha.freshwater)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL_trans_freshwater = EC_poly_p.particles.mL_trans_freshwater * CF_bio_trans_freshwater) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### Surface area ERM ####
+##--- environmental calculations ---###
+  #calculate mu_x_poly (env) for surface area
+  mutate(mu.sa.poly_trans_freshwater = mux.polyfnx(a.sa.freshwater, x_UL_sa_trans, x_LL_sa_trans)) %>% 
+   #calculate polydisperse effect concentration for surface area (particles/mL)
+  mutate(EC_poly_sa.particles.mL_trans_freshwater = (EC_mono_p.particles.mL_trans * mu.sa.mono)/mu.sa.poly_trans_freshwater) %>%  
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_sa.particles.mL_trans_freshwater = EC_poly_sa.particles.mL_trans_freshwater * CF_bio_trans_freshwater) %>% 
+  
+  ##### FOOD DILUTION ####
+ 
+  mutate(mu.p.poly_ingest_freshwater = mux.polyfnx(a.x = alpha.freshwater, #alpha for particles
+                                 x_UL= x2M_ingest, #upper ingestible size limit
+                                 x_LL = x1D_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL_ingest_freshwater = (EC_mono_p.particles.mL_ingest * mu.p.mono)/mu.p.poly_ingest_freshwater) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio_ingest_freshwater = CFfnx(x1M = x1D_set,#lower size bin
+                        x2M = x2M_ingest, #upper ingestible length
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default upper size range
+                        a = alpha.freshwater)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL_ingest_freshwater = EC_poly_p.particles.mL_ingest_freshwater * CF_bio_ingest_freshwater) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### volume ERM ####
+##--- environmental calculations ---###
+   # calculate mu.v.poly
+  mutate(mu.v.poly_ingest_freshwater = mux.polyfnx(a.v.freshwater, x_UL_v_ingest, x_LL_v_ingest)) %>% 
+  
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_v.particles.mL_ingest_freshwater = (EC_mono_p.particles.mL_ingest * mu.v.mono)/mu.v.poly_ingest_freshwater) %>%  
+    #calculate environmentally realistic effect threshold
+  mutate(EC_env_v.particles.mL_ingest_freshwater = EC_poly_v.particles.mL_ingest_freshwater * CF_bio_ingest_freshwater) %>% 
+  
+   #####------------------------------ marine ---------------------------------####
+ # calculate effect threshold for particles
+  mutate(mu.p.poly_trans_marine = mux.polyfnx(a.x = alpha.marine, #alpha for particles
+                                 x_UL= x2M_trans, #upper ingestible size limit (width of particle)
+                                 x_LL = x1D_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL_trans_marine = (EC_mono_p.particles.mL_trans * mu.p.mono)/mu.p.poly_trans_marine) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio_trans_marine = CFfnx(x1M = x1D_set,#lower size bin
+                        x2M = x2M_trans, #upper translocatable
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default
+                        a = alpha.marine)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL_trans_marine = EC_poly_p.particles.mL_trans_marine * CF_bio_trans_marine) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### Surface area ERM ####
+##--- environmental calculations ---###
+  #calculate mu_x_poly (env) for surface area
+  mutate(mu.sa.poly_trans_marine = mux.polyfnx(a.sa.marine, x_UL_sa_trans, x_LL_sa_trans)) %>% 
+   #calculate polydisperse effect concentration for surface area (particles/mL)
+  mutate(EC_poly_sa.particles.mL_trans_marine = (EC_mono_p.particles.mL_trans * mu.sa.mono)/mu.sa.poly_trans_marine) %>%  
+  #calculate environmentally realistic effect threshold
+  mutate(EC_env_sa.particles.mL_trans_marine = EC_poly_sa.particles.mL_trans_marine * CF_bio_trans_marine) %>% 
+  
+  ##### FOOD DILUTION ####
+ 
+  mutate(mu.p.poly_ingest_marine = mux.polyfnx(a.x = alpha.marine, #alpha for particles
+                                 x_UL= x2M_ingest, #upper ingestible size limit
+                                 x_LL = x1D_set)) %>% 
+  # polydisperse effect threshold for particles
+  mutate(EC_poly_p.particles.mL_ingest_marine = (EC_mono_p.particles.mL_ingest * mu.p.mono)/mu.p.poly_ingest_marine) %>% 
+   #calculate CF_bio for all conversions
+  mutate(CF_bio_ingest_marine = CFfnx(x1M = x1D_set,#lower size bin
+                        x2M = x2M_ingest, #upper ingestible length
+                        x1D = x1D_set, #default
+                        x2D = x2D_set,  #default upper size range
+                        a = alpha.marine)) %>%  
+  ## Calculate environmentally relevant effect threshold for particles
+  mutate(EC_env_p.particles.mL_ingest_marine = EC_poly_p.particles.mL_ingest_marine * CF_bio_ingest_marine) %>%  #aligned particle effect concentraiton (1-5000 um)
+  
+  #### volume ERM ####
+##--- environmental calculations ---###
+   # calculate mu.v.poly
+  mutate(mu.v.poly_ingest_marine = mux.polyfnx(a.v.marine, x_UL_v_ingest, x_LL_v_ingest)) %>% 
+  
+  #calculate polydisperse effect concentration for volume (particles/mL)
+  mutate(EC_poly_v.particles.mL_ingest_marine = (EC_mono_p.particles.mL_ingest * mu.v.mono)/mu.v.poly_ingest_marine) %>%  
+    #calculate environmentally realistic effect threshold
+  mutate(EC_env_v.particles.mL_ingest_marine = EC_poly_v.particles.mL_ingest_marine * CF_bio_ingest_marine) %>% 
+  
+   ###### CLEANUP #####
+  mutate(particles.mL.ox.stress_freshwater = EC_env_sa.particles.mL_trans_freshwater,
+         particles.mL.food.dilution_freshwater = EC_env_v.particles.mL_ingest_freshwater,
+         particles.mL.ox.stress_marine = EC_env_sa.particles.mL_trans_marine,
+         particles.mL.food.dilution_marine = EC_env_v.particles.mL_ingest_marine)
+```
+
+
+
+## Marine
 ### Plot Aligned Data
 Combine tox dataset with occurence data
 ```{r}
-volume <- aoc_final_large %>% 
+volume <- aoc_final %>% 
   # tier 3/4 filters
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
-  filter(Group != "Algae") %>% 
+  filter(Group != "Algae",
+         effect.metric == "NOEC") %>% 
   filter(environment == "Marine") %>% 
-         mutate(Conc = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(Conc = particles.mL.food.dilution_marine# / (af.time * af.noec)
+                ) %>%  
          drop_na(Conc) %>% 
-         mutate(Conc = Conc * 1000) %>% 
+         mutate(Conc = Conc * 1000) %>% #particles/mL to particles/L
   filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 
   mutate(tox.occurrence = "tox") %>% 
   dplyr::select(Conc, tox.occurrence)
@@ -1143,9 +1234,9 @@ aligned.tox.occurence.plot <- tox.occurence %>%
                              labels = comma_signif) +
   ylab("Normalized Abundance") +
  # annotation_logticks(sides = "b")+ #log scale rick marks on bottom
-  #labs(#title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
-       #subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
-     #  caption = paste("(26 occurence studies, 37 tox studies, Alpha = ",alpha,")"))+
+  labs(title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
+       subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
+       caption = paste("(26 occurence studies, 37 tox studies, Alpha = ",alpha.marine,")"))+
   #dark_theme_minimal(base_size = 25) +
  theme_bw(base_size = 15) +
   theme(#legend.position = "none",
@@ -1162,29 +1253,34 @@ aligned.tox.occurence.plot
 ### Plot Un-aligned Data
 Combine tox dataset with occurence data
 ```{r}
-unaligned.tox <- aoc_final_large %>% 
+unaligned.tox <- aoc_final %>% 
   # tier 3/4 filters
   filter(risk.13 != 1,
-         bio_f %in% c("Organism", "Population")) %>% 
-         mutate(Conc = dose.particles.mL.master / (af.time * af.noec)) %>%  
+         bio_f %in% c("Organism", "Population"),
+         Group != "Algae",
+         environment == "Marine",
+         between(size.length.um.used.for.conversions, 1, 5000),
+         effect.metric == "NOEC"
+         )  %>%
+         mutate(Conc = dose.particles.mL.master #raw NOECs without alignments
+                ) %>%  
          drop_na(Conc) %>% 
          mutate(Conc = Conc * 1000) %>% 
-  filter(Group != "Algae") %>% 
-  filter(environment == "Marine") %>% 
-  filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 
-  mutate(tox.occurrence = "tox") %>% 
-  dplyr::select(Conc, tox.occurrence)
+  mutate(tox.occurrence = "tox")
+ 
 
 # revert aligned occurence data to unaligned
 unaligned.global <- globalData %>% 
-  filter(System %in% c("Ocean", "Estuary")) %>% 
+  filter(compartment == "marine") %>% 
   mutate(unaligned = particle.L.master / CF) %>%
   dplyr::select(unaligned) %>% 
   rename(Conc = unaligned) %>% 
   mutate(tox.occurrence = "occurence")
 
 
-unaligned.tox.occurence <- rbind.data.frame(unaligned.tox, unaligned.global)
+unaligned.tox.occurence <- rbind.data.frame(unaligned.tox %>%  
+                                              dplyr::select(Conc, tox.occurrence),
+                                            unaligned.global)
 
 
 ####define overlap ###
@@ -1221,6 +1317,9 @@ occurrence.unaligned <- unaligned.tox.occurence %>%
 # 
 # curve_intersect(occurrence.unaligned.df, tox.unaligned.df, empirical = TRUE)
 ```
+
+
+
 
 ```{r}
 ##### Genereate PLot###
@@ -1353,7 +1452,7 @@ ggplot(munaligned.tox.occurence) +
 # Tox Sizes vs. Monitoring Cut-offs
 ## Histograms
 ```{r}
-unaligned.tox.2 <- aoc_final_large %>% 
+unaligned.tox.2 <- aoc_final %>% 
   # tier 3/4 filters
   #filter(risk.13 != 1,
          #bio_f %in% c("Organism", "Population")) %>% 
@@ -1469,267 +1568,46 @@ globalData %>%
   
 ```
 ```{r}
-globalData %>% 
+locations.thresholds <- globalData %>% 
   filter(System == "Ocean") %>% 
   mutate(Sampling.location = fct_reorder(Sampling.location, Conc, .fun = median)) %>% 
-  ggplot(aes(x = Conc, y = Sampling.location, color = Sampling.location)) +
-   geom_vline(xintercept = Threshold1, linetype = 'dashed', color = "#00798c", size = 1.3) +
-  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
-  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
-  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	"#d1495b", size = 1.3) +
-  geom_text(label = "Tier 1", color = "#00798c" , x = Threshold1, y = 14, size = 5)+
-  geom_text(label = "Tier 2", color = "#66a182" , x = Threshold2, y = 13.5, size = 5)+
-  geom_text(label = "Tier 3", color = '#edae49', x = Threshold3, y = 13, size = 5)+
-  geom_text(label = "Tier 4", color = "#d1495b", x = Threshold4, y = 12.5, size = 5)+
+  ggplot(aes(x = Conc, y = Sampling.location#,
+             #color = Sampling.location
+             )) +
   geom_boxplot() +
   geom_point() +
+  geom_vline(xintercept = Threshold1_food, linetype = 'dashed', color = "#00798c", size = 1.3) +
+  geom_vline(xintercept = Threshold4_food, linetype = 'dashed', color = "#66a182" , size = 1.3) +
+  geom_vline(xintercept = Threshold1_oxidative.stress, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
+  geom_vline(xintercept = Threshold4_oxidative.stress, linetype = 'dashed', color = 	"#d1495b", size = 1.3) +
+  geom_text(label = "Tier 1 Food Dilution", color = "#00798c" , x = Threshold1_food, y = 14, size = 5)+
+  geom_text(label = "Tier 4 Food Dilution", color = "#66a182" , x = Threshold4_food, y = 13.5, size = 5)+
+  geom_text(label = "Tier 1 Oxidative Stress", color = '#edae49', x = Threshold1_oxidative.stress, y = 13, size = 5)+
+  geom_text(label = "Tier 4 Oxidative Stress", color = "#d1495b", x = Threshold4_oxidative.stress, y = 12.5, size = 5)+
   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   theme.type +
   dark_theme_bw()
+
+locations.thresholds
 ```
 
 
 ## FRESHWATER
-```{r ERM}
-###define sizes for filtering and alignment##
-# smaller size bin
-small_tier_lower_size <- 1 #um
-small_tier_upper_size <- 5000 #um #size to align to
-upper.tissue.trans.size.um <- 83 #10 #um #set size for filtering data and x2M
-# larger size bin
-large_tier_lower_size <- 1 #um
-large_tier_upper_size <- 5000 #um
 
-#read in data
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
-
-## First filter data with global filters
-aoc_intermediate <- aoc_z %>% 
-  #filter(!environment %in% c("Terrestrial", "Not Reported"),
-  filter(environment == "Freshwater",
-         org_f != "Bacterium",
-         org_f != "Plant",
-         effect.metric != "HONEC",
-         tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
-         risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
-         ) %>%  
-  mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) #makes it less confusing below
-#### Ecologically Relevant Metric calculations ####
-## parametrization ##
-# Define params for correction #
-
-alpha = 2.64 #table s4 for freshwater surface water. length
-# define parameters for power law coefficients
-a.sa = 2.00 #freshwater surface area power law
-a.v = 1.68 #a_V for Freshwater surface water volume
-a.m = 1.65 # upper limit fora_m for mass for freshwater surface water in table S4 
-a.ssa = 2.71 # A_SSA for freshwater surface water
-
-#define additional parameters for calculations based on averages in the environment
-R.ave = 0.67 #average width to length ratio for microplastics in surface freshwater
-p.ave = 1.04 #average density in freshwater surface water
-
-##### SMALL TIER DATA ####
-### Set size limits for tier
-x2D_set = small_tier_upper_size #upper size range (default)
-x1D_set = small_tier_lower_size #lower size range (default)
-x1M_set = small_tier_lower_size #lower size range for measured
-
-# calculate ERM for each species
-aoc_final_small <- aoc_intermediate  %>% 
-   # define upper size length for Translocation
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size.um, 
-                         max.size.ingest.um  < upper.tissue.trans.size.um ~  max.size.ingest.um,
-                         max.size.ingest.um  > upper.tissue.trans.size.um ~ upper.tissue.trans.size.um)) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
- # calculate effect threshold for particles
-  mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
-  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
-  mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
-                                 x_UL= x2M, #upper ingestible size limit (width of particle)
-                                 x_LL = x1M_set)) %>% 
-  # polydisperse effect threshold for particles
-  mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
-   #calculate CF_bio for all conversions
-  mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
-                        x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
-                        a = alpha)) %>%  
-  ## Calculate environmentally relevant effect threshold for particles
-  mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
-  
-  #### Surface area ERM ####
-  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  #calculate lower ingestible surface area
-  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
-  #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave *x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
-  #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
-  #calculate polydisperse effect concentration for surface area (particles/mL)
-  mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
-  
-  #### volume ERM ####
-#define mu_x_mono for alignment to ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% 
-  #calculate lower ingestible volume 
-  mutate(x_LL_v = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
-  #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave,
-                            L = x2M)) %>%  
-  # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
-    #calculate environmentally realistic effect threshold
-  mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
-  
-  #### mass ERM ###
-  #define mu_x_mono for alignment to ERM (ug)
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
-  #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
-  #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
-  # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
-  
-  ##### specific surface area ERM ####
-  mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible SSA
-  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
-                           m = x_LL_m) #mass
-         ) %>% 
-  #calculate upper ingestible SSA  (um^2/ug)
-  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
-                           m = x_UL_m) #mass
-         ) %>% 
-  #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
-  #calculate polydisperse effect concentration for specific surface area (particles/mL)
-  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
-
-##### LARGE TIER DATA ####
-### Set size limits for large tier
-x2D_set <- large_tier_upper_size #upper size range (default)
-x1D_set <- large_tier_lower_size #lower size range (default)
-x1M_set <- large_tier_lower_size #lower size range for measured
-# calculate ERM for each species
-
-aoc_final_large <- aoc_intermediate  %>% 
-  # define upper size WIDTH for ingestion (based on average width:length ratio)
-  mutate(x2M = case_when(is.na(max.size.ingest.um) ~ (1/R.ave) * x2D_set, #all calculations below occur for length. Width is R.ave * length, so correcting here makes width the max size ingest below
-                         (max.size.ingest.um * (1/R.ave)) < x2D_set ~ ((1/R.ave) * max.size.ingest.um),
-                         (max.size.ingest.um * (1/R.ave)) > x2D_set ~ (x2D_set * (1/R.ave))
-                         )) %>%  #set to 10um for upper limit or max size ingest, whichever is smaller
- # calculate effect threshold for particles
-  mutate(EC_mono_p.particles.mL = dose.particles.mL.master) %>% 
-  mutate(mu.p.mono = 1) %>% #mu_x_mono is always 1 for particles to particles
-  mutate(mu.p.poly = mux.polyfnx(a.x = alpha, #alpha for particles
-                                 x_UL= x2M, #upper ingestible size limit
-                                 x_LL = x1M_set)) %>% 
-  # polydisperse effect threshold for particles
-  mutate(EC_poly_p.particles.mL = (EC_mono_p.particles.mL * mu.p.mono)/mu.p.poly) %>% 
-   #calculate CF_bio for all conversions
-  mutate(CF_bio = CFfnx(x1M = x1M_set,#lower size bin
-                        x2M = x2M, #upper ingestible
-                        x1D = x1D_set, #default
-                        x2D = x2D_set,  #default
-                        a = alpha)) %>%  
-  ## Calculate environmentally relevant effect threshold for particles
-  mutate(EC_env_p.particles.mL = EC_poly_p.particles.mL * CF_bio) %>%  #aligned particle effect concentraiton (1-5000 um)
-  #### Surface area ERM ####
-  mutate(mu.sa.mono = particle.surface.area.um2) %>% #define mu_x_mono for alignment to ERM
-  #calculate lower ingestible surface area
-  mutate(x_LL_sa = SAfnx(a = 0.5 * x1D_set, 
-                         b = 0.5 * R.ave * x1D_set, 
-                         c = 0.5 * R.ave * 0.67 * x1D_set)) %>%  
-  #calculate upper ingestible surface area
-  mutate(x_UL_sa = SAfnx(a = 0.5 * x2M, 
-                         b = 0.5 * R.ave *x2M, 
-                         c = 0.5 * R.ave * 0.67 * x2M)) %>%  
-  #calculate mu_x_poly for surface area
-  mutate(mu.sa.poly = if(a.sa == 2){mux.polyfnx.2(x_UL_sa, x_LL_sa)} else if (a.sa != 2){mux.polyfnx(a.sa, x_UL_sa, x_LL_sa)}) %>% 
-  #calculate polydisperse effect concentration for surface area (particles/mL)
-  mutate(EC_poly_sa.particles.mL = (EC_mono_p.particles.mL * mu.sa.mono)/mu.sa.poly) %>%  
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_sa.particles.mL = EC_poly_sa.particles.mL * CF_bio) %>% 
-  
-  #### volume ERM ####
-#define mu_x_mono for alignment to ERM
-  mutate(mu.v.mono = particle.volume.um3) %>% 
-  #calculate lower ingestible volume 
-  mutate(x_LL_v = volumefnx(R = R.ave,
-                            L = x1D_set)) %>%
-  #calculate maximum ingestible volume 
-  mutate(x_UL_v = volumefnx(R = R.ave,
-                            L = x2M)) %>%  
-  # calculate mu.v.poly
-  mutate(mu.v.poly = if(a.v == 2){mux.polyfnx.2(x_UL_v, x_LL_v)} else if (a.v != 2){mux.polyfnx(a.v, x_UL_v, x_LL_v)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_v.particles.mL = (EC_mono_p.particles.mL * mu.v.mono)/mu.v.poly) %>%  
-    #calculate environmentally realistic effect threshold
-  mutate(EC_env_v.particles.mL = EC_poly_v.particles.mL * CF_bio) %>% 
-  
-  #### mass ERM ###
-  #define mu_x_mono for alignment to ERM (ug)
-  mutate(mu.m.mono = mass.per.particle.mg * 1000) %>% 
-  #calculate lower ingestible mass
-  mutate(x_LL_m = massfnx(R = R.ave, L = x1D_set, p = p.ave)) %>%  
-  #calculate upper ingestible mass
-  mutate(x_UL_m = massfnx(R = R.ave, L = x2M, p = p.ave)) %>%  
-  # calculate mu.m.poly
-  mutate(mu.m.poly = if(a.m == 2){mux.polyfnx.2(x_UL_m, x_LL_m)} else if (a.m != 2){mux.polyfnx(a.m, x_UL_m, x_LL_m)}) %>% 
-  #calculate polydisperse effect concentration for volume (particles/mL)
-  mutate(EC_poly_m.particles.mL = (EC_env_p.particles.mL * mu.m.mono)/mu.m.poly) %>%
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_m.particles.mL = EC_poly_m.particles.mL * CF_bio) %>% 
-  
-  ##### specific surface area ERM ####
-  mutate(mu.ssa.mono = mu.sa.mono/mu.m.mono) %>% #define mu_x_mono for alignment to ERM (um^2/ug)
-  #calculate lower ingestible SSA
-  mutate(x_LL_ssa = SSAfnx(sa = x_LL_sa, #surface area
-                           m = x_LL_m) #mass
-         ) %>% 
-  #calculate upper ingestible SSA  (um^2/ug)
-  mutate(x_UL_ssa = SSAfnx(sa = x_UL_sa, #surface area
-                           m = x_UL_m) #mass
-         ) %>% 
-  #calculate mu_x_poly for specific surface area
-  mutate(mu.ssa.poly = if(a.ssa == 2){mux.polyfnx.2(x_UL_ssa, x_LL_ssa)} else if (a.ssa != 2){mux.polyfnx(a.ssa, x_UL_ssa, x_LL_ssa)}) %>% 
-  #calculate polydisperse effect concentration for specific surface area (particles/mL)
-  mutate(EC_poly_ssa.particles.mL = (EC_env_p.particles.mL * mu.ssa.mono)/mu.ssa.poly) %>% 
-  #calculate environmentally realistic effect threshold
-  mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
-```
 
 ### Plot Aligned Data
 Combine tox dataset with occurence data
 ```{r}
-volume <- aoc_final_large %>% 
+volume <- aoc_final %>% 
   # tier 3/4 filters
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
   filter(Group != "Algae") %>% 
   filter(environment == "Freshwater") %>% 
-         mutate(Conc = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         mutate(Conc = particles.mL.food.dilution_freshwater / (af.time * af.noec)) %>%  
          drop_na(Conc) %>% 
          mutate(Conc = Conc * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 

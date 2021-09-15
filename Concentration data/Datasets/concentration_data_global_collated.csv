@@ -1,0 +1,63 @@
+study,doi,Sampling Location,System,Sampling apparatus,Min particle size um,Max particle size um,conc (#/m3),sample.type,depth,depth category,volume
+Ivar do Sul et al. 2013,,Equatorial Atlantic,Ocean,Plankton net,300,5000,0.01,Tow,0 - 1 m,Surface,
+Lima et al. 2014,,South-west Atlantic,Ocean,Plankton net,300,5000,0.0217,Tow,0 - 200 m,Epipelagic,350
+Ivar do Sul et al. 2014,,South-west Atlantic,Ocean,Manta-trawl,300,5000,0.0275,Tow,0 - 1 m,Surface,938
+Sadri et al. 2014,,North-east Atlantic,Ocean,Manta-net,300,5000,0.028,Tow,0 - 1 m,Surface,278
+Isobe et al. 2017,,Southern Ocean,Ocean,Neuston net,350,5000,0.031,Tow,0 - 1 m,Surface,415800
+Cai et al. 2018,,North-west Pacific,Ocean,Bongo net,333,5000,0.045,Tow,0 - 200 m,Epipelagic,5789
+Tamminga et al. 2018,,North-east Atlantic,Ocean,Manta trawl,300,5000,0.07,Tow,0 - 1 m,Surface,156400
+Chae et al. 2015,,North-west Pacific,Ocean,Plankton net,330,5000,0.08,Tow,0 - 1 m,Surface,100
+Kooi et al. 2016,,North Atlantic,Ocean,Multi-level trawl,500,5000,0.11,Tow,0 - 200 m,Epipelagic,
+Collignon et al. 2012,,Mediterranean,Ocean,Manta-trawl,333,5000,0.116,Tow,0 - 1 m,Surface,
+Maes et al. 2017,,North-east Atlantic,Ocean,Manta-trawl,333,5000,0.14,Tow,0 - 1 m,Surface,
+de Lucia et al. 2014,,Mediterranean,Ocean,Manta-trawl,500,5000,0.15,Tow,0 - 1 m,Surface,614000
+Zhao et al. 2014,,North-west Pacific,Ocean,Neuston net,333,5000,0.167,Tow,0 - 1 m,Surface,158000
+Cincinelli et al. 2017,,Southern Ocean,Ocean,Pump,1,5000,0.17,Pump,0 - 200 m,Epipelagic,
+Panti et al. 2015,,Mediterranean,Ocean,Plankton net,200,5000,0.17,Tow,0 - 1 m,Surface,945
+Setälä et al. 2016,,North-east Atlantic,Ocean,Manta-trawl,333,5000,0.2,Tow,0 - 1 m,Surface,2000
+Frère et al. 2017,,North-east Atlantic,Ocean,Manta-trawl,335,5000,0.24,Tow,0 - 1 m,Surface,
+Cole et al. 2014,,North-east Atlantic,Ocean,Plankton net,200,5000,0.27,Tow,0 - 1 m,Surface,69100
+Wang et al. 2018,,North-west Atlantic,Ocean,Neuston net,333,5000,0.33,Tow,0 - 1 m,Surface,
+Zhang et al. 2017,,North-west Pacific,Ocean,Manta-trawl,330,5000,0.33,Tow,0 - 1 m,Surface,
+Lusher et al. 2015,,Arctic Ocean,Ocean,Manta-trawl,333,5000,0.34,Tow,0 - 1 m,Surface,
+Setälä et al. 2016,,North-east Atlantic,Ocean,Pump,300,5000,0.6,Pump,0 - 1 m,Surface,2000
+Kooi et al. 2016,,North Atlantic,Ocean,Multi-level trawl,500,5000,0.68,Tow,0 - 1 m,Surface,
+Castillo et al. 2016,,Persian Gulf,Ocean,Plankton tow,120,5000,0.71,Tow,0 - 1 m,Surface,3499
+Kanhai et al. 2018,,Arctic Ocean,Ocean,Pump,250,5000,0.97,Pump,0 - 200 m,Epipelagic,2000
+Kanhai et al. 2017,,South-east Atlantic,Ocean,Pump,250,5000,1.15,Pump,0 - 200 m,Epipelagic,2000
+Setälä et al. 2016,,North-east Atlantic,Ocean,Pump,100,5000,1.3,Pump,0 - 1 m,Surface,2000
+Gewert et al. 2017,,North-east Atlantic,Ocean,Manta-trawl,335,5000,1.37,Tow,0 - 1 m,Surface,
+Amelineau et al. 2016,,Arctic Ocean,Ocean,Vertical tow,500,5000,1.69,Tow,0 - 200 m,Epipelagic,
+Lusher et al. 2014,,North-east Atlantic,Ocean,Pump,250,5000,2.46,Pump,0 - 200 m,Epipelagic,2000
+Lusher et al. 2015,,Arctic Ocean,Ocean,Pump,250,5000,2.68,Pump,0 - 200 m,Epipelagic,2000
+Isobe et al. 2016,,North-west Pacific,Ocean,Neuston net,350,5000,3.7,Tow,0 - 1 m,Surface,
+Kang et al. 2015,,North-east Pacific,Ocean,Manta-trawl,330,5000,3.71,Tow,0 - 1 m,Surface,
+Kang et al. 2015,,North-east Pacific,Ocean,Manta-trawl,330,5000,3.72,Tow,0 - 1 m,Surface,
+Barrows et al. 2017,,North-west Atlantic,Ocean,Neuston net,335,5000,5,Tow,0 - 1 m,Surface,791730
+Di Mauro et al. 2017,,North-west Atlantic,Ocean,Bongo net,335,5000,6,Tow,0 - 200 m,Epipelagic,45975
+Gajšt et al. 2016,,Mediterranean,Ocean,Neuston net,300,5000,6.29,Tow,0 - 1 m,Surface,
+Chae et al. 2015,,North-west Pacific,Ocean,Hand-net,20,5000,6.92,Dip net,0 - 1 m,Surface,100
+van der Hal et al. 2016,,Mediterranean,Ocean,Manta-trawl,333,5000,7.68,Tow,0 - 1 m,Surface,111
+Di Mauro et al. 2017,,North-west Atlantic,Ocean,Neuston net,335,5000,11.1,Tow,0 - 1 m,Surface,23650
+Castro et al. 2016,,South-west Atlantic,Ocean,Plankton tow,150,5000,16.4,Tow,0 - 1 m,Surface,
+Kanhai et al. 2018,,Arctic Ocean,Ocean,Niskin bottle,250,5000,46.5,Discrete,,Full water column,
+Tsang et al. 2016,,North-west Pacific,Ocean,Plankton tow,153,5000,46.62,Tow,0 - 1 m,Surface,
+Courtene-Jones et al. 2017,,North-east Atlantic,Ocean,Niskin bottles and filter,80,5000,70.8,Discrete,,Abyssalpelagic,10
+Tang et al. 2018,,North-west Atlantic,Ocean,Manta trawl,330,5000,514.3,Tow,0 - 1 m,Surface,309
+Zhu et al. 2018,,North-west Atlantic,Ocean,Niskin bottle,30,5000,545,Discrete,0 - 1 m,Surface,25
+Kang et al. 2015,,North-east Pacific,Ocean,Hand-net,50,5000,753.77,Dip net,0 - 1 m,Surface,100
+Aytan et al. 2016,,Black Sea,Ocean,Neuston net,200,5000,900,Tow,0 - 1 m,Surface,
+Covernton et al 2019,10.1016/j.scitotenv.2019.02.346,North-east Pacific,Ocean,Bucket and sieve,63,5000,910,Discrete,0 - 1 m,Surface,10
+Zhao et al. 2015,,North-west Pacific,Ocean,Pump,330,5000,960.4666667,Pump,0 - 1 m,Surface,20
+Tamminga et al. 2018,,North-east Atlantic,Ocean,Integrated water sampler,300,5000,1030,Discrete,0 - 200 m,Epipelagic,5
+Chae et al. 2015,,North-west Pacific,Ocean,Surface tension,0.75,5000,1972,Surface,0 - 1 m,Surface,2.57
+Desforges et al. 2014,,North-east Pacific,Ocean,Pump,62.5,5000,2080,Pump,0 - 200 m,Epipelagic,
+Cai et al. 2018,,North-west Pacific,Ocean,Pump,44,5000,2569,Pump,0 - 1 m,Surface,3000
+Zhao et al. 2014,,North-west Pacific,Ocean,Pump,32,5000,4137,Pump,0 - 1 m,Surface,16.6
+Covernton et al 2019,10.1016/j.scitotenv.2019.02.346,North-east Pacific,Ocean,Grab sample,8,5000,4780,Discrete,0 - 1 m,Surface,1
+Barrows et al. 2017,,North-west Atlantic,Ocean,Grab sample,0.45,5000,5900,Discrete,0 - 1 m,Surface,1
+Barrows et al. 2018,,Global Oceans,Ocean,Jar sample,0.45,5000,11800,Discrete,0 - 1 m,Surface,1
+Gray et al. 2018,,North-west Atlantic,Ocean,Sea surface microlayer collection apparatus,63,5000,18700,Surface,0 - 1 m,Surface,4
+Dubaish and Liebezeit 2013,,North-east Atlantic,Ocean,Bottles,1.2,5000,76000,Discrete,0 - 1 m,Surface,6
+Song et al. 2015,,North-west Pacific,Ocean,Surface-tension,0.75,5000,88000,Surface,0 - 1 m,Surface,2.6
+Di Mauro et al. 2017,,North-west Atlantic,Ocean,Niskin bottles,0.7,5000,102000,Discrete,0 - 200 m,Epipelagic,5

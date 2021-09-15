@@ -928,7 +928,18 @@ aoc_SA <- aoc_setup %>%
                                                  p = density.g.cm3)) %>% #equation usess g/cm3
   mutate(mass.per.particle.mg.max = massfnx_poly(length = size.length.max.um.used.for.conversions,
                                                  width = size.width.max.um.used.for.conversions,
-                                                 p = density.g.cm3))  #equation usess g/cm3
+                                                 p = density.g.cm3)) %>%   #equation usess g/cm3
+  #a few of the mortality LC50's are misclassified as EC50. fixing here
+  mutate(effect.metric = case_when(
+    effect.metric == "NOEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "EC50" & effect.score == "6" ~ "LC50", #reclassify
+    effect.metric == "EC50" ~ "EC50",
+    effect.metric == "EC10" ~ "EC10",
+    effect.metric == "IC10" ~ "IC10",
+    effect.metric == "HONEC" ~ "HONEC",
+    effect.metric == "IC50" ~ "IC50"
+  ))
   
 
 #### Aoc_z ####

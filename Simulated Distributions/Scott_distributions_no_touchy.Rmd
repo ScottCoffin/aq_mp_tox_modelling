@@ -327,7 +327,7 @@ SSA.inversefnx = function(sa, #surface area, calcaulted elsewhere
 #### Calculate
 
 Here we will calculate two aligned exposure concentrations: surface area (1 - 83 um), and volume (1 - 5,000 um). For both, the upper aligned value is the smaller of either the nominal size listed or the mouth size of the species.
-##### Tissue Translocation 
+
 ```{r}
 ###define sizes for alignment##
 x1M_set <- 1 #um lower size for all alignments
@@ -516,7 +516,13 @@ filtered.data.small.default_t1.2 <- aoc_final %>%
           mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um))
+  filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um),
+         tier_zero_risk_f == "Red Criteria Passed",
+         polymer != "Not Reported",
+         !environment %in% c("Terrestrial", "Not Reported"),
+         org_f != "Bacterium",
+         org_f != "Plant",
+         effect.metric != "HONEC")
 
 filtered.data.small.default_t3.4 <- filtered.data.small.default_t1.2 %>% 
  filter(risk.13 != 1,
@@ -535,7 +541,13 @@ filtered.data.large.default_t1.2 <- aoc_final %>%
          mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set))
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set),
+         tier_zero_risk_f == "Red Criteria Passed",
+         polymer != "Not Reported",
+         !environment %in% c("Terrestrial", "Not Reported"),
+         org_f != "Bacterium",
+         org_f != "Plant",
+         effect.metric != "HONEC")
 
 filtered.data.large.default_t3.4 <- filtered.data.large.default_t1.2 %>% 
  filter(risk.13 != 1,
@@ -554,7 +566,122 @@ base_thresholds <- tibble(
 
 base_thresholds
 ```
+### Effect score analysis
+#### Unaligned
+Just visualize effect concentrations by effect metric.
+```{r}
+unaligned.effect.score <- aoc_final %>% 
+   # tier 3/4 filters
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population",
+                      Group != "Algae")) %>% 
+  filter(between(size.length.um.used.for.conversions, 1, 5000))  %>% 
+  mutate(effect.score_f = case_when(
+    effect.score == 1 ~ "minor",
+    effect.score == 2 ~ "moderate",
+    effect.score == 3 ~ "moderate",
+    effect.score == 4 ~ "severe",
+    effect.score == 6 ~ "lethal",
+  )) %>% 
+  mutate(effect.score_f = as.factor(effect.score_f),
+         effect.score_f = fct_reorder(effect.score_f, effect.score)) %>% 
+    filter(!effect.metric %in% c("IC50", 
+                               "EC10"#,
+                               #"EC50"
+                               )) %>% 
+  drop_na(effect.metric, effect.score_f) %>% 
+   ggplot(aes(x = dose.particles.mL.master * 1000, fill = effect.metric)) +
+  geom_boxplot(notch = TRUE) +
+  scale_fill_tron(
+                    name = "Tox or Occurence Data") +
+  scale_x_log10(name = paste("Particles/L (unaligned)"),
+                             breaks = scales::log_breaks(),
+                             labels = comma_signif) +
+ # ylab("Normalized Abundance") +
+  facet_wrap(~effect.score_f,
+             nrow = 3) +
+   # dark_theme_bw() +
+  theme_bw(base_size = 15) +
+  theme(#legend.position = "none",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+        axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+        #axis.text =  element_text(size = 16),
+        #legend.text = element_text(size =18),
+    
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14),
+    plot.caption = element_text(hjust = 0.9, size = 14),
+    strip.text = element_text(size = 20))
 
+unaligned.effect.score
+```
+
+#### Aligned by volume
+```{r}
+aligned.effect.score <- aoc_final %>% 
+   # tier 3/4 filters
+  filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population",
+                      Group != "Algae")) %>% 
+  mutate(effect.score_f = case_when(
+    effect.score == 1 ~ "minor",
+    effect.score == 2 ~ "moderate",
+    effect.score == 3 ~ "moderate",
+    effect.score == 4 ~ "severe",
+    effect.score == 6 ~ "lethal",
+  )) %>% 
+  mutate(effect.score_f = as.factor(effect.score_f),
+         effect.score_f = fct_reorder(effect.score_f, effect.score)) %>% 
+  filter(!effect.metric %in% c("IC50", 
+                               "EC10"#,
+                               #"EC50"
+                               )) %>% 
+  drop_na(effect.metric, effect.score_f) %>% 
+   ggplot(aes(x = particles.mL.food.dilution * 1000, fill = effect.metric)) +
+  geom_boxplot(notch = TRUE) +
+  scale_fill_tron(
+                    name = "Tox or Occurence Data") +
+  scale_x_log10(name = paste("Particles/L (food dilution-aligned)"),
+                             breaks = scales::log_breaks(),
+                #             labels = comma_signif
+                ) +
+ # ylab("Normalized Abundance") +
+  facet_wrap(~effect.score_f,
+             nrow = 3) +
+   # dark_theme_bw() +
+  theme_bw(base_size = 15) +
+  theme(legend.position = "bottom",
+    plot.title = element_text(hjust = 0.5, size = 20),
+        axis.title = element_text(size = 16),
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank(),
+        #axis.text =  element_text(size = 16),
+        #legend.text = element_text(size =18),
+        legend.title = element_blank(),
+        plot.subtitle = element_text(hjust = 0.5, size = 14),
+    plot.caption = element_text(hjust = 0.9, size = 14),
+    strip.text = element_text(size = 20))
+
+aligned.effect.score
+```
+##### Manuscript Figure
+```{r}
+effect.score.figures <- ggarrange(unaligned.effect.score, aligned.effect.score,
+                        labels = c("A", "B"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 1)
+
+plot(effect.score.figures)
+
+ggsave(plot = aligned.effect.score,
+       filename = "effect.score.figures.jpeg",
+       path = "Simulated Distributions/BigDataManuscript/", 
+       width = 8, height = 6, units = "in",
+       bg = "white",
+       dpi = 300)
+```
 
 
 ### Oxidative Stress
