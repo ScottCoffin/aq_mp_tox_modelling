@@ -81,14 +81,14 @@ $m = pV*\frac{1}{1e12}*1000$
 Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - which is calculated by the cube of the length (um) of each particle, and additional conversion factors for mg to g (x1000) and cm^3 to um^3 (1e-12).
 ```{r, include=FALSE}
 #rm(list=ls())
-n = 10000
+n = 50000
 ## Generate values for the three distributions
 set.seed(123)
 ##++++++++++++++++++++++++++++++++++++++++
 ## SIZE DISTRIBUTION
 ##++++++++++++++++++++++++++++++++++++++++
-xmin = 1 #UM
-alpha = 2.7 #2.7 is preferred in unpublished Kooi et al.
+xmin = 0.85 #UM
+alpha = 2.07 #Marine alpha
 X.func <- function (X){
   success <- FALSE
   while (!success){
@@ -163,6 +163,31 @@ Data <- Data %>%
   mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
   mutate(um3 = (Size^3))
 ```
+
+```{r}
+Data %>%
+  mutate(measured = factor(case_when(
+    Size < 20 ~ "Not Measured",
+    Size < 212 & Size >= 20 ~ "Measured",
+    Size >= 212 ~ "Not Measured"))) %>% 
+  ggplot(aes(x = Size)) +
+  geom_histogram(aes(fill = measured),
+               position = "identity",
+               bins = 200) +
+  # geom_density( +
+  #              # fill = "deepskyblue2",
+  #              # color = "deepskyblue2") +
+  scale_x_log10(name = ("Particle Size (µm)"),
+                labels = scales::comma_format(accuracy = 1)) +
+  coord_cartesian(xlim = c(1, 10000)) +
+  dark_theme_minimal(base_size = 20) +
+  theme(axis.title.y = element_blank(),
+        axis.text.y = element_blank(),
+        legend.title = element_blank(),
+        legend.position = c(0.8, 0.8),
+        legend.key.size = unit(1.5, 'cm') )
+```
+
 
 
 ```{r}

@@ -11,23 +11,23 @@
 20180108MMPStormCBMeek125&355,Meeker Slough at Regatta Blvd,Estuary,NA,37.917861,-122.33838,17.84,NA,NA,water,stormwater,24-hr pipe,125,5000
 20180108MMPStormCBEmery125&355,MMP-Storm-CB-Emery,Estuary,NA,37.83429,-122.29349,12.36,NA,NA,water,stormwater,24-hr pipe,125,5000
 19-POC-198-125&355,12M Rep1,Estuary,NA,37.746843,-122.200699,24.41,NA,NA,water,stormwater,24-hr pipe,125,5000
-EBDA Aug 31 2017,NA,Estuary,NA,37.6952,-122.1858,0.0645,NA,NA,water,wastewater,24-hr pipe,125,5000
-EBDA Sept 26 2017,NA,Estuary,NA,37.6952,-122.1858,0.0115,NA,NA,water,wastewater,24-hr pipe,125,5000
-EBMUD Aug 22 2017,NA,Estuary,NA,37.8236,-122.2956,0.1778,NA,NA,water,wastewater,24-hr pipe,125,5000
-EBMUD Sept 26 2017,NA,Estuary,NA,37.8236,-122.2956,0.0421,NA,NA,water,wastewater,24-hr pipe,125,5000
-PA Aug 1 2017,NA,Estuary,NA,37.4527,-122.1108,0.003,NA,NA,water,wastewater,24-hr pipe,125,5000
-PA July 20 2017 A,NA,Estuary,NA,37.4527,-122.1108,0.0054,NA,NA,water,wastewater,24-hr pipe,125,5000
-SJ Aug 10 2017,NA,Estuary,NA,37.4332,-121.9522,0.0186,NA,NA,water,wastewater,24-hr pipe,125,5000
-SJ Sept 19 2017,NA,Estuary,NA,37.4332,-121.9522,0.0233,NA,NA,water,wastewater,24-hr pipe,125,5000
-SUNN Sept 19 2017,NA,Estuary,NA,37.4193,-122.0162,0.0222,NA,NA,water,wastewater,24-hr pipe,125,5000
-CCCSD Sept 7 2017,NA,Estuary,NA,37.9961,-122.0686,0.0778,NA,NA,water,wastewater,24-hr pipe,125,5000
-FSSD Aug 23 2017,NA,Estuary,NA,38.2233,-122.0829,0.0037,NA,NA,water,wastewater,24-hr pipe,125,5000
-FSSD Sept 7 2017,NA,Estuary,NA,38.2233,-122.0829,0.0055,NA,NA,water,wastewater,24-hr pipe,125,5000
-EBMUD Oct 20 2017,NA,Estuary,NA,37.8236,-122.2956,0.1083,NA,NA,water,wastewater,24-hr pipe,125,5000
-SFPUC Nov 6 2017,NA,Estuary,NA,37.7476,-122.3728,0.1593,NA,NA,water,wastewater,24-hr pipe,125,5000
-SFPUC Nov 7 2017,NA,Estuary,NA,37.7476,-122.3728,0.1816,NA,NA,water,wastewater,24-hr pipe,125,5000
-SUNN Oct 17 2017,NA,Estuary,NA,37.4193,-122.0162,0.0075,NA,NA,water,wastewater,24-hr pipe,125,5000
-CCCSD Dec 6 2017,NA,Estuary,NA,37.9961,-122.0686,0.0683,NA,NA,water,wastewater,24-hr pipe,125,5000
+EBDA Aug 31 2017,NA,Estuary,NA,37.6952,-122.1858,0.0645,NA,NA,water,wastewater,Composite,125,5000
+EBDA Sept 26 2017,NA,Estuary,NA,37.6952,-122.1858,0.0115,NA,NA,water,wastewater,Composite,125,5000
+EBMUD Aug 22 2017,NA,Estuary,NA,37.8236,-122.2956,0.1778,NA,NA,water,wastewater,Composite,125,5000
+EBMUD Sept 26 2017,NA,Estuary,NA,37.8236,-122.2956,0.0421,NA,NA,water,wastewater,Composite,125,5000
+PA Aug 1 2017,NA,Estuary,NA,37.4527,-122.1108,0.003,NA,NA,water,wastewater,Composite,125,5000
+PA July 20 2017 A,NA,Estuary,NA,37.4527,-122.1108,0.0054,NA,NA,water,wastewater,Composite,125,5000
+SJ Aug 10 2017,NA,Estuary,NA,37.4332,-121.9522,0.0186,NA,NA,water,wastewater,Composite,125,5000
+SJ Sept 19 2017,NA,Estuary,NA,37.4332,-121.9522,0.0233,NA,NA,water,wastewater,Composite,125,5000
+SUNN Sept 19 2017,NA,Estuary,NA,37.4193,-122.0162,0.0222,NA,NA,water,wastewater,Composite,125,5000
+CCCSD Sept 7 2017,NA,Estuary,NA,37.9961,-122.0686,0.0778,NA,NA,water,wastewater,Composite,125,5000
+FSSD Aug 23 2017,NA,Estuary,NA,38.2233,-122.0829,0.0037,NA,NA,water,wastewater,Composite,125,5000
+FSSD Sept 7 2017,NA,Estuary,NA,38.2233,-122.0829,0.0055,NA,NA,water,wastewater,Composite,125,5000
+EBMUD Oct 20 2017,NA,Estuary,NA,37.8236,-122.2956,0.1083,NA,NA,water,wastewater,Composite,125,5000
+SFPUC Nov 6 2017,NA,Estuary,NA,37.7476,-122.3728,0.1593,NA,NA,water,wastewater,Composite,125,5000
+SFPUC Nov 7 2017,NA,Estuary,NA,37.7476,-122.3728,0.1816,NA,NA,water,wastewater,Composite,125,5000
+SUNN Oct 17 2017,NA,Estuary,NA,37.4193,-122.0162,0.0075,NA,NA,water,wastewater,Composite,125,5000
+CCCSD Dec 6 2017,NA,Estuary,NA,37.9961,-122.0686,0.0683,NA,NA,water,wastewater,Composite,125,5000
 AN LSB06_1,NA,Estuary,Lower South Bay,37.4576,-122.0921,NA,24.27,NA,fish,anchovy,otter trawl/cast net,100,5000
 AN LSB06_2,NA,Estuary,Lower South Bay,37.4576,-122.0921,NA,6.6,NA,fish,anchovy,otter trawl/cast net,100,5000
 AN LSB06_4,NA,Estuary,Lower South Bay,37.4576,-122.0921,NA,0.87,NA,fish,anchovy,otter trawl/cast net,100,5000
@@ -200,64 +200,64 @@ RMP_14SC_1153,NA,Estuary,SC,37.8766,-122.3615,NA,NA,425.56,sediment,sediment,Van
 17MMP_S_SUB53_MP,NA,Estuary,SUB,38.0441,-122.0969,NA,NA,131.02,sediment,sediment,Van Veen Grab,125,5000
 17MMP_S_TB101_MP,NA,Estuary,Tomales Bay,38.2093,-122.9292,NA,NA,100.07,sediment,sediment,Van Veen Grab,125,5000
 17MMP_S_TB102_MP,NA,Estuary,Tomales Bay,38.0908,-122.8358,NA,NA,216.38,sediment,sediment,Van Veen Grab,125,5000
-CB4 Aug 21,NA,Estuary,Central Bay,37.92,-122.44,0.000023,NA,NA,water,surface water,manta,355,5000
-CB4 Richmond Bdg Nov 16,NA,Estuary,Central Bay,37.92,-122.43,0.006114,NA,NA,water,surface water,manta,355,5000
-CB5 Aug 22,NA,Estuary,Central Bay,37.84,-122.42,0.000439,NA,NA,water,surface water,manta,355,5000
-CB5 Nov 16,NA,Estuary,Central Bay,37.85,-122.41,0.001888,NA,NA,water,surface water,manta,355,5000
-CB5 Nov 5,NA,Estuary,Central Bay,37.85,-122.41,0.000511,NA,NA,water,surface water,manta,355,5000
-CB6 Aug 22,NA,Estuary,Central Bay,37.83,-122.32,0.000083,NA,NA,water,surface water,manta,355,5000
-CB6 Nov 16,NA,Estuary,Central Bay,37.83,-122.32,0.000464,NA,NA,water,surface water,manta,355,5000
-CB7 Aug 22 DUP,NA,Estuary,Central Bay,N/A,N/A,0.000774,NA,NA,water,surface water,manta,355,5000
-CB7 Bay Bridge Nov 16,NA,Estuary,Central Bay,37.78,-122.35,0.000729,NA,NA,water,surface water,manta,355,5000
-CB8 Aug 25,NA,Estuary,Central Bay,37.75,-122.23,0.002265,NA,NA,water,surface water,manta,355,5000
-CB8 Jan 11,NA,Estuary,Central Bay,37.75,-122.23,0.004343,NA,NA,water,surface water,manta,355,5000
-CB9 Aug 22,NA,Estuary,Central Bay,37.69,-122.29,0.000188,NA,NA,water,surface water,manta,355,5000
-CB9 Jan 11 Total,NA,Estuary,Central Bay,37.69,-122.3,0.055591,NA,NA,water,surface water,manta,355,5000
-CBNMS22 Mar 30,NA,Estuary,National Marine Sancturay,38.1,-123.11,0.000088,NA,NA,water,surface water,manta,355,5000
-CBNMS22 Sept 12,NA,Estuary,National Marine Sancturay,38.11,-123.11,0.000163,NA,NA,water,surface water,manta,355,5000
-CBNMS23 Mar 29,NA,Estuary,National Marine Sancturay,38.02,-123.33,0.000126,NA,NA,water,surface water,manta,355,5000
-CBNMS23 Sept 12,NA,Estuary,National Marine Sancturay,38.03,-123.31,0.000139,NA,NA,water,surface water,manta,355,5000
-CBNMS24 Sept 13,NA,Estuary,National Marine Sancturay,37.99,-123.5,0,NA,NA,water,surface water,manta,355,5000
-GFNMS24 Mar 29,NA,Estuary,National Marine Sancturay,N/A,N/A,0.000023,NA,NA,water,surface water,manta,355,5000
-GFNMS25 Mar 30,NA,Estuary,National Marine Sancturay,37.97,-122.93,0.000218,NA,NA,water,surface water,manta,355,5000
-GFNMS25 Sept 11,NA,Estuary,National Marine Sancturay,37.97,-122.93,0.00002,NA,NA,water,surface water,manta,355,5000
-GFNMS26 Mar 29,NA,Estuary,National Marine Sancturay,37.82,-123.02,0.000079,NA,NA,water,surface water,manta,355,5000
-GFNMS26 Sept 12,NA,Estuary,National Marine Sancturay,37.82,-123.01,0.000139,NA,NA,water,surface water,manta,355,5000
-GFNMS27 March 29,NA,Estuary,National Marine Sancturay,37.75,-123.26,0.000078,NA,NA,water,surface water,manta,355,5000
-GFNMS27 Sept 13,NA,Estuary,National Marine Sancturay,37.73,-123.26,0.000005,NA,NA,water,surface water,manta,355,5000
-GFNMS28 Mar 30,NA,Estuary,National Marine Sancturay,37.81,-122.76,0.000096,NA,NA,water,surface water,manta,355,5000
-GFNMS28 DUP Sept 13,NA,Estuary,National Marine Sancturay,37.81,-122.76,0.000056,NA,NA,water,surface water,manta,355,5000
-LSB14 Aug 24,NA,Estuary,Lower South Bay,37.47,-122.06,0.000982,NA,NA,water,surface water,manta,355,5000
-LSB14 Mar 6,NA,Estuary,Lower South Bay,37.48,-122.08,0.000266,NA,NA,water,surface water,manta,355,5000
-LSB15 Aug 24,NA,Estuary,Lower South Bay,37.46,-122.08,0.000357,NA,NA,water,surface water,manta,355,5000
-LSB15 Mar 6,NA,Estuary,Lower South Bay,37.47,-122.09,0.000248,NA,NA,water,surface water,manta,355,5000
-LSB16 Aug 24,NA,Estuary,Lower South Bay,37.46,-122.03,0.000153,NA,NA,water,surface water,manta,355,5000
-LSB16 Mar 6,NA,Estuary,Lower South Bay,37.45,-122.03,0.000516,NA,NA,water,surface water,manta,355,5000
-MBNMS29 Jan 11 2018,NA,Estuary,National Marine Sancturay,37.81,-122.47,0.000396,NA,NA,water,surface water,manta,355,5000
-MBNMS29 Mar 30,NA,Estuary,National Marine Sancturay,37.79,-122.5,0.000294,NA,NA,water,surface water,manta,355,5000
-MBNMS29 Nov 17 2017,NA,Estuary,National Marine Sancturay,37.8,-122.5,0.000273,NA,NA,water,surface water,manta,355,5000
-MBNMS29 Sept 13,NA,Estuary,National Marine Sancturay,37.81,-122.51,0.000019,NA,NA,water,surface water,manta,355,5000
-MBNMS30 Mar 31,NA,Estuary,National Marine Sancturay,37.67,-122.61,0.000038,NA,NA,water,surface water,manta,355,5000
-MBNMS30 Sept 27,NA,Estuary,National Marine Sancturay,37.67,-122.61,0.000068,NA,NA,water,surface water,manta,355,5000
-MBNMS31 Mar 31,NA,Estuary,National Marine Sancturay,37.51,-122.57,0.000054,NA,NA,water,surface water,manta,355,5000
-MBNMS31 Sept 27,NA,Estuary,National Marine Sancturay,37.51,-122.58,0.000038,NA,NA,water,surface water,manta,355,5000
-MBNMS32 Mar 31,NA,Estuary,National Marine Sancturay,37.44,-122.93,0.000068,NA,NA,water,surface water,manta,355,5000
-MBNMS32 Sept 27,NA,Estuary,National Marine Sancturay,37.45,-122.93,0.000024,NA,NA,water,surface water,manta,355,5000
-SB10 Aug 23,NA,Estuary,South Bay,37.65,-122.24,0.000112,NA,NA,water,surface water,manta,355,5000
-SB10 Mar 19,NA,Estuary,South Bay,37.65,-122.23,0.000236,NA,NA,water,surface water,manta,355,5000
-SB11 Aug 23,NA,Estuary,South Bay,37.6,-122.25,0.000181,NA,NA,water,surface water,manta,355,5000
-SB11 Mar 19,NA,Estuary,South Bay,37.59,-122.2,0.002605,NA,NA,water,surface water,manta,355,5000
-SB12 Aug 23,NA,Estuary,South Bay,37.59,-122.28,0.000128,NA,NA,water,surface water,manta,355,5000
-SB12 Mar 19,NA,Estuary,South Bay,37.58,-122.27,0.000488,NA,NA,water,surface water,manta,355,5000
-SB13 Aug 23,NA,Estuary,South Bay,37.57,-122.21,0.002899,NA,NA,water,surface water,manta,355,5000
-SB13 Mar 19,NA,Estuary,South Bay,37.56,-122.22,0.001384,NA,NA,water,surface water,manta,355,5000
-SF Bay Treasure Island Sept 18,NA,Estuary,Treasure Island,37.82,-122.36,0.000426,NA,NA,water,surface water,manta,355,5000
-SPB2 Aug 21 2017,NA,Estuary,SPB,38.05,-122.42,0.000059,NA,NA,water,surface water,manta,355,5000
-SPB2 Nov 16,NA,Estuary,SPB,38.06,-122.42,0.000092,NA,NA,water,surface water,manta,355,5000
-SPB3 Aug 21,NA,Estuary,SPB,38.64,-122.37,0.000637,NA,NA,water,surface water,manta,355,5000
-SPB3 Nov 17,NA,Estuary,SPB,38.02,-122.37,0.001409,NA,NA,water,surface water,manta,355,5000
-SUB1 Aug 21,NA,Estuary,SUB,38.11,-122.06,0.000081,NA,NA,water,surface water,manta,355,5000
-SUB1 Nov 17,NA,Estuary,SUB,38.11,-122.06,0.000131,NA,NA,water,surface water,manta,355,5000
+CB4 Aug 21,NA,Estuary,Central Bay,37.92,-122.44,0.000023,NA,NA,water,surface water,Manta Trawl,355,5000
+CB4 Richmond Bdg Nov 16,NA,Estuary,Central Bay,37.92,-122.43,0.006114,NA,NA,water,surface water,Manta Trawl,355,5000
+CB5 Aug 22,NA,Estuary,Central Bay,37.84,-122.42,0.000439,NA,NA,water,surface water,Manta Trawl,355,5000
+CB5 Nov 16,NA,Estuary,Central Bay,37.85,-122.41,0.001888,NA,NA,water,surface water,Manta Trawl,355,5000
+CB5 Nov 5,NA,Estuary,Central Bay,37.85,-122.41,0.000511,NA,NA,water,surface water,Manta Trawl,355,5000
+CB6 Aug 22,NA,Estuary,Central Bay,37.83,-122.32,0.000083,NA,NA,water,surface water,Manta Trawl,355,5000
+CB6 Nov 16,NA,Estuary,Central Bay,37.83,-122.32,0.000464,NA,NA,water,surface water,Manta Trawl,355,5000
+CB7 Aug 22 DUP,NA,Estuary,Central Bay,N/A,N/A,0.000774,NA,NA,water,surface water,Manta Trawl,355,5000
+CB7 Bay Bridge Nov 16,NA,Estuary,Central Bay,37.78,-122.35,0.000729,NA,NA,water,surface water,Manta Trawl,355,5000
+CB8 Aug 25,NA,Estuary,Central Bay,37.75,-122.23,0.002265,NA,NA,water,surface water,Manta Trawl,355,5000
+CB8 Jan 11,NA,Estuary,Central Bay,37.75,-122.23,0.004343,NA,NA,water,surface water,Manta Trawl,355,5000
+CB9 Aug 22,NA,Estuary,Central Bay,37.69,-122.29,0.000188,NA,NA,water,surface water,Manta Trawl,355,5000
+CB9 Jan 11 Total,NA,Estuary,Central Bay,37.69,-122.3,0.055591,NA,NA,water,surface water,Manta Trawl,355,5000
+CBNMS22 Mar 30,NA,Estuary,National Marine Sancturay,38.1,-123.11,0.000088,NA,NA,water,surface water,Manta Trawl,355,5000
+CBNMS22 Sept 12,NA,Estuary,National Marine Sancturay,38.11,-123.11,0.000163,NA,NA,water,surface water,Manta Trawl,355,5000
+CBNMS23 Mar 29,NA,Estuary,National Marine Sancturay,38.02,-123.33,0.000126,NA,NA,water,surface water,Manta Trawl,355,5000
+CBNMS23 Sept 12,NA,Estuary,National Marine Sancturay,38.03,-123.31,0.000139,NA,NA,water,surface water,Manta Trawl,355,5000
+CBNMS24 Sept 13,NA,Estuary,National Marine Sancturay,37.99,-123.5,0,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS24 Mar 29,NA,Estuary,National Marine Sancturay,N/A,N/A,0.000023,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS25 Mar 30,NA,Estuary,National Marine Sancturay,37.97,-122.93,0.000218,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS25 Sept 11,NA,Estuary,National Marine Sancturay,37.97,-122.93,0.00002,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS26 Mar 29,NA,Estuary,National Marine Sancturay,37.82,-123.02,0.000079,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS26 Sept 12,NA,Estuary,National Marine Sancturay,37.82,-123.01,0.000139,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS27 March 29,NA,Estuary,National Marine Sancturay,37.75,-123.26,0.000078,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS27 Sept 13,NA,Estuary,National Marine Sancturay,37.73,-123.26,0.000005,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS28 Mar 30,NA,Estuary,National Marine Sancturay,37.81,-122.76,0.000096,NA,NA,water,surface water,Manta Trawl,355,5000
+GFNMS28 DUP Sept 13,NA,Estuary,National Marine Sancturay,37.81,-122.76,0.000056,NA,NA,water,surface water,Manta Trawl,355,5000
+LSB14 Aug 24,NA,Estuary,Lower South Bay,37.47,-122.06,0.000982,NA,NA,water,surface water,Manta Trawl,355,5000
+LSB14 Mar 6,NA,Estuary,Lower South Bay,37.48,-122.08,0.000266,NA,NA,water,surface water,Manta Trawl,355,5000
+LSB15 Aug 24,NA,Estuary,Lower South Bay,37.46,-122.08,0.000357,NA,NA,water,surface water,Manta Trawl,355,5000
+LSB15 Mar 6,NA,Estuary,Lower South Bay,37.47,-122.09,0.000248,NA,NA,water,surface water,Manta Trawl,355,5000
+LSB16 Aug 24,NA,Estuary,Lower South Bay,37.46,-122.03,0.000153,NA,NA,water,surface water,Manta Trawl,355,5000
+LSB16 Mar 6,NA,Estuary,Lower South Bay,37.45,-122.03,0.000516,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS29 Jan 11 2018,NA,Estuary,National Marine Sancturay,37.81,-122.47,0.000396,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS29 Mar 30,NA,Estuary,National Marine Sancturay,37.79,-122.5,0.000294,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS29 Nov 17 2017,NA,Estuary,National Marine Sancturay,37.8,-122.5,0.000273,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS29 Sept 13,NA,Estuary,National Marine Sancturay,37.81,-122.51,0.000019,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS30 Mar 31,NA,Estuary,National Marine Sancturay,37.67,-122.61,0.000038,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS30 Sept 27,NA,Estuary,National Marine Sancturay,37.67,-122.61,0.000068,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS31 Mar 31,NA,Estuary,National Marine Sancturay,37.51,-122.57,0.000054,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS31 Sept 27,NA,Estuary,National Marine Sancturay,37.51,-122.58,0.000038,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS32 Mar 31,NA,Estuary,National Marine Sancturay,37.44,-122.93,0.000068,NA,NA,water,surface water,Manta Trawl,355,5000
+MBNMS32 Sept 27,NA,Estuary,National Marine Sancturay,37.45,-122.93,0.000024,NA,NA,water,surface water,Manta Trawl,355,5000
+SB10 Aug 23,NA,Estuary,South Bay,37.65,-122.24,0.000112,NA,NA,water,surface water,Manta Trawl,355,5000
+SB10 Mar 19,NA,Estuary,South Bay,37.65,-122.23,0.000236,NA,NA,water,surface water,Manta Trawl,355,5000
+SB11 Aug 23,NA,Estuary,South Bay,37.6,-122.25,0.000181,NA,NA,water,surface water,Manta Trawl,355,5000
+SB11 Mar 19,NA,Estuary,South Bay,37.59,-122.2,0.002605,NA,NA,water,surface water,Manta Trawl,355,5000
+SB12 Aug 23,NA,Estuary,South Bay,37.59,-122.28,0.000128,NA,NA,water,surface water,Manta Trawl,355,5000
+SB12 Mar 19,NA,Estuary,South Bay,37.58,-122.27,0.000488,NA,NA,water,surface water,Manta Trawl,355,5000
+SB13 Aug 23,NA,Estuary,South Bay,37.57,-122.21,0.002899,NA,NA,water,surface water,Manta Trawl,355,5000
+SB13 Mar 19,NA,Estuary,South Bay,37.56,-122.22,0.001384,NA,NA,water,surface water,Manta Trawl,355,5000
+SF Bay Treasure Island Sept 18,NA,Estuary,Treasure Island,37.82,-122.36,0.000426,NA,NA,water,surface water,Manta Trawl,355,5000
+SPB2 Aug 21 2017,NA,Estuary,SPB,38.05,-122.42,0.000059,NA,NA,water,surface water,Manta Trawl,355,5000
+SPB2 Nov 16,NA,Estuary,SPB,38.06,-122.42,0.000092,NA,NA,water,surface water,Manta Trawl,355,5000
+SPB3 Aug 21,NA,Estuary,SPB,38.64,-122.37,0.000637,NA,NA,water,surface water,Manta Trawl,355,5000
+SPB3 Nov 17,NA,Estuary,SPB,38.02,-122.37,0.001409,NA,NA,water,surface water,Manta Trawl,355,5000
+SUB1 Aug 21,NA,Estuary,SUB,38.11,-122.06,0.000081,NA,NA,water,surface water,Manta Trawl,355,5000
+SUB1 Nov 17,NA,Estuary,SUB,38.11,-122.06,0.000131,NA,NA,water,surface water,Manta Trawl,355,5000
 CB4,NA,Estuary,Central Bay,37.9156,-122.4412,3.47,NA,NA,water,surface water,1-L grab,100,5000
 CB4,NA,Estuary,Central Bay,37.9229,-122.433,2.73,NA,NA,water,surface water,1-L grab,100,5000
 CB5,NA,Estuary,Central Bay,37.843,-122.415,7.43,NA,NA,water,surface water,1-L grab,100,5000

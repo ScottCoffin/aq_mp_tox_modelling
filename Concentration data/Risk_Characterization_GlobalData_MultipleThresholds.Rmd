@@ -74,9 +74,9 @@ Threshold4_oxidative.stress = 5470 / AF
 
 ```{r Theme, include=FALSE}
 #Theme type
-     theme.type <- theme_bw(base_size = 15) +
-                       #dark_theme_bw(base_size = 18)
-   theme(plot.title = element_text(hjust = 0.5),
+     theme.type <- #theme_bw(base_size = 15) +
+                       dark_theme_bw(base_size = 18) +
+  theme(plot.title = element_text(hjust = 0.5),
                     plot.subtitle = element_text(hjust = 0.5))
      #color selection
      fill.type <-    scale_fill_viridis(discrete = TRUE)#,
@@ -184,7 +184,7 @@ adam_new <- adam %>%
   mutate(particles.m3.master = ifelse(is.na(particles.single.median.m3), particles.m3.corrected_mean, particles.single.median.m3)) %>% 
   mutate(particle.L.master = particles.m3.master/1000) %>% 
   filter(particle.L.master > 0) %>% 
-  #rename(unaligned.particle.L.master = particles.L.blank.corrected) %>% 
+  mutate(unaligned.particle.L.master = particle.L.master / CF) %>% 
   mutate(System = factor(System)) %>% 
   mutate(source = "Adam")
 
@@ -195,10 +195,12 @@ sfBay_new <- sfBay %>%
    is.na(System) ~ CFfnx(a = alpha.freshwater, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set))) %>%  #create new column with correction factor 
   mutate(particle.L.master = particles.L.blank.corrected * CF) %>% 
   rename(unaligned.particle.L.master = particles.L.blank.corrected) %>% 
+  filter(unaligned.particle.L.master > 0) %>%  #remove blanks. should convert to 1/2 LOQ...
   mutate(source = "SFEI") %>% 
   mutate(Reference = "Zhu et. al 2021") %>% 
   rename(Sampling.location = general.location) %>% 
-  select(-c(particles.L.blank.corrected, particles.kg.blank.corrected, particles.fish.blank.corrected))
+  dplyr::select(-c(particles.kg.blank.corrected,
+                   particles.fish.blank.corrected))
 
 # correct aquatic concentrations for Ocean Samples
 covernton_new <- covernton %>% 
@@ -210,7 +212,7 @@ covernton_new <- covernton %>%
   mutate(source = "Covernton") %>% 
   rename(Reference = study) %>% 
   rename(Sampling.location = Sampling.Location) %>% 
-  select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, CF,particle.L.master, source, Reference)) %>% 
+  select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, unaligned.particle.L.master, CF,particle.L.master, source, Reference)) %>% 
    mutate(sampleID = NA,
          specific.location = NA,
          latitude = NA,
@@ -222,7 +224,7 @@ covernton_new <- covernton %>%
 ## join datasets ##
 #first ensure that both datasets share all columns
 adam_sub <- adam_new %>% 
-  select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, CF,particle.L.master, source, Reference)) %>% 
+  select(c(Sampling.apparatus, Sampling.location, x1M, x2M, Sample.Type, System, unaligned.particle.L.master, CF, particle.L.master, source, Reference)) %>% 
   mutate(sampleID = NA,
          specific.location = NA,
          latitude = NA,
@@ -313,32 +315,34 @@ globalData %>%
 ```
 ### Concentrations boxplot
 ```{r}
-binwidth <- 0.25
+
 
 globalData %>% 
+  mutate(source_f = factor(case_when(
+    source == "SFEI" ~ "San Francisco Bay",
+    source == "Covernton" ~ "Global Oceans",
+    source == "Adam" ~ "Global Freshwaters",
+  ))) %>% 
   ggplot(aes(x = particle.L.master,
-             fill = source,
+             fill = source_f,
             # color = source, 
-             binwidth = binwidth)) +
+            y = source_f)) +
  geom_boxplot(notch = TRUE) +
-   scale_fill_manual(name = "Location", 
-                     labels = c("Rivers and Lakes",
-                                "Oceans",
-                                  "San Francisco Bay"
-                                                  ),
+   scale_fill_manual(name = "Location",
                     values = cal_palette("superbloom3")) + 
                     #values = c("#00798c", "#d1495b")) +
-  scale_x_continuous(name = "Particles/L (1-5,000 um)",
+  scale_x_continuous(name = "Particles/L (1-5,000 μm)",
                      breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif, trans = "log10")+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   labs(title = "Global Surface Water Marine Microplastics Concentrations",
-       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha.marine))+
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um") ) +#,
+       #caption = paste("n = 70 studies, 95 sampling locations, n_samples = 747; corrected for size, blanks. Alpha = ",alpha.marine
+      
   #theme.type +
   dark_theme_bw() +
   theme(legend.position = "top",
     plot.title = element_text(hjust = 0.5, size = 20),
-        axis.text.y = element_blank(),
+        axis.title.y = element_blank(),
         axis.title = element_text(size = 16),
         axis.text =  element_text(size = 16),
         legend.text = element_text(size =14),
@@ -369,7 +373,7 @@ dfADAM_exceedance %>%
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   #coord_cartesian(xlim = c(0,100000000)) +
   #scale_x_continuous(labels = scales::scientific) +
-   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)")) +
+   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "μm)")) +
   scale_y_continuous(name = "Relative Density", labels = scales::percent)+
   scale_fill_manual(values = c("below Threshold 1"= "cyan3", 
                                "above Threshold 1" = "goldenrod2", 
@@ -419,8 +423,135 @@ exceedance <- dfSFEI_exceedance  %>%
   dplyr::summarize(n = n()) %>% 
   mutate(rel.freq = paste0(round(100 * n/sum(n), 0), "%"))
 
-kable(exceedance)
+exceedance
 ```
+#### Sensitivity Analysis based on Alignments
+Table S4 from Kooi et al (2021) includes the mean +- standard deviation for power law exponents. To test the sensitivity of this risk characterization based on alignments, a range of power law exponents for particle length are used within the upper and lower 99% of the data from which the power law exponent was derived. For marine surface water, the alpha value of 2.07 has a standard deviation of 0.03 (Kooi et al 2021). The mean plus or minus one, two, and three standard deviations are used to calculate risk exceedances to test sensitivity.
+
+##### Align
+```{r}
+alpha.marine.sd <- 0.03
+alpha.marine.plus.one <- alpha.marine + alpha.marine.sd
+alpha.marine.plus.two <- alpha.marine + (2 * alpha.marine.sd)
+alpha.marine.plus.three <- alpha.marine + (3 * alpha.marine.sd)
+alpha.marine.minus.one <- alpha.marine - alpha.marine.sd
+alpha.marine.minus.two <- alpha.marine - (2 * alpha.marine.sd)
+alpha.marine.minus.three <- alpha.marine - (3 * alpha.marine.sd)
+
+#align data for different scenarios
+sensitivity <- globalData %>%
+  #filter(source == "SFEI") %>% 
+  #filter(sample.matrix.specific == "surface water") %>% 
+  drop_na(Conc) %>% 
+  #derive correction factors
+  mutate(plus1SD = CFfnx(a = alpha.marine.plus.one, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+         plus2SD = CFfnx(a = alpha.marine.plus.two, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+         plus3SD = CFfnx(a = alpha.marine.plus.three, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+         minus1SD = CFfnx(a = alpha.marine.minus.one, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+         minus2SD = CFfnx(a = alpha.marine.minus.two, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+         minus3SD = CFfnx(a = alpha.marine.minus.three, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set)) %>%
+  #apply correction fcators
+  mutate(conc.plus1 = unaligned.particle.L.master * plus1SD,
+         conc.plus2 = unaligned.particle.L.master * plus2SD,
+         conc.plus3 = unaligned.particle.L.master * plus3SD,
+         conc.minus1 = unaligned.particle.L.master * minus1SD,
+         conc.minus2 = unaligned.particle.L.master * minus2SD,
+         conc.minus3 = unaligned.particle.L.master * minus3SD)
+```
+
+##### Compare to thresholds
+```{r}
+sensitivity.analysis <- sensitivity %>% 
+  filter(source == "SFEI") %>% 
+  filter(sample.matrix.specific == "surface water") %>% 
+  #just select concentrations
+  dplyr::select(c(Conc, conc.plus1, conc.plus2, conc.plus3, conc.minus1, conc.minus2, conc.minus3)) %>% 
+  #make long data
+  pivot_longer(everything()) %>% 
+  mutate(aboveThreshold = factor(case_when(
+    value < Threshold1_food ~ "below Threshold 1",
+    value >= Threshold1_food & value < Threshold2_food ~ "above Threshold 1",
+    value >= Threshold2_food & value < Threshold3_food ~ "above Threshold 2",
+    value >= Threshold3_food & value < Threshold4_food ~ "above Threshold 3",
+    value >= Threshold4_food ~ "above Threshold 4"
+  ))) %>% 
+  group_by(aboveThreshold, name) %>%
+  dplyr::summarize(n = n()) %>% 
+  mutate(rel.freq = paste0(round(100 * n/sum(n), 0), "%"))
+
+sensitivity.analysis 
+```
+
+##### Plot
+```{r}
+#ECDF by System
+sfBayECDF_sensitivity <- sensitivity %>% 
+  filter(source == "SFEI") %>% 
+  filter(sample.matrix.specific == "surface water") %>% 
+  #just select concentrations
+  dplyr::select(c(Conc, conc.plus1, conc.plus2, conc.plus3, conc.minus1, conc.minus2, conc.minus3)) %>% 
+  #make long data
+  pivot_longer(everything()) %>% 
+  mutate(name = as.factor(name)) %>% 
+  ggplot() +
+ # stat_ecdf(aes(x = value, color = name),
+  #          geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = value, color = name),geom = "step", linetype = 'solid', alpha = 0.5, size = 2.5) +
+  #color
+  scale_color_manual(name = "Alignment Uncertanties",
+                     values = c("Conc" = "#e8ffff",
+                                "conc.minus1" = "#bfe6ff",
+                                "conc.plus1" = "#bfe6ff",
+                                "conc.minus2" = "#8cd3ff",
+                                "conc.plus2" = "#8cd3ff",
+                                "conc.minus3" = "#009dff",
+                                "conc.plus3" = "#009dff"),
+                     labels = c("Mean", 
+                                "68th Percentile",
+                                "68th Percentile",
+                                "95th Percentile",
+                                "95th Percentile",
+                                "99.7th Percentile",
+                                "99.7th Percentile")) +
+  # ##Food Dilution thresholds
+  geom_vline(xintercept = Threshold1_food, linetype = 'dashed', color = "#66a182", size = 1.3) +
+  geom_vline(xintercept = Threshold4_food, linetype = 'dashed', 
+             color = "#d1495b",
+             size = 1.3) +
+  geom_text(label = "Food Dilution T1", color = "#66a182" , x = Threshold1_food, y = 0.15, size = 6)+
+   geom_text(label = "Food Dilution T4", color = "#d1495b", 
+            x = Threshold4_food,
+            y = 0.25, size = 6)+
+  ###Oxidative Stress thresholds
+  geom_vline(xintercept = Threshold1_oxidative.stress, linetype = 'dashed',
+             color = "#66a182",#"#00798c",
+             size = 1.3) +
+  geom_vline(xintercept = Threshold4_oxidative.stress, linetype = 'dashed',
+             color = "#d1495b",
+             size = 1.3) +
+  geom_text(label = "Oxidative Stress T1", color = "#66a182",#'#edae49',
+            x = Threshold1_oxidative.stress - 0.8 * Threshold1_oxidative.stress, 
+            y = 0.45, size = 6) +
+  geom_text(label = "Oxidative Stress T4", color = "#d1495b", x =
+              Threshold4_oxidative.stress - 0.8 * Threshold4_oxidative.stress, 
+            y = 0.55, size = 6)+
+    ylab("Cumulative Density") +
+  xlab("Particles/L") +
+  #xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+  scale_y_continuous(labels = scales::percent)+
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
+  #annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  theme.type +
+  theme(legend.title = element_blank(),
+        legend.position = "none")
+  #labs(title = "Global Surface Water Marine Microplastics Concentrations",
+   #    subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+    #   caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))
+ 
+sfBayECDF_sensitivity
+```
+
 
 ### Risk Characterization Histogram (SFBay)
 ```{r}
@@ -444,7 +575,7 @@ dfSFEI_exceedance %>%
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   #coord_cartesian(xlim = c(0,100000000)) +
   #scale_x_continuous(labels = scales::scientific) +
-   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)")) +
+   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "μm)")) +
   scale_y_continuous(name = "Relative Density", labels = scales::percent)+
   scale_fill_manual(values = c("below Threshold 1"= "cyan3", 
                                "above Threshold 1" = "goldenrod2", 
@@ -466,37 +597,144 @@ dfSFEI_exceedance %>%
 ### ECDF (SF Bay)
 
 ```{r}
+vals <- c("Unaligned" = "white", "Aligned" = "deepskyblue")
+
 #ECDF by System
-globalData %>% 
+sfBayECDF <- globalData %>% 
   filter(source == "SFEI") %>% 
   drop_na(particle.L.master) %>% 
   filter(particle.L.master > 0.0) %>% 
-filter(System %in% c("Ocean", "Estuary")) %>% 
-  ggplot(aes(x = particle.L.master)) + #, color = System))+
-  stat_ecdf(geom = "point", size = 1, alpha = 0.5, color = "black") +
-  stat_ecdf(geom = "step", linetype = 'solid', alpha = 0.3, size = 1, color = "black") + #'azure3') +
-  scale_color_manual(values = wes_palette("Darjeeling1"))+
-  geom_vline(xintercept = Threshold1, linetype = 'dashed', color = "#00798c", size = 1.3) +
-  geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
-  geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
-  geom_vline(xintercept = Threshold4, linetype = 'dashed', color = 	"#d1495b", size = 1.3) +
-  geom_text(label = "Threshold 1", color = "#00798c" , x = Threshold1, y = 0.15, size = 6)+
-  geom_text(label = "Threshold 2", color = "#66a182" , x = Threshold2, y = 0.22, size = 6)+
-  geom_text(label = "Threshold 3", color = '#edae49', x = Threshold3, y = 0.35, size = 6)+
-  geom_text(label = "Threshold 4", color = "#d1495b", x = Threshold4, y = 0.45, size = 6)+
-  ylab("Cumulative Density") +
-  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+    filter(System %in% c("Ocean", "Estuary")) %>% 
+  ggplot() +
+     #unaligned
+  stat_ecdf(aes(x = unaligned.particle.L.master, color = "Unaligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = unaligned.particle.L.master, color = "Unaligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #aligned
+  stat_ecdf(aes(x = particle.L.master, color = "Aligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = particle.L.master, color = "Aligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #color
+  scale_color_manual(name = "alignment",
+                     values = vals) +
+  # ##Food Dilution thresholds
+  geom_vline(xintercept = Threshold1_food, linetype = 'dashed', color = "#66a182", size = 1.3) +
+  #geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
+  #geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
+  geom_vline(xintercept = Threshold4_food, linetype = 'dashed', 
+             color = "#d1495b",
+             size = 1.3) +
+  geom_text(label = "Food Dilution T1", color = "#66a182" , x = Threshold1_food, y = 0.15, size = 6)+
+ # geom_text(label = "Threshold 2", color = "#66a182" , x = Threshold2, y = 0.22, size = 6)+
+  #geom_text(label = "Threshold 3", color = '#edae49', x = Threshold3, y = 0.35, size = 6)+
+  geom_text(label = "Food Dilution T4", color = "#d1495b", 
+            x = Threshold4_food,
+            y = 0.25, size = 6)+
+  ###Oxidative Stress thresholds
+  geom_vline(xintercept = Threshold1_oxidative.stress, linetype = 'dashed',
+             color = "#66a182",#"#00798c",
+             size = 1.3) +
+  geom_vline(xintercept = Threshold4_oxidative.stress, linetype = 'dashed',
+             color = "#d1495b",
+             size = 1.3) +
+  geom_text(label = "Oxidative Stress T1", color = "#66a182",#'#edae49',
+            x = Threshold1_oxidative.stress - 0.8 * Threshold1_oxidative.stress, 
+            y = 0.45, size = 6) +
+  geom_text(label = "Oxidative Stress T4", color = "#d1495b", x =
+              Threshold4_oxidative.stress - 0.8 * Threshold4_oxidative.stress, 
+            y = 0.55, size = 6)+
+    ylab("Cumulative Density") +
+  xlab("Particles/L") +
+  #xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
   scale_y_continuous(labels = scales::percent)+
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
   #annotation_logticks(sides = "b")+ #log scale rick marks on bottom
-  theme.type #+
+  theme.type +
+  theme(legend.title = element_blank())
   #labs(title = "Global Surface Water Marine Microplastics Concentrations",
    #    subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
     #   caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))
  
+sfBayECDF
+```
+```{r}
+ggsave(plot =sfBayECDF,
+       filename = "sfBayECDF.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 10, height = 6, units = "in",
+       bg = "white",
+       dpi = 300)
 ```
 
+###ECDF (SF Bay) MORTALITY
+```{r}
+vals <- c("Unaligned" = "white", "Aligned" = "deepskyblue")
+
+threshold1_food_mortality = 583
+threshold2_food_mortality = 2383
+threshold1_oxidative.stress_mortality = 76
+threshold2_oxidative.stress_mortality = 1015
+
+#ECDF by System
+sfBayECDF_mortality <- globalData %>% 
+  filter(source == "SFEI") %>% 
+  drop_na(particle.L.master) %>% 
+  filter(particle.L.master > 0.0) %>% 
+    filter(System %in% c("Ocean", "Estuary")) %>% 
+  ggplot() +
+     #unaligned
+  stat_ecdf(aes(x = unaligned.particle.L.master, color = "Unaligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = unaligned.particle.L.master, color = "Unaligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #aligned
+  stat_ecdf(aes(x = particle.L.master, color = "Aligned"),
+            geom = "point", size = 1, alpha = 0.5) +
+  stat_ecdf(aes(x = particle.L.master, color = "Aligned"),geom = "step", linetype = 'solid', alpha = 0.3, size = 1) +
+  #color
+  scale_color_manual(name = "alignment",
+                     values = vals) +
+  # ##Food Dilution thresholds
+  geom_vline(xintercept = threshold1_food_mortality, linetype = 'dashed', color = "red", size = 1.3) +
+  #geom_vline(xintercept = Threshold2, linetype = 'dashed', color = "#66a182" , size = 1.3) +
+  #geom_vline(xintercept = Threshold3, linetype = 'dashed', color = 	'#edae49', size = 1.3) +
+  geom_vline(xintercept = threshold2_food_mortality, linetype = 'dashed', 
+             color = "red",
+             size = 1.3) +
+  geom_text(label = "Food Dilution T1 (MORTALITY)", color = "red" , x = threshold1_food_mortality, y = 0.15, size =5)+
+ # geom_text(label = "Threshold 2", color = "#66a182" , x = Threshold2, y = 0.22, size = 6)+
+  #geom_text(label = "Threshold 3", color = '#edae49', x = Threshold3, y = 0.35, size = 6)+
+  geom_text(label = "Food Dilution T2 (MORTALITY)", color = "red", 
+            x = threshold2_food_mortality,
+            y = 0.25, size = 5)+
+  ###Oxidative Stress thresholds
+  geom_vline(xintercept = threshold1_oxidative.stress_mortality, linetype = 'dashed',
+             color = "red",#"#00798c",
+             size = 1.3) +
+  geom_vline(xintercept = threshold2_oxidative.stress_mortality, linetype = 'dashed',
+             color = "red",
+             size = 1.3) +
+  geom_text(label = "Oxidative Stress T1 (MORTALITY)", color = "red",#'#edae49',
+            x = threshold1_oxidative.stress_mortality - 0.8 * threshold1_oxidative.stress_mortality, 
+            y = 0.45, size = 5) +
+  geom_text(label = "Oxidative Stress T2 (MORTALITY)", color = "red", x =
+              threshold2_oxidative.stress_mortality - 0.8 * threshold2_oxidative.stress_mortality, 
+            y = 0.55, size = 5)+
+    ylab("Cumulative Density") +
+  xlab("Particles/L") +
+  #xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+  scale_y_continuous(labels = scales::percent)+
+  coord_trans(x = "log10") +
+  scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
+  #annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  theme.type +
+  theme(legend.title = element_blank())
+  #labs(title = "Global Surface Water Marine Microplastics Concentrations",
+   #    subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+    #   caption = paste("Concentration data from Adams et al (2019): 23 studies, 57 sampling locations, n = 377; corrected for size ranges. Alpha = ",alpha))
+ 
+sfBayECDF_mortality
+```
 
 ### ECDF (Global)
 ```{r}
@@ -532,11 +770,12 @@ filter(System %in% c("Ocean", "Estuary")) %>%
 
 ### ECDF (SFEI by Matrix)
 ```{r}
-globalData %>% 
-  filter(source == "SFEI") %>% 
-  filter(sample.matrix == "water") %>% 
+SFEI_ECDF_matrix <- globalData %>% 
+  filter(source == "SFEI",
+         sample.matrix == "water",
+         particle.L.master > 0) %>% 
   drop_na(particle.L.master) %>% 
-  ggplot(aes(x = log10(particle.L.master), color = sample.matrix.specific))+
+  ggplot(aes(x = particle.L.master, color = sample.matrix.specific))+
   stat_ecdf(geom = "point", size = 1, alpha = 0.7) +
   stat_ecdf(geom = "step", linetype = 'solid', alpha = 0.5, size = 1.5) +
   scale_color_manual(name = "Matrix",values = wes_palette("Darjeeling1"))+
@@ -549,18 +788,20 @@ globalData %>%
   # geom_text(label = "Threshold 3", color = 'orange', x = Threshold3, y = 0.35, size = 6)+
   # geom_text(label = "Threshold 4", color = 'red', x = Threshold4, y = 0.45, size = 6)+
   scale_y_continuous(labels = scales::percent)+
-  #coord_trans(x = "log10") +
+  coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   ylab("Cumulative Density") +
-  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, " um)"))+
+  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, " μm)"))+
   theme.type +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
-       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
+       subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "μm"),
        caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha.marine))+
   theme(
     plot.title = element_text(hjust = 0.5, size = 18),
         plot.subtitle = element_text(hjust = 0.5, size = 14))
+
+SFEI_ECDF_matrix
 ```
 
 ### ECDF (SFEI by Mesh Size)
@@ -586,7 +827,7 @@ globalData %>%
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   ylab("Cumulative Density") +
-  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, " um)"))+
+  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, " μm)"))+
   theme.type +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
@@ -598,14 +839,17 @@ globalData %>%
 
 ### Boxplot SFEI
 ```{r}
-globalData %>% 
+SFEI_mesh_matrix <- globalData %>% 
   filter(source == "SFEI") %>% 
   filter(sample.matrix == "water") %>% 
   drop_na(particle.L.master) %>% 
   ggplot(aes(y = particle.L.master, x = sample.matrix.specific))+
-  geom_boxplot(alpha = 0.4) +
-  geom_point(aes(color = Sampling.apparatus)) +
-  scale_color_manual(name = "Sampling Apparatus",values = wes_palette("Darjeeling1"))+
+  geom_boxplot(alpha = 0.4,
+               notch = TRUE) +
+  geom_jitter(aes(color = Sampling.apparatus),
+              width = 0.2) +
+  scale_color_d3(name = "Sampling Apparatus") +
+  #scale_color_manual(name = "Sampling Apparatus",values = wes_palette("Darjeeling1"))+
    # geom_hline(yintercept = Threshold1, linetype = 'dashed', color = 'green', size = 1) +
    # geom_hline(yintercept = Threshold2, linetype = 'dashed', color = 'yellow', size = 1) +
    # geom_hline(yintercept = Threshold3, linetype = 'dashed', color = 	'orange', size = 1) +
@@ -616,19 +860,23 @@ globalData %>%
   # geom_text(label = "Threshold 4", color = 'red', x = Threshold4, y = 0.45, size = 6)+
   scale_y_log10(breaks = scales::trans_breaks("log10", function(y) 10^y),labels = comma_signif)+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
-  ylab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, " um)"))+
+  ylab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, " μm)"))+
   theme.type +
   labs(title = "San Francisco Bay Surface Water Marine Microplastics Concentrations",
        subtitle = paste("Particles/L corrected to:",x1D_set, "to", x2D_set, "um"),
-       caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha.marine))+
+      # caption = paste("Concentration data from Zhu et al (2021): 29 sampling locations, n = 136; corrected for size ranges. Alpha = ",alpha.marine)
+      )+
   theme(
     plot.title = element_text(hjust = 0.5, size = 18),
-        plot.subtitle = element_text(hjust = 0.5, size = 14))
+        plot.subtitle = element_text(hjust = 0.5, size = 14),
+    axis.title.x = element_blank())
+
+SFEI_mesh_matrix
 ```
 
 ## Modelling
 
-```{r eval=TRUE, include=FALSE}
+```{r eval=FALSE, include=FALSE}
 surfaceData <- globalData %>% 
   filter(sample.matrix.specific == "surface water") %>% 
   dplyr::select(Conc) %>% 
@@ -648,6 +896,7 @@ ssd_gof(sample_dists_ADAM) #check the goodness of fit
 sample_gof_ADAM <- ssd_gof(sample_dists_ADAM)
 sample_gof_ADAM[order(sample_gof_ADAM$delta), ] #orders by delta. Use the aicc (Akaike's Information Criterion corrected for sample size) for model selection 
 write.csv(sample_gof_ADAM,"Concentration data/sample_gof_ADAM.csv")
+
 #choose the distribution that you want to plot
 sample_dists_ADAM_choice <- ssd_fit_dists(samplesADAM, #data frame
                                    left = "Conc", #string of the column in data with the concentrations
@@ -816,7 +1065,7 @@ dfsfei_exceedance %>%
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   #coord_cartesian(xlim = c(0,100000000)) +
   #scale_x_continuous(labels = scales::scientific) +
-   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)")) +
+   xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "μm)")) +
   scale_y_continuous(name = "Relative Density", labels = scales::percent)+
   scale_fill_manual(values = c("below Threshold 1"= "cyan3", 
                                "above Threshold 1" = "goldenrod2", 
@@ -854,7 +1103,7 @@ filter(System != "") %>%
   geom_text(label = "Threshold 3", color = 'orange', x = Threshold3, y = 0.35, size = 6)+
   geom_text(label = "Threshold 4", color = 'red', x = Threshold4, y = 0.45, size = 6)+
   ylab("Cumulative Density") +
-  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "μm)"))+
   scale_y_continuous(labels = scales::percent)+
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
@@ -940,7 +1189,7 @@ aoc_intermediate_alphas <- aoc_intermediate %>%
 ```{r}
 ###function to derive correction factor (CF) from Koelmans et al (equation 2)
 CFfnx = function(a, #default alpha from Koelmans et al (2020)
-                 x2D, #set detault values to convert ranges to (1-5,000 um) #5mm is upper defuault 
+                 x2D, #set detault values to convert ranges to (1-5,000 μm) #5mm is upper defuault 
                  x1D, #1 um is lower default size
                  x2M, x1M){
   CF = (x2D^(1-a)-x1D^(1-a))/(x2M^(1-a)-x1M^(1-a)) 
@@ -1027,7 +1276,7 @@ SSA.inversefnx = function(sa, #surface area, calcaulted elsewhere
 
 #### Calculate
 
-Here we will calculate two aligned exposure concentrations: surface area (1 - 83 um), and volume (1 - 5,000 um). For both, the upper aligned value is the smaller of either the nominal size listed or the mouth size of the species.
+Here we will calculate two aligned exposure concentrations: surface area (1 - 83 μm), and volume (1 - 5,000 μm). For both, the upper aligned value is the smaller of either the nominal size listed or the mouth size of the species.
 
 ```{r}
 # calculate ERM for each species
@@ -1229,14 +1478,14 @@ aligned.tox.occurence.plot <- tox.occurence %>%
   geom_density(alpha = 0.6) +
   scale_fill_manual(values = cal_palette(name = "superbloom3", type = "discrete"),
                     name = "Tox or Occurence Data", labels = c("Occurence", "NOECs")) +
-  scale_x_log10(name = paste("Particles/L (corrected to:",x1D_set, "to", x2D_set, "um)"),
+  scale_x_log10(name = paste("Particles/L (corrected to:",x1D_set, "to", x2D_set, "μm)"),
                              breaks = scales::log_breaks(),
                              labels = comma_signif) +
   ylab("Normalized Abundance") +
  # annotation_logticks(sides = "b")+ #log scale rick marks on bottom
-  labs(title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
-       subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
-       caption = paste("(26 occurence studies, 37 tox studies, Alpha = ",alpha.marine,")"))+
+  # labs(title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
+  #      subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
+  #      caption = paste("(26 occurence studies, 37 tox studies, Alpha = ",alpha.marine,")"))+
   #dark_theme_minimal(base_size = 25) +
  theme_bw(base_size = 15) +
   theme(#legend.position = "none",
@@ -1487,7 +1736,7 @@ sizes.tox.occurence %>%
                              breaks = scales::log_breaks(),
                              labels = comma_signif) +
   ylab("Relative Frequency") +
-  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+ # annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   # labs(title = "Microplastics Monitoring Lower Size Limits vs. Sizes of Microplastics Tested in Ecotoxicology Studies"#,
   #      #caption = paste("(24 occurence studies, 37 tox studies, Alpha = ",alpha,")")
   #      ) +
@@ -1584,7 +1833,7 @@ locations.thresholds <- globalData %>%
   geom_text(label = "Tier 4 Food Dilution", color = "#66a182" , x = Threshold4_food, y = 13.5, size = 5)+
   geom_text(label = "Tier 1 Oxidative Stress", color = '#edae49', x = Threshold1_oxidative.stress, y = 13, size = 5)+
   geom_text(label = "Tier 4 Oxidative Stress", color = "#d1495b", x = Threshold4_oxidative.stress, y = 12.5, size = 5)+
-  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "um)"))+
+  xlab(paste0("Particles/L (" ,x1D_set, " to ", x2D_set, "μm)"))+
   coord_trans(x = "log10") +
   scale_x_continuous(breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif)+
   annotation_logticks(sides = "b")+ #log scale rick marks on bottom
@@ -1633,11 +1882,11 @@ freshwater.aligned.tox.occurence.plot <- freshwater_aligned.tox.occurence %>%
   geom_density(alpha = 0.6) +
   scale_fill_manual(values = cal_palette(name = "superbloom3", type = "discrete"),
                     name = "Tox or Occurence Data", labels = c("Occurence", "NOECs")) +
-  scale_x_log10(name = paste("Particles/L (corrected to:",x1D_set, "to", x2D_set, "um)"),
+  scale_x_log10(name = paste("Particles/L (corrected to:",x1D_set, "to", x2D_set, "μm)"),
                              breaks = scales::log_breaks(),
                              labels = comma_signif) +
   ylab("Normalized Abundance") +
-  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+ # annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   # labs(#title = "Global Surface Water Freshwater Microplastics Concentrations vs. Tox Data",
   #      #subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
   #      caption = paste("(70 occurence studies, 14 tox studies, Alpha = ",alpha,")"))+
@@ -1657,7 +1906,7 @@ freshwater.aligned.tox.occurence.plot
 ### Plot Un-aligned Data
 Combine tox dataset with occurence data
 ```{r}
-unaligned.tox <- aoc_final_large %>% 
+unaligned.tox <- aoc_final %>% 
   # tier 3/4 filters
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
@@ -1734,7 +1983,7 @@ freshwater.unaligned.tox.occurence.plot <- unaligned.tox.occurence %>%
                              breaks = scales::log_breaks(),
                              labels = comma_signif) +
   ylab("Normalized Abundance") +
-  annotation_logticks(sides = "b")+ #log scale rick marks on bottom
+  #annotation_logticks(sides = "b")+ #log scale rick marks on bottom
   # labs(#title = "Global Surface Water Freshwater Microplastics Concentrations vs. Tox Data",
   #      #subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
   #      caption = paste("(70 occurence studies, 14 tox studies, Alpha = ",alpha,")"))+

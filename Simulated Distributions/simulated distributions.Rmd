@@ -430,7 +430,8 @@ D.func <- function (D){
 
 
 ## Create environmentally realistic data
-synthetic_data_builder <- function(count, volume_l, addedfactors){
+synthetic_data_builder <- function(count, volume_l#, addedfactors
+                                   ){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
       set.seed(123)
@@ -502,7 +503,7 @@ synthetic_data_builder <- function(count, volume_l, addedfactors){
           Size < 5000 & Size >= 1000 ~ "1mm < 5mm"))) %>% 
         mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
         mutate(um3 = (Size^3)) %>%
-        bind_cols(addedfactors[rep(1, times = nrow(.)),]) %>% 
+       # bind_cols(addedfactors[rep(1, times = nrow(.)),]) %>% 
         mutate(vol.L = volume_l) %>% 
         mutate(vol.mL = vol.L * 1000) %>% 
         mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
@@ -518,6 +519,17 @@ add_prediction <- function(fun, model, ...){
         rename("ToxicityProbability" = `1`))                  
 }
 
+```
+
+```{r}
+distribution <- synthetic_data_builder(count = 10000, 
+                                    volume_l = 1000#, 
+                                 #   addedfactors = possible_variables[488,]
+                                    )
+
+distribution %>% 
+  ggplot(aes(x = count)) +
+  geom_histogram()
 ```
 
 

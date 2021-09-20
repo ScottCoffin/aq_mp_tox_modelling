@@ -5052,7 +5052,6 @@ print(hc)
 ## Effects
 The thresholds above are calculated based on all effect types, including everything from changes in behavior to mortality. There is a gradient of effect severities which correlates with the concentrations at which they occur. For instance, mortality occurs typically at higher concentrations than developmental changes. The sensitivity of those data selections are examined below by restricting the effects data to be only fitness-level endpoints vs. all data.
 
-### Fitness-only endpoints
 ### Calculate Thresholds
 ```{r include=FALSE}
 ####---- Food Dilution ------#####
@@ -5091,6 +5090,24 @@ large.fitness.t2 <- SSD_function_t2(filtered.data = filtered.data.large.fitness_
 large.fitness.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.fitness_t3.4, hcx = 5)
 large.fitness.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.fitness_t3.4, hcx = 10)
 
+#### Mortality  only ###
+filtered.data.large.mortality_t1.2 <- aoc_final_large %>% 
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set),
+         lvl3 == "mortality")
+
+filtered.data.large.mortality_t3.4 <- filtered.data.large.mortality_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
+# get thresholds
+large.mortality.t1 <- SSD_function_t1(filtered.data = filtered.data.large.mortality_t1.2, hcxlcl = 5)
+large.mortality.t2 <- SSD_function_t2(filtered.data = filtered.data.large.mortality_t1.2, hcx = 5)
+large.mortality.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.mortality_t3.4, hcx = 5)
+large.mortality.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.mortality_t3.4, hcx = 10)
+
 
 ####---- Tissue Translocation ------#####
 #### All endpoints ###
@@ -5127,6 +5144,24 @@ small.fitness.t1 <- SSD_function_t1(filtered.data = filtered.data.small.fitness_
 small.fitness.t2 <- SSD_function_t2(filtered.data = filtered.data.small.fitness_t1.2, hcx = 5)
 small.fitness.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.fitness_t3.4, hcx = 5)
 small.fitness.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.fitness_t3.4, hcx = 10)
+
+#### mortality  only ###
+filtered.data.small.mortality_t1.2 <- aoc_final_small %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, x1D_set, upper.tissue.trans.size.um),
+         lvl3 == "mortality")
+
+filtered.data.small.mortality_t3.4 <- filtered.data.small.mortality_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
+# get thresholds
+small.mortality.t1 <- SSD_function_t1(filtered.data = filtered.data.small.mortality_t1.2, hcxlcl = 5)
+small.mortality.t2 <- SSD_function_t2(filtered.data = filtered.data.small.mortality_t1.2, hcx = 5)
+small.mortality.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.mortality_t3.4, hcx = 5)
+small.mortality.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.mortality_t3.4, hcx = 10)
 ```
 ### Summary Table
 
@@ -5136,8 +5171,10 @@ endpoints_sensitivity_thresholds <- tibble(
   "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
   "Food Dilution (All Endpoints)" = c(large.all.t1, large.all.t2, large.all.t3, large.all.t4),
   "Food Dilution (Fitness Endpoints)" = c(large.fitness.t1, large.fitness.t2, large.fitness.t3, large.fitness.t4),
+  "Food Dilution (Mortality)" = c(large.mortality.t1, large.mortality.t2, large.mortality.t3, large.mortality.t4),
   "Tissue Translocation (All Endpoints)" = c(small.all.t1, small.all.t2, small.all.t3, small.all.t4),
-  "Tissue Translocation (Fitness Endpoints)" = c(small.fitness.t1, small.fitness.t2, small.fitness.t3, small.fitness.t4))
+  "Tissue Translocation (Fitness Endpoints)" = c(small.fitness.t1, small.fitness.t2, small.fitness.t3, small.fitness.t4),
+  "Tissue Translocation (Mortality)" = c(small.mortality.t1, small.mortality.t2, small.mortality.t3, small.mortality.t4))
 
 #save
 write.csv(endpoints_sensitivity_thresholds,
