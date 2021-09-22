@@ -54,22 +54,22 @@ AF = 1#5
 
 ##### Choose hazard concentration and confidence intervals####
 #particles/L
-Threshold1 = 0.2 / AF
-Threshold2 = 2.0 / AF
-Threshold3 = 5.4 / AF
-Threshold4 = 33.9 / AF
+Threshold1 = 0.34 / AF
+Threshold2 = 5.2 / AF
+Threshold3 = 21.8 / AF
+Threshold4 = 89.9 / AF
 
 #Food dilution
-Threshold1_food = 0.2 / AF
-Threshold2_food = 2.0 / AF
-Threshold3_food = 5.4 / AF
-Threshold4_food = 33.9 / AF
+Threshold1_food = 0.34 / AF
+Threshold2_food = 5.2 / AF
+Threshold3_food = 21.8 / AF
+Threshold4_food = 89.9 / AF
 
 #Oxidative stress
-Threshold1_oxidative.stress = 56.6 / AF
-Threshold2_oxidative.stress = 299.4 / AF
-Threshold3_oxidative.stress = 1385 / AF
-Threshold4_oxidative.stress = 5470 / AF
+Threshold1_oxidative.stress = 35.3 / AF
+Threshold2_oxidative.stress = 246.2 / AF
+Threshold3_oxidative.stress = 1268.9 / AF
+Threshold4_oxidative.stress = 4796.8 / AF
 ```
 
 ```{r Theme, include=FALSE}
@@ -496,7 +496,7 @@ sfBayECDF_sensitivity <- sensitivity %>%
   ggplot() +
  # stat_ecdf(aes(x = value, color = name),
   #          geom = "point", size = 1, alpha = 0.5) +
-  stat_ecdf(aes(x = value, color = name),geom = "step", linetype = 'solid', alpha = 0.5, size = 2.5) +
+  stat_ecdf(aes(x = value, color = name),geom = "step", linetype = 'solid', alpha = 0.7, size = 2.5) +
   #color
   scale_color_manual(name = "Alignment Uncertanties",
                      values = c("Conc" = "#e8ffff",
@@ -843,11 +843,19 @@ SFEI_mesh_matrix <- globalData %>%
   filter(source == "SFEI") %>% 
   filter(sample.matrix == "water") %>% 
   drop_na(particle.L.master) %>% 
-  ggplot(aes(y = particle.L.master, x = sample.matrix.specific))+
-  geom_boxplot(alpha = 0.4,
-               notch = TRUE) +
-  geom_jitter(aes(color = Sampling.apparatus),
-              width = 0.2) +
+  ggplot(aes(x = sample.matrix.specific))+
+  #aligned
+  geom_boxplot(aes(y = particle.L.master),
+               alpha = 0.4, notch = TRUE) +
+  geom_jitter(aes(y = particle.L.master, color = Sampling.apparatus),
+              width = 0.15) +
+  #unaligned
+ # geom_boxplot(aes(y = unaligned.particle.L.master),
+  #             alpha = 0.4, notch = TRUE) +
+  geom_jitter(aes(y = unaligned.particle.L.master, color = Sampling.apparatus),
+              alpha = 0.3,
+              width = 0.15) +
+
   scale_color_d3(name = "Sampling Apparatus") +
   #scale_color_manual(name = "Sampling Apparatus",values = wes_palette("Darjeeling1"))+
    # geom_hline(yintercept = Threshold1, linetype = 'dashed', color = 'green', size = 1) +
@@ -1454,7 +1462,9 @@ volume <- aoc_final %>%
   filter(risk.13 != 1,
          bio_f %in% c("Organism", "Population")) %>% 
   filter(Group != "Algae",
-         effect.metric == "NOEC") %>% 
+         lvl1_f == "Fitness",
+         effect.metric == "LOEC"
+         ) %>% 
   filter(environment == "Marine") %>% 
          mutate(Conc = particles.mL.food.dilution_marine# / (af.time * af.noec)
                 ) %>%  
@@ -1486,8 +1496,8 @@ aligned.tox.occurence.plot <- tox.occurence %>%
   # labs(title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
   #      subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
   #      caption = paste("(26 occurence studies, 37 tox studies, Alpha = ",alpha.marine,")"))+
-  #dark_theme_minimal(base_size = 25) +
- theme_bw(base_size = 15) +
+ dark_theme_minimal(base_size = 25) +
+ #theme_bw(base_size = 15) +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
@@ -1509,7 +1519,8 @@ unaligned.tox <- aoc_final %>%
          Group != "Algae",
          environment == "Marine",
          between(size.length.um.used.for.conversions, 1, 5000),
-         effect.metric == "NOEC"
+         lvl1_f == "Fitness",
+         effect.metric == "LOEC"
          )  %>%
          mutate(Conc = dose.particles.mL.master #raw NOECs without alignments
                 ) %>%  
@@ -1589,8 +1600,8 @@ unaligned.tox.occurence.plot <- unaligned.tox.occurence %>%
   # labs(#title = "Global Surface Water Marine Microplastics Concentrations vs. Tox Data",
   #      #subtitle = "Tox data filtered for quality & risk: organism, Population, fitness endpoints",
   #      caption = paste("(24 occurence studies, 37 tox studies, Alpha = ",alpha,")"))+
-  #dark_theme_minimal(base_size = 25) +
-  theme_bw(base_size = 15) +
+  dark_theme_minimal(base_size = 25) +
+  #theme_bw(base_size = 15) +
   theme(#legend.position = "none",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
