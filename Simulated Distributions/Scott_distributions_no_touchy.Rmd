@@ -650,8 +650,8 @@ aligned.effect.score <- aoc_final %>%
  # ylab("Normalized Abundance") +
   facet_wrap(~effect.score_f,
              nrow = 3) +
-   # dark_theme_bw() +
-  theme_bw(base_size = 15) +
+  dark_theme_bw(base_size = 15) +
+  #theme_bw(base_size = 15) +
   theme(legend.position = "bottom",
     plot.title = element_text(hjust = 0.5, size = 20),
         axis.title = element_text(size = 16),
@@ -681,6 +681,40 @@ ggsave(plot = aligned.effect.score,
        width = 8, height = 6, units = "in",
        bg = "white",
        dpi = 300)
+```
+#### How much data for each effect score for the upper tiers?
+```{r}
+effect_score_counts <- aoc_final %>% 
+   # tier 3/4 filters
+  filter(risk.13 != 1,
+         tier_zero_tech_f == "Red Criteria Passed",
+         tier_zero_risk_f == "Red Criteria Passed",
+         bio_f %in% c("Organism", "Population",
+                      Group != "Algae")) %>% 
+  mutate(effect.score_f = case_when(
+    effect.score == 1 ~ "minor",
+    effect.score == 2 ~ "moderate",
+    effect.score == 3 ~ "moderate",
+    effect.score == 4 ~ "severe",
+    effect.score == 6 ~ "lethal",
+  )) %>% 
+  mutate(effect.score_f = as.factor(effect.score_f),
+         effect.score_f = fct_reorder(effect.score_f, effect.score)) %>% 
+  filter(!effect.metric %in% c("IC50", 
+                               "EC10"#,
+                               #"EC50"
+                               )) %>% 
+  drop_na(effect.metric, effect.score_f) %>% 
+  group_by(effect.score_f) %>% 
+  summarize(n_species = n_distinct(species), 
+            n_doi = n_distinct(doi),
+            n_taxa = n_distinct(Group),
+            n_obs = n(),
+            n_lvl3 = n_distinct(lvl3))
+write.csv(effect_score_counts,
+          "effect_score_counts.csv")
+
+effect_score_counts
 ```
 
 
