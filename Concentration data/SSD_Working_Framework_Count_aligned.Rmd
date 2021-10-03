@@ -4073,7 +4073,7 @@ Data_Collapse_Figure <- ggarrange(FoodDilution_Tier1_2_DataCollapse, FoodDilutio
 
 plot(Data_Collapse_Figure)
 
-ggsave(filename = "Data_Collapse_Figure_SI2.jpg",
+ggsave(filename = "Data_Collapse_Figure_SI2_92821.jpg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
        plot = Data_Collapse_Figure, width = 12, height = 10, units = "in")
 
@@ -4086,7 +4086,7 @@ SSD_Figure <- ggarrange(FoodDilution_Tier1_2_SSD, FoodDilution_Tier3_4_SSD,
 
 plot(SSD_Figure)
 
-ggsave(filename = "SSD_Figure_Fig2.jpeg",
+ggsave(filename = "SSD_Figure_Fig2_92821.jpeg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
        plot = SSD_Figure, width = 12, height = 10, units = "in",
        dpi = 300, bg = "white")
