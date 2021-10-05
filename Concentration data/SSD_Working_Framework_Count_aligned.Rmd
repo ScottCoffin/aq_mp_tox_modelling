@@ -4062,7 +4062,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_9242021.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_1052021.xlsx")
 
 #Data Collapse
 
@@ -4073,7 +4073,7 @@ Data_Collapse_Figure <- ggarrange(FoodDilution_Tier1_2_DataCollapse, FoodDilutio
 
 plot(Data_Collapse_Figure)
 
-ggsave(filename = "Data_Collapse_Figure_SI2_92821.jpg",
+ggsave(filename = "Data_Collapse_Figure_SI2_10521.jpg",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
        plot = Data_Collapse_Figure, width = 12, height = 10, units = "in")
 
@@ -8155,10 +8155,10 @@ tier3_4_large_V_sens
 ## Export to Excel
 ```{r eval=FALSE, include=FALSE}
 library(openxlsx)
-write.xlsx(t1_2_SA, file="sensitivityAnalysis_9-24-2021.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
-write.xlsx(t3_4_SA, file="sensitivityAnalysis_9-24-2021.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
-write.xlsx(t1_2_volume, file="sensitivityAnalysis_9-24-2021.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
-write.xlsx(t3_4_volume, file="sensitivityAnalysi_9-24-2021s.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_SA, file="sensitivityAnalysis_10-5-2021.xlsx", sheetName="Tier 1&2_translocation", row.names=TRUE)
+write.xlsx(t3_4_SA, file="sensitivityAnalysis_10-5-2021.xlsx", sheetName="Tier 3&4_translocation", row.names=TRUE, append = TRUE)
+write.xlsx(t1_2_volume, file="sensitivityAnalysis_10-5-2021.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
+write.xlsx(t3_4_volume, file="sensitivityAnalysi_10-5-2021s.xlsx", sheetName="Tier 1&2_food dilution", row.names=TRUE, append = TRUE)
 
 ## doesn't seem to work, so do manual export to .csv and append to excel file
 
