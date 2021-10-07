@@ -71,6 +71,14 @@ group.colors <- c(Algae = "#BC3C29FF", Cnidaria = "#0072B5FF", Crustacea = "#E18
 #Load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #Source("Tox Data/RDA_Maker.R")
 aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+
+aoc_z_shiny <- readRDS(file = "Tox Data/aoc_z.RDS") %>%    #Remove leachate and additive/chemical transfer experiments
+  tidyr::replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>%
+  dplyr::filter(leachate.only != "Y") %>%
+  mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
+                                                   chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
+                                                   chem.exp.typ.nominal == "sorbed" ~ "Chemical Transfer"))) %>%
+  dplyr::filter(chem.exp.typ.nominal_f == "Particle Only") #rShiny file
 ```
 
 #Framework Summary
@@ -117,9 +125,9 @@ aoc_intermediate <- aoc_z %>%
          #Group != "Algae",
     effect.metric != "HONEC",
     tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed", #All thresholds must pass technical and risk red criteria
-         risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+         tier_zero_risk_f == "Red Criteria Passed" #All thresholds must pass technical and risk red criteria
          ) %>% 
+  filter(risk.13 != 0) %>%  #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
   #Remove 26C temperature treatment data from Jaimukar et al. 2018
   filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm)  #makes it less confusing below
@@ -269,7 +277,7 @@ volumefnx = function(R, L){
   return(volume)}
 
 volumefnx_poly = function(width, length){
-  height = width #0.67 * width
+  height = 0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
@@ -281,7 +289,7 @@ massfnx = function(R, L, p){
   return(mass)}
 
 massfnx_poly = function(width, length, p){
-  height = width #0.67 * width
+  height = 0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -319,37 +327,6 @@ R.ave.marine = 0.77 #average width to length ratio for microplastics in marine e
 p.ave.marine = 1.10 #average density in marine surface water
 R.ave.freshwater = 0.67 #average width to length ratio for microplastics in surface freshwater
 p.ave.freshwater = 1.04 #average density in freshwater surface water
-
-# #join alpha values for each data point
-# aoc_intermediate_alphas <- aoc_intermediate %>% 
-#   mutate(alpha = case_when(
-#     environment == "Marine" ~ alpha.marine,
-#     environment == "Freshwater" ~ alpha.freshwater
-#   )) %>% 
-#   mutate(a.sa = case_when(
-#     environment == "Marine" ~ a.sa.marine,
-#     environment == "Freshwater" ~ a.sa.freshwater
-#   )) %>% 
-#    mutate(a.v = case_when(
-#     environment == "Marine" ~ a.v.marine,
-#     environment == "Freshwater" ~ a.v.freshwater
-#   )) %>% 
-#    mutate(a.m = case_when(
-#     environment == "Marine" ~ a.m.marine,
-#     environment == "Freshwater" ~ a.m.freshwater
-#   )) %>% 
-#    mutate(a.ssa = case_when(
-#     environment == "Marine" ~ a.ssa.marine,
-#     environment == "Freshwater" ~ a.ssa.freshwater
-#   )) %>% 
-#    mutate(R.ave = case_when(
-#     environment == "Marine" ~ R.ave.marine,
-#     environment == "Freshwater" ~ R.ave.freshwater
-#   )) %>% 
-#    mutate(p.ave = case_when(
-#     environment == "Marine" ~ p.ave.marine,
-#     environment == "Freshwater" ~ p.ave.freshwater
-#   ))
 
 #join alpha values for each data point
 aoc_intermediate_alphas <- aoc_intermediate %>% 
@@ -626,6 +603,127 @@ aoc_final_large <- aoc_intermediate_alphas  %>%
   #calculate environmentally realistic effect threshold
   mutate(EC_env_ssa.particles.mL = EC_poly_ssa.particles.mL * CF_bio)
 ```
+
+# Quick Build
+## SSD Functions
+```{r}
+#### define function for SSD generation for tier 1 ####
+SSD_function_t1 <- function(filtered.data, hcxlcl){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
+#values to extract
+print(hc5lcl)
+}
+
+# Leave-one-out by study function
+sensitivity_t1 <- Vectorize(function(x, y) {
+  train <- filtered.data[!filtered.data$doi %in% x,]
+   SSD_function_t1(train, hcxlcl = y)
+})
+
+#### define function for SSD generation for tier 2 ####
+SSD_function_t2 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+
+#### define function for SSD generation for tiers 3 and 4 ####
+SSD_function_t3_4 <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  #filter specific things for tiers 3 and 4
+   filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.50))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+#values to extract
+#print(hc5)
+print(hc)
+}
+```
+
+
+## Calculate Thresholds
+```{r include=FALSE}
+####---- Food Dilution ------#####
+#### base Endpoints ###
+filtered.data.large.base_t1.2 <- aoc_final_large %>% 
+         mutate(dose_new = EC_env_v.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set))
+
+filtered.data.large.base_t3.4 <- filtered.data.large.base_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
+# get thresholds
+large.base.t1 <- SSD_function_t1(filtered.data = filtered.data.large.base_t1.2, hcxlcl = 5)
+large.base.t2 <- SSD_function_t2(filtered.data = filtered.data.large.base_t1.2, hcx = 5)
+large.base.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.base_t3.4, hcx = 5)
+large.base.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.base_t3.4, hcx = 10)
+
+####---- Tissue Translocation ------#####
+#### base endpoints ###
+filtered.data.small.base_t1.2 <- aoc_final_small %>% 
+         mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
+         drop_na(dose_new) %>% 
+         mutate(dose_new = dose_new * 1000) %>% 
+  filter(between(size.length.um.used.for.conversions, x1D_set, upper.tissue.trans.size.um))
+
+filtered.data.small.base_t3.4 <- filtered.data.small.base_t1.2 %>% 
+ filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population"))
+
+# get thresholds
+small.base.t1 <- SSD_function_t1(filtered.data = filtered.data.small.base_t1.2, hcxlcl = 5)
+small.base.t2 <- SSD_function_t2(filtered.data = filtered.data.small.base_t1.2, hcx = 5)
+small.base.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.base_t3.4, hcx = 5)
+small.base.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.base_t3.4, hcx = 10)
+```
+## Summary Table
+
+```{r}
+# arrange
+base_thresholds <- tibble(
+  "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
+  "Food Dilution (base Endpoints)" = c(large.base.t1, large.base.t2, large.base.t3, large.base.t4),
+  "Tissue Translocation (base Endpoints)" = c(small.base.t1, small.base.t2, small.base.t3, small.base.t4))
+
+#print
+base_thresholds
+```
+
+
+# Verbose Build
 ### Assign Environment  
 ```{r}
 aoc_final_large_marine <- aoc_final_large# %>% 
@@ -660,8 +758,7 @@ tier1_2_large <- aoc_final_large_marine %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions,large_tier_lower_size, large_tier_upper_size)) #%>% 
- # filter(environment == "Marine")
+  filter(between(size.length.um.used.for.conversions,large_tier_lower_size, large_tier_upper_size)) 
 
 # Count observations and studies
 tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -671,8 +768,7 @@ tier1_2_small <- aoc_final_small %>%
          mutate(dose_new = dose.particles.mL.master / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
-  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))# %>% 
-  #filter(environment == "Marine")
+  filter(between(size.length.um.used.for.conversions, small_tier_lower_size, upper.tissue.trans.size.um))
   
 # Count observations and studies
 tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_distinct(doi), n.taxa = n_distinct(org_f), n.species = n_distinct(species_f))
@@ -4062,7 +4158,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_1052021.xlsx")
+#write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_1052021.xlsx")
 
 #Data Collapse
 
@@ -4809,8 +4905,8 @@ gtsave(marine_thresholds_table,
        filename = "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.html")
 
 #save as csv
-write.csv(simple.summary,
-          "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.csv")
+#write.csv(simple.summary,
+ #         "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.csv")
 
 marine_thresholds_table
 ```
@@ -4985,70 +5081,7 @@ gt(simple.summary_freshwater) %>%
 
 
 # Sensitivity Analysis
-## SSD Functions
-```{r}
-#### define function for SSD generation for tier 1 ####
-SSD_function_t1 <- function(filtered.data, hcxlcl){
-  set.seed(99)
-  #data collapse
-collapsed <- filtered.data %>% 
-  group_by(Species, Group) %>% 
-  summarize(Conc = quantile(dose_new, 0.25))
-#fit distributions
-dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
-#use average distribution with weighthing based on AICC
-preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
-#report HC metrics of interest
-hc5lcl <- c(preds$lcl[hcxlcl]) #CI95
-#values to extract
-print(hc5lcl)
-}
 
-# Leave-one-out by study function
-sensitivity_t1 <- Vectorize(function(x, y) {
-  train <- filtered.data[!filtered.data$doi %in% x,]
-   SSD_function_t1(train, hcxlcl = y)
-})
-
-#### define function for SSD generation for tier 2 ####
-SSD_function_t2 <- function(filtered.data, hcx){
-  set.seed(99)
-  #data collapse
-collapsed <- filtered.data %>% 
-  group_by(Species, Group) %>% 
-  summarize(Conc = quantile(dose_new, 0.25))
-#fit distributions
-dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
-#use average distribution with weighthing based on AICC
-preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
-#report HC metrics of interest
-hc <- c(preds$est[hcx]) #HC5
-#values to extract
-#print(hc5)
-print(hc)
-}
-
-#### define function for SSD generation for tiers 3 and 4 ####
-SSD_function_t3_4 <- function(filtered.data, hcx){
-  set.seed(99)
-  #data collapse
-collapsed <- filtered.data %>% 
-  #filter specific things for tiers 3 and 4
-   filter(risk.13 != 1,
-         bio_f %in% c("Organism", "Population")) %>% 
-  group_by(Species, Group) %>% 
-  summarize(Conc = quantile(dose_new, 0.50))
-#fit distributions
-dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
-#use average distribution with weighthing based on AICC
-preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
-#report HC metrics of interest
-hc <- c(preds$est[hcx]) #HC5
-#values to extract
-#print(hc5)
-print(hc)
-}
-```
 ## Effects
 The thresholds above are calculated based on all effect types, including everything from changes in behavior to mortality. There is a gradient of effect severities which correlates with the concentrations at which they occur. For instance, mortality occurs typically at higher concentrations than developmental changes. The sensitivity of those data selections are examined below by restricting the effects data to be only fitness-level endpoints vs. all data.
 

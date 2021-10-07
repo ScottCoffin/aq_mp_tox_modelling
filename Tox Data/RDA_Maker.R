@@ -11,7 +11,7 @@ library(readr) #saves RDA
 
 
 # Load finalized dataset.
-aoc <- read_csv("Tox Data/AquaticOrganisms_Clean_final.csv", guess_max = 10000)
+aoc <- read_csv("Tox Data/AquaticOrganisms_Clean_final.csv", guess_max = 10000) %>% rowid_to_column()
 #aoc <- read_csv("Tox Data/AquaticOrganisms_Clean_final_z_rev.csv", guess_max = 10000) #includes ESTIMATED particles/mL dose for Ziajahromi et al (2017)
 
 polydf<-rowPerc(xtabs( ~polymer +effect, aoc)) #pulls polymers by effect 
@@ -807,10 +807,7 @@ aoc_setup <- aoc_v1 %>% # start with original dataset
                                   environment == "Marine" ~ "Marine",
                                   environment == "Terrestrial" ~ "Terrestrial"))) %>%
   mutate(species_f = as.factor(paste(genus,species))) %>% 
-  mutate(dose.mg.L.master.converted.reported = factor(dose.mg.L.master.converted.reported)) %>%
-  mutate(dose.particles.mL.master.converted.reported = factor(dose.particles.mL.master.converted.reported)) %>% 
   mutate(effect.metric = factor(effect.metric)) %>% #factorize
-  mutate(dose.um3.mL.master = particle.volume.um3 * dose.particles.mL.master) %>%  #calculate volume/mL
   mutate(af.time_noNA = replace_na(af.time, "Unavailable")) %>% 
   mutate(acute.chronic_f = factor(case_when(af.time_noNA == 10 ~ "Acute",
                                             af.time_noNA == 1 ~ "Chronic",
@@ -836,12 +833,12 @@ volumefnx = function(R, L){
 
 # full equation for volume
 volumefnx_poly = function(width, length){
-  height = width
+  height = 0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
 massfnx_poly = function(width, length, p){
-  height = width
+  height = 0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -859,8 +856,15 @@ aoc_SA <- aoc_setup %>%
   mutate(particle.volume.um3 = case_when(shape == "sphere" ~ particle.volume.um3,
                                          shape == "fiber" ~ particle.volume.um3,
                                          shape == "fragment" ~ volumefnx(R = 0.77, L = size.length.um.used.for.conversions))) %>% 
+  
+  # calculte dose metrics based on estimated parameters
+  mutate(dose.mg.L.master.converted.reported = factor(dose.mg.L.master.converted.reported)) %>%
+  mutate(dose.particles.mL.master.converted.reported = factor(dose.particles.mL.master.converted.reported)) %>% 
+  mutate(dose.um3.mL.master = particle.volume.um3 * dose.particles.mL.master) %>%  #calculate volume/mL
   mutate(dose.surface.area.um2.mL.master = particle.surface.area.um2 * dose.particles.mL.master) %>% 
   mutate(particle.surface.area.um2.mg = particle.surface.area.um2 / mass.per.particle.mg) %>% 
+  mutate(dose.specific.surface.area.um2.mg.mL = particle.surface.area.um2.mg * dose.particles.mL.master)  %>% 
+  
   #additional calculations
   # create label for polydispersity
   mutate(polydispersity = case_when(
@@ -960,7 +964,6 @@ aoc_z <- aoc_SA %>% # start with Heili's altered dataset (no filtration for terr
   mutate(max.size.ingest.mm = ifelse(is.na(max.size.ingest.mm), 
                                      10^(0.9341 * log10(body.length.cm) - 1.1200) * 10,  #(Jamm et al 2020 Nature paper)correction for cm to mm
                                      max.size.ingest.mm)) %>%  # if already present, just use that
-  mutate(dose.specific.surface.area.um2.mg.mL = particle.surface.area.um2.mg * dose.particles.mL.master)  %>% 
   #tell model if data if size is translocatable or not
   mutate(translocatable = as.factor(case_when(size.length.um.used.for.conversions >1 & size.length.um.used.for.conversions< 83 ~ "translocatable",
                                     size.length.um.used.for.conversions >83 ~ "non-translocatable",
@@ -978,5 +981,5 @@ aoc_z$Group <- fct_explicit_na(aoc_z$Group) #makes sure that species get counted
 
 
 ##### Save ####
-saveRDS(aoc_z, file = "Tox Data/aoc_z.RDA")
+saveRDS(aoc_z, file = "Tox Data/aoc_z.Rda")
 
