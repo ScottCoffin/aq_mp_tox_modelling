@@ -70,9 +70,11 @@ group.colors <- c(Algae = "#BC3C29FF", Cnidaria = "#0072B5FF", Crustacea = "#E18
 ```{r Data Import, include = FALSE}
 #Load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #Source("Tox Data/RDA_Maker.R")
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+# aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>%
+# #Remove 26C temperature treatment data from Jaimukar et al. 2018
+# filter(!(article == 42 & media.temp == 26))
 
-aoc_z_shiny <- readRDS(file = "Tox Data/aoc_z.RDS") %>%    #Remove leachate and additive/chemical transfer experiments
+aoc_z <- readRDS(file = "Tox Data/aoc_z.RDS") %>%    #Remove leachate and additive/chemical transfer experiments
   tidyr::replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>%
   dplyr::filter(leachate.only != "Y") %>%
   mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
@@ -128,8 +130,6 @@ aoc_intermediate <- aoc_z %>%
          tier_zero_risk_f == "Red Criteria Passed" #All thresholds must pass technical and risk red criteria
          ) %>% 
   filter(risk.13 != 0) %>%  #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
-  #Remove 26C temperature treatment data from Jaimukar et al. 2018
-  filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm)  #makes it less confusing below
 #### Ecologically Relevant Metric calculations ####
 

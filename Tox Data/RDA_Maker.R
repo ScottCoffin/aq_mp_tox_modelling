@@ -942,7 +942,8 @@ aoc_SA <- aoc_setup %>%
     effect.metric == "EC10" ~ "EC10",
     effect.metric == "IC10" ~ "IC10",
     effect.metric == "HONEC" ~ "HONEC",
-    effect.metric == "IC50" ~ "IC50"
+    effect.metric == "IC50" ~ "IC50",
+    effect.metric == "LC50" ~ "LC50"
   ))
   
 

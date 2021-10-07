@@ -80,27 +80,27 @@ library(ggpubr)
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda")
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>% rowid_to_column()
 ## Data filtering
 ```
 
 To ensure quality data feeds the model, we are filtering for technical red criteria.
 ```{r}
 ## First filter data with global filters
-aoc_intermediate <- aoc_z %>% 
+aoc_intermediate_d <- aoc_z %>% 
   filter(size.length.um.used.for.conversions > 1) %>%  #alignments only valid above 1 um
   filter(tier_zero_tech_f == "Red Criteria Passed",
-         #tier_zero_risk_f == "Red Criteria Passed",
-         polymer != "Not Reported",
+         tier_zero_risk_f == "Red Criteria Passed",
+        # polymer != "Not Reported",
          !environment %in% c("Terrestrial", "Not Reported"),
-         #org_f != "Bacterium",
+         org_f != "Bacterium",
          org_f != "Plant",
-         #effect.metric != "HONEC",
-         risk.13 != 0 #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  
+         #effect.metric != "HONEC"
          ) %>% 
   #Remove 26C temperature treatment data from Jaimukar et al. 2018
   filter(!(article == 42 & media.temp == 26)) %>% 
   mutate(max.size.ingest.um = 1000 * max.size.ingest.mm) %>%   #makes it less confusing below
+  filter(risk.13 != 0) %>%  #Drop studies that received a score of 0 for endpoints criteria (this also drops studies that have not yet been scored) - KEEP THIS AFTER THE RED CRITERIA FILTERS  )
   droplevels()  #eliminate polymer aand shape data that's not needed
 ```
 
@@ -292,7 +292,7 @@ volumefnx = function(R, L){
   return(volume)}
 
 volumefnx_poly = function(width, length){
-  height = width #0.67 * width
+  height = 0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
@@ -304,7 +304,7 @@ massfnx = function(R, L, p){
   return(mass)}
 
 massfnx_poly = function(width, length, p){
-  height = width #0.67 * width
+  height = 0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
@@ -511,13 +511,18 @@ print(hc)
 ```
 ##### Base Thresholds
 ```{r}
+#filter out risk criteria (not done above)#
+aoc_risk_paper <- aoc_final %>% 
+  drop_na(effect.metric) %>% 
+  filter(risk.tier.zero == "Pass")
+
 ####---- TISSUE TRANSLOCATION ------#####
-filtered.data.small.default_t1.2 <- aoc_final %>% 
+filtered.data.small.default_t1.2 <- aoc_risk_paper %>% 
           mutate(dose_new = particles.mL.ox.stress / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, 1, upper.tissue.trans.size.um),
-         tier_zero_risk_f == "Red Criteria Passed",
+         shape != "Not Reported",
          polymer != "Not Reported",
          !environment %in% c("Terrestrial", "Not Reported"),
          org_f != "Bacterium",
@@ -535,14 +540,13 @@ small.default.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.defaul
 small.default.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.default_t3.4, hcx = 10)
 
 ####---- Food Dilution ------#####
-filtered.data.large.default_t1.2 <- aoc_final %>% 
+filtered.data.large.default_t1.2 <- aoc_risk_paper %>% 
    # remove algae, as food dilution MOE doesn't make sense for algae
   filter(Group != "Algae") %>% 
          mutate(dose_new = particles.mL.food.dilution / (af.time * af.noec)) %>%  
          drop_na(dose_new) %>% 
          mutate(dose_new = dose_new * 1000) %>% 
   filter(between(size.length.um.used.for.conversions, x1D_set, x2D_set),
-         tier_zero_risk_f == "Red Criteria Passed",
          polymer != "Not Reported",
          !environment %in% c("Terrestrial", "Not Reported"),
          org_f != "Bacterium",
