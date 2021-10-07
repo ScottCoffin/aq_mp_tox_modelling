@@ -411,7 +411,7 @@ Where *m* is the mass (mg), *p* is density (g/cm^3), *V* is volume (um^3) - whic
       d.delta = 0.0972 #scale
 
 
-X.func <- function (X){
+X.func <- function (X, xmin, alpha){
   success <- FALSE
   while (!success){
     U = runif(1, 0, 1)
@@ -430,7 +430,7 @@ D.func <- function (D){
 
 
 ## Create environmentally realistic data
-synthetic_data_builder <- function(count, volume_l#, addedfactors
+synthetic_data_builder <- function(count, alpha, xmin#, addedfactors
                                    ){
   #Preset parameters for pdfs
    ## Generate values for the three distributions
@@ -439,7 +439,7 @@ synthetic_data_builder <- function(count, volume_l#, addedfactors
       Data <- data.frame(Size = numeric(0))
       
       for(i in 1:count){
-        X <- X.func()
+        X <- X.func(xmin = xmin, alpha = alpha)
         Data <- rbind(Data, X)
       }
       
@@ -504,11 +504,11 @@ synthetic_data_builder <- function(count, volume_l#, addedfactors
         mutate(mass.mg = Density * Size^3 * 1E-9) %>% 
         mutate(um3 = (Size^3)) %>%
        # bind_cols(addedfactors[rep(1, times = nrow(.)),]) %>% 
-        mutate(vol.L = volume_l) %>% 
-        mutate(vol.mL = vol.L * 1000) %>% 
-        mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
-        mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
-        mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
+        #mutate(vol.L = volume_l) %>% 
+        #mutate(vol.mL = vol.L * 1000) %>% 
+        #mutate(dose.um3.mL.master = um3 / vol.mL) %>% 
+        #mutate(dose.particles.mL.master = 1 / vol.mL) %>% 
+        #mutate(dose.mg.L.master = mass.mg / vol.L) %>% 
         mutate(particles.total = factor(as.character(count)))
 }
 
@@ -522,13 +522,11 @@ add_prediction <- function(fun, model, ...){
 ```
 
 ```{r}
-distribution <- synthetic_data_builder(count = 10000, 
-                                    volume_l = 1000#, 
-                                 #   addedfactors = possible_variables[488,]
+distribution <- synthetic_data_builder(count = 100, xmin = 1, alpha = 2
                                     )
 
 distribution %>% 
-  ggplot(aes(x = count)) +
+  ggplot(aes(x = Size)) +
   geom_histogram()
 ```
 
