@@ -70,17 +70,17 @@ group.colors <- c(Algae = "#BC3C29FF", Cnidaria = "#0072B5FF", Crustacea = "#E18
 ```{r Data Import, include = FALSE}
 #Load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #Source("Tox Data/RDA_Maker.R")
-# aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>%
-# #Remove 26C temperature treatment data from Jaimukar et al. 2018
-# filter(!(article == 42 & media.temp == 26))
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>%
+#Remove 26C temperature treatment data from Jaimukar et al. 2018
+filter(!(article == 42 & media.temp == 26))
 
-aoc_z <- readRDS(file = "Tox Data/aoc_z.RDS") %>%    #Remove leachate and additive/chemical transfer experiments
-  tidyr::replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>%
-  dplyr::filter(leachate.only != "Y") %>%
-  mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
-                                                   chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
-                                                   chem.exp.typ.nominal == "sorbed" ~ "Chemical Transfer"))) %>%
-  dplyr::filter(chem.exp.typ.nominal_f == "Particle Only") #rShiny file
+# aoc_z <- readRDS(file = "Tox Data/aoc_z.RDS") %>%    #Remove leachate and additive/chemical transfer experiments
+#   tidyr::replace_na(list(chem.exp.typ.nominal = "Particle Only")) %>%
+#   dplyr::filter(leachate.only != "Y") %>%
+#   mutate(chem.exp.typ.nominal_f = factor(case_when(chem.exp.typ.nominal == "Particle Only" ~ "Particle Only",
+#                                                    chem.exp.typ.nominal == "co.exp" ~ "Chemical Co-Exposure",
+#                                                    chem.exp.typ.nominal == "sorbed" ~ "Chemical Transfer"))) %>%
+#   dplyr::filter(chem.exp.typ.nominal_f == "Particle Only") #rShiny file
 ```
 
 #Framework Summary
@@ -277,7 +277,7 @@ volumefnx = function(R, L){
   return(volume)}
 
 volumefnx_poly = function(width, length){
-  height = 0.67 * width
+  height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
 
@@ -289,7 +289,7 @@ massfnx = function(R, L, p){
   return(mass)}
 
 massfnx_poly = function(width, length, p){
-  height = 0.67 * width
+  height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   mass = p * #density (g/cm^3)
     volume * # volume (um^3): assumes height = 0.67 * Width, and Width:Length ratio is 'R' (compartment-specific)
