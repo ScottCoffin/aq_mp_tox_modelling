@@ -643,9 +643,53 @@ dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", 
 preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 #report HC metrics of interest
 hc <- c(preds$est[hcx]) #HC5
+hc.lower.95 <- c(preds$lcl[hcx])
+hc.upper.95 <- c(preds$ucl[hcx])
+#values to extract
+print(hc)
+}
+
+#### define function for SSD generation for tier 2 ####
+SSD_function_t2_uncertainty <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.25))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+hc.lower.95 <- c(preds$lcl[hcx])
+hc.upper.95 <- c(preds$ucl[hcx])
 #values to extract
 #print(hc5)
-print(hc)
+print(c(hc, hc.lower.95, hc.upper.95))
+}
+
+#### define function for SSD generation for tiers 3 and 4 ####
+SSD_function_t3_4_uncertainty <- function(filtered.data, hcx){
+  set.seed(99)
+  #data collapse
+collapsed <- filtered.data %>% 
+  #filter specific things for tiers 3 and 4
+   filter(risk.13 != 1,
+         bio_f %in% c("Organism", "Population")) %>% 
+  group_by(Species, Group) %>% 
+  summarize(Conc = quantile(dose_new, 0.50))
+#fit distributions
+dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", "lnorm", "gamma", "lgumbel"), computable = FALSE, silent = FALSE) 
+#use average distribution with weighthing based on AICC
+preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
+#report HC metrics of interest
+hc <- c(preds$est[hcx]) #HC5
+hc.lower.95 <- c(preds$lcl[hcx])
+hc.upper.95 <- c(preds$ucl[hcx])
+#values to extract
+#print(hc5)
+print(c(hc, hc.lower.95, hc.upper.95))
 }
 
 #### define function for SSD generation for tiers 3 and 4 ####
@@ -664,8 +708,9 @@ dists <- ssd_fit_dists(collapsed, left = "Conc", dists = c("weibull", "llogis", 
 preds <- predict(dists, average = TRUE, ic = "aicc", nboot = 10, ci= TRUE) 
 #report HC metrics of interest
 hc <- c(preds$est[hcx]) #HC5
+hc.lower.95 <- c(preds$lcl[hcx])
+hc.upper.95 <- c(preds$ucl[hcx])
 #values to extract
-#print(hc5)
 print(hc)
 }
 ```
@@ -687,9 +732,9 @@ filtered.data.large.base_t3.4 <- filtered.data.large.base_t1.2 %>%
 
 # get thresholds
 large.base.t1 <- SSD_function_t1(filtered.data = filtered.data.large.base_t1.2, hcxlcl = 5)
-large.base.t2 <- SSD_function_t2(filtered.data = filtered.data.large.base_t1.2, hcx = 5)
-large.base.t3 <- SSD_function_t3_4(filtered.data = filtered.data.large.base_t3.4, hcx = 5)
-large.base.t4 <- SSD_function_t3_4(filtered.data = filtered.data.large.base_t3.4, hcx = 10)
+large.base.t2 <- SSD_function_t2_uncertainty(filtered.data = filtered.data.large.base_t1.2, hcx = 5)
+large.base.t3 <- SSD_function_t3_4_uncertainty(filtered.data = filtered.data.large.base_t3.4, hcx = 5)
+large.base.t4 <- SSD_function_t3_4_uncertainty(filtered.data = filtered.data.large.base_t3.4, hcx = 10)
 
 ####---- Tissue Translocation ------#####
 #### base endpoints ###
@@ -705,9 +750,9 @@ filtered.data.small.base_t3.4 <- filtered.data.small.base_t1.2 %>%
 
 # get thresholds
 small.base.t1 <- SSD_function_t1(filtered.data = filtered.data.small.base_t1.2, hcxlcl = 5)
-small.base.t2 <- SSD_function_t2(filtered.data = filtered.data.small.base_t1.2, hcx = 5)
-small.base.t3 <- SSD_function_t3_4(filtered.data = filtered.data.small.base_t3.4, hcx = 5)
-small.base.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.base_t3.4, hcx = 10)
+small.base.t2 <- SSD_function_t2_uncertainty(filtered.data = filtered.data.small.base_t1.2, hcx = 5)
+small.base.t3 <- SSD_function_t3_4_uncertainty(filtered.data = filtered.data.small.base_t3.4, hcx = 5)
+small.base.t4 <- SSD_function_t3_4_uncertainty(filtered.data = filtered.data.small.base_t3.4, hcx = 10)
 ```
 ## Summary Table
 
@@ -715,11 +760,20 @@ small.base.t4 <- SSD_function_t3_4(filtered.data = filtered.data.small.base_t3.4
 # arrange
 base_thresholds <- tibble(
   "Tier" = c('Tier1', 'Tier2', 'Tier3', 'Tier4'),
-  "Food Dilution (base Endpoints)" = c(large.base.t1, large.base.t2, large.base.t3, large.base.t4),
-  "Tissue Translocation (base Endpoints)" = c(small.base.t1, small.base.t2, small.base.t3, small.base.t4))
+  "Food Dilution (base Endpoints)" = c(large.base.t1, large.base.t2[1], large.base.t3[1], large.base.t4[1]),
+  "Tissue Translocation (base Endpoints)" = c(small.base.t1, small.base.t2[1], small.base.t3[1], small.base.t4[1]),
+  "Food.lower.95" = c(large.base.t1, large.base.t2[2], large.base.t3[2], large.base.t4[2]),
+  "Food.upper.95" = c(large.base.t1, large.base.t2[3], large.base.t3[3], large.base.t4[3]),
+  "tissue.lower.95" = c(small.base.t1, small.base.t2[2], small.base.t3[2], small.base.t4[2]),
+  "tissue.upper.95" = c(small.base.t1, small.base.t2[3], small.base.t3[3], small.base.t4[3])) %>% 
+  mutate_if(is.numeric, funs(format(., scientific = TRUE, digits = 3))) %>% 
+  #concat
+  mutate("Food Dilution (base Endpoints; mean with 95% CI's)" = paste(`Food Dilution (base Endpoints)`, "(", Food.lower.95, "to", Food.upper.95, ")"),
+         "Tissue Translocation (base Endpoints; mean with 95% CI's)" = paste(`Tissue Translocation (base Endpoints)`, "(", tissue.lower.95, "to", tissue.upper.95, ")")) %>% 
+  dplyr::select(c("Tier", "Food Dilution (base Endpoints; mean with 95% CI's)","Tissue Translocation (base Endpoints; mean with 95% CI's)" ))
 
 #print
-base_thresholds
+kable(base_thresholds)
 ```
 
 
@@ -4158,7 +4212,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 1_2,1-83um,SA" = study_list_translocation_1_2, 
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
-#write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_1052021.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_1011021.xlsx")
 
 #Data Collapse
 
@@ -4599,7 +4653,7 @@ gt(ERM_large) %>%
 ```
 ## Compartment-specific SSDs
 Alignments are compartment-specific.
-```{r}
+```{r eval=FALSE, include=FALSE}
 #### define function for SSD generation for tier 1 ####
 SSD_function_t1 <- function(filtered.data, hcxlcl){
   set.seed(99)
@@ -4851,24 +4905,24 @@ In this case, the limits LL and UL in  $\mu_{x,poly}$ relate to the values of th
 # Steve wants thresholds reported in the units they're aligned to (um3/L and um2/L)
 oxidative.stress.tiers <- ERM_small %>% 
   mutate(EC_env_sa_um2.L =  `Surface Area` * mux.polyfnx(a.x = 1.50, #alpha for marine surface water for surface area
-                                       x_UL = 5000, #upper limit of default range
-                                       x_LL = 1 # lower limit of default range
+                                       x_UL = x2D_set, #upper limit of default range
+                                       x_LL = x1D_set # lower limit of default range
                                        )) %>% 
   mutate(EC_env_mass_ug.L.SA =  `Surface Area` * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
-                                       x_UL = 5000, #upper limit of default range
-                                       x_LL = 1 # lower limit of default range
+                                       x_UL = x2D_set, #upper limit of default range
+                                       x_LL = x1D_set # lower limit of default range
                                        )) %>% 
   dplyr::select(EC_env_sa_um2.L, EC_env_mass_ug.L.SA, `Surface Area`)
 
 # calculate food dilution tiers with surface area and in particles/L
 food.dilution.tiers <- ERM_large %>% 
   mutate(EC_env_volume_um3.L =  Volume * mux.polyfnx(a.x = 1.48, #alpha for marine surface water for surface area
-                                       x_UL = 5000, #upper limit of default range
-                                       x_LL = 1 # lower limit of default range
+                                       x_UL = x2D_set, #upper limit of default range
+                                       x_LL = x1D_set # lower limit of default range
                                        )) %>% 
   mutate(EC_env_mass_ug.L.V =  Volume * mux.polyfnx(a.x = 1.32, #alpha for marine surface water for mass
-                                       x_UL = 5000, #upper limit of default range
-                                       x_LL = 1 # lower limit of default range
+                                       x_UL = x2D_set, #upper limit of default range
+                                       x_LL = x1D_set # lower limit of default range
                                        )) %>% 
   dplyr::select(EC_env_volume_um3.L, EC_env_mass_ug.L.V, Volume)
 
@@ -4905,15 +4959,15 @@ gtsave(marine_thresholds_table,
        filename = "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.html")
 
 #save as csv
-#write.csv(simple.summary,
- #         "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.csv")
+write.csv(simple.summary,
+          "./Concentration data/Threshold_Manuscript_Figs/marine_thresholds_table.csv")
 
 marine_thresholds_table
 ```
 
 
 Note that insufficient data are available to build translocation-based thresholds for freshwater species.
-```{r}
+```{r eval=FALSE, include=FALSE}
 SSD_function_t2 <- function(filtered.data, hcx){
   set.seed(99)
   #data collapse

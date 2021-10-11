@@ -826,6 +826,13 @@ SAfnx = function(a, # length
   SA = 4*pi*(((a*b)^1.6 + (a*c)^1.6 + (b*c)^1.6) / 3)^(1/1.6)
   return(SA)}
 
+#cylinder equation for SA. S = 2pi*r*h + 2pi*r^2, where r = width/2 and h = length 
+SAfnx_fiber = function(width, length){
+  radius = width / 2
+  SA = 2*pi*radius*length + 2*pi*radius^2
+  return(SA)
+}
+
 #Volume equation for elongated sphere (fragments)
 volumefnx = function(R, L){
   volume = 0.111667 * pi * R^2 * L^3 #assumes height = 0.67 * Width, and Width:Length ratio is 'R' (0.77 average in marine surface water)
@@ -836,6 +843,13 @@ volumefnx_poly = function(width, length){
   height = width #0.67 * width
   volume = (4/3) * pi * (length/2) * (width/2) * (height/2) #assumes height = 0.67 * Width 
   return(volume)}
+
+#equation for fibers (cylinder) V = pi*r^2*h (where r = particle width/2 and h = particle length). Assume 15 um if width not reported (kooi et al 2021)
+volumefnx_fiber = function(width, length){
+  radius = width/2
+  volume = pi * (radius) ^ 2 * length
+  return(volume)
+}
 
 massfnx_poly = function(width, length, p){
   height = width #0.67 * width
@@ -849,12 +863,14 @@ massfnx_poly = function(width, length, p){
 aoc_SA <- aoc_setup %>% 
   #calculate surface area based on shape
   mutate(particle.surface.area.um2 = case_when(shape == "sphere" ~ particle.surface.area.um2,
-                                               shape == "fiber" ~ particle.surface.area.um2,
+                                               shape == "fiber" & is.na(size.width.um.used.for.conversions) ~ volumefnx_fiber(width = 15, length = size.length.um.used.for.conversions), #assum 15 um width (kooi et al 2021)
+                                               shape == "fiber" & !is.na(size.width.um.used.for.conversions) ~ volumefnx_fiber(width = size.width.um.used.for.conversions, length = size.length.um.used.for.conversions), #if width is known
                                                shape == "fragment" ~ SAfnx(a = size.length.um.used.for.conversions,
                                                                            b = 0.77 * size.length.um.used.for.conversions,
                                                                            c = 0.77 * 0.67 * size.length.um.used.for.conversions))) %>% 
-  mutate(particle.volume.um3 = case_when(shape == "sphere" ~ particle.volume.um3,
-                                         shape == "fiber" ~ particle.volume.um3,
+  mutate(particle.volume.um3 = case_when(shape == "sphere" ~ particle.volume.um3, #sphere volume is correct in excel
+                                         shape == "fiber" & is.na(size.width.um.used.for.conversions) ~ volumefnx_fiber(width = 15, length = size.length.um.used.for.conversions), #assume 15 um as width (kooi et al 2021)
+                                         shape == "fiber" & !is.na(size.width.um.used.for.conversions) ~ volumefnx_fiber(width = size.width.um.used.for.conversions, length = size.length.um.used.for.conversions), #if width reported
                                          shape == "fragment" ~ volumefnx(R = 0.77, L = size.length.um.used.for.conversions))) %>% 
   
   # calculte dose metrics based on estimated parameters
