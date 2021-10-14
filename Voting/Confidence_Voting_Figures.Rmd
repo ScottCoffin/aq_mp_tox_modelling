@@ -250,7 +250,188 @@ theme_minimal(base_size = 14) +
 
 approach_rounds
 ```
+# Double BoxPLot
+Code to make double box plot in R
+ https://stackoverflow.com/questions/46068074/double-box-plots-in-ggplot2
 
+```{r}
+#step 1. Plot each dimension's boxplot separately:
+dataframe <- approach %>%  filter(Round == "Round 3")
+plot.x <- ggplot(dataframe) + geom_boxplot(aes(`Analytical Process`))
+plot.y <- ggplot(dataframe) + geom_boxplot(aes(Framework))
+
+#Step 2. Obtain the calculated boxplot values (including outliers) in 1 data frame:
+plot.x <- layer_data(plot.x)[,1:6]
+plot.y <- layer_data(plot.y)[,1:6]
+colnames(plot.x) <- paste0("x.",gsub("x", "", colnames(plot.x)))
+colnames(plot.y) <- paste0("y.",gsub("x", "", colnames(plot.y)))
+df <- cbind(plot.x, plot.y); rm(plot.x, plot.y)
+#df$category <- sort(unique(iris$Species))
+
+#Step 3. Create a separate data frame for outliers:
+df.outliers <- df %>%
+  select(#category, 
+         x.middle, x.outliers,
+         y.middle, y.outliers
+         ) %>%
+  data.table::data.table()
+
+df.outliers <- df.outliers[, list(x.outliers = unlist(x.outliers), y.outliers = unlist(y.outliers)), 
+                           by = list(#category,
+                             x.middle, y.middle)]
+
+#Step 4. Putting it all together in one plot:
+ggplot(df, aes(#fill = category, color = category
+  )) +
+   #make backgroud first
+ annotation_custom(grob = g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
+ 
+labs(#title = "Ambient Microplastics Framework Confidence Voting",
+       #subtitle = "Mean +- s.d. (n = 11)",
+         x = "Confidence in Analytical Process",
+       y = "Confidence in Framework") +
+theme_minimal(base_size = 14) +
+  #give range
+  coord_cartesian(ylim = c(1,5),
+                  xlim = c(1,5)) +
+  scale_x_continuous(
+                     breaks = 1:5,
+                     labels = c("Very low", "Low", "Medium", "High", "Very high")) +
+  scale_y_continuous(
+                     breaks = 1:5,
+                     labels = c("Very low", "Low", "Medium", "High", "Very high")) +
+  
+  # 2D box defined by the Q1 & Q3 values in each dimension, with outline
+  geom_rect(aes(xmin = x.lower, xmax = x.upper, ymin = y.lower, ymax = y.upper), alpha = 0.3) +
+  geom_rect(aes(xmin = x.lower, xmax = x.upper, ymin = y.lower, ymax = y.upper), 
+            color = "black", fill = NA) +
+
+  # whiskers for x-axis dimension with ends
+  geom_segment(aes(x = x.min, y = y.middle, xend = x.ma, yend = y.middle)) + #whiskers
+  geom_segment(aes(x = x.min, y = y.lower, xend = x.min, yend = y.upper)) + #lower end
+  geom_segment(aes(x = x.ma, y = y.lower, xend = x.ma, yend = y.upper)) + #upper end
+
+  # whiskers for y-axis dimension with ends
+  geom_segment(aes(x = x.middle, y = y.min, xend = x.middle, yend = y.ma)) + #whiskers
+  geom_segment(aes(x = x.lower, y = y.min, xend = x.upper, yend = y.min)) + #lower end
+  geom_segment(aes(x = x.lower, y = y.ma, xend = x.upper, yend = y.ma)) + #upper end
+
+  # outliers
+  geom_point(data = df.outliers, aes(x = x.outliers, y = y.middle), size = 3, shape = 1) + # x-direction
+  geom_point(data = df.outliers, aes(x = x.middle, y = y.outliers), size = 3, shape = 1) + # y-direction
+  
+  geom_point(aes(x = `Analytical Process`, y = Framework), data = dataframe, alpha = 0.5)
+
+```
+
+```{r}
+library(boxplotdbl)
+
+#make plot
+thresholds <- final %>% 
+  group_by(Threshold, Round, ERM) %>% 
+  summarize(mean.agreement = mean(`Level of Agreement`, na.rm = TRUE),
+            sd.agreement = sd(`Level of Agreement`, na.rm = TRUE),
+            mean.weight = mean(`Weight of evidence`, na.rm = TRUE),
+            sd.weight = sd(`Weight of evidence`, na.rm = TRUE)) %>% 
+  filter(ERM != "overall") %>% 
+  filter(Round == "Round 3") %>% 
+         #Threshold == "Threshold 1") %>% 
+  ggplot(aes(y = mean.agreement, x = mean.weight, #color = ERM, 
+             shape = ERM)) +
+  #make backgroud first
+  annotation_custom(
+    grob = g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf
+  ) +
+  #layer points on top
+  
+  
+  scale_color_manual(name = "Ecologically Relevant Metric",
+                       values = c("gray1", "gray40"),
+                     labels = c("Food Dilution", "Translocation")) +
+  scale_shape_manual(name = "Ecologically Relevant Metric",
+                     values = c(19, 17),
+                     labels = c("Food Dilution", "Translocation")) +
+  #give range
+  scale_x_continuous(limits = c(1,5),
+                     breaks = 1:5,
+                     labels = c("Very low", "Low", "Medium", "High", "Very high")) +
+  scale_y_continuous(limits = c(1,5),
+                     breaks = 1:5,
+                     labels = c("Very low", "Low", "Medium", "High", "Very high")) +
+ # scale_x_discrete(breaks = 1:3, labels = c("Very low", "Medium", "Very high")) +
+  #labels
+  labs(#title = "Ambient Microplastics Framework Confidence Voting",
+       #subtitle = "Mean +- s.d. (n = 11)",
+         x = "Weight of Evidence",
+       y = "Level of Agreement in the outcome among studies") +
+theme_minimal(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5)) +
+  facet_wrap(~Threshold)
+  #facet_grid(Threshold ~ ERM)#,
+             #nrow = 4)
+
+thresholds
+```
+```{r}
+approach_fig <- approach %>% 
+  filter(Round == "Round 3") %>% 
+         #Threshold == "Threshold 1") %>% 
+  ggplot(aes(y = `Analytical Process`, x = Framework)) +
+ 
+   #make backgroud first
+ annotation_custom(grob = g, xmin = -Inf, xmax = Inf, ymin = -Inf, ymax = Inf) +
+ 
+  ## BAG
+  geom_bag(color = "black") +
+  
+  # #POINTS and error bars
+  #  #layer points on top
+  # geom_point(size = 5, color = "black", shape = "square") +
+  #  # add error bars
+  # geom_errorbar(aes(ymin = mean.analytical - sd.analytical, ymax = mean.analytical + sd.analytical),
+  #               width = 0.3, color = "black") +
+  # geom_errorbarh(aes(xmin = mean.Framework - sd.Framework, xmax = mean.Framework + sd.Framework),
+  #                width = 0.3, color = "black") +
+  
+  
+  #give range
+  coord_cartesian(ylim = c(1,5),
+                  xlim = c(1,5)) +
+  scale_x_continuous(
+                     breaks = 1:5,
+                     labels = c("Very low", "Low", "Medium", "High", "Very high")) +
+  scale_y_continuous(
+                     breaks = 1:5,
+                     labels = c("Very low", "Low", "Medium", "High", "Very high")) +
+ # scale_x_discrete(breaks = 1:3, labels = c("Very low", "Medium", "Very high")) +
+  #labels
+  labs(#title = "Ambient Microplastics Framework Confidence Voting",
+       #subtitle = "Mean +- s.d. (n = 11)",
+         x = "Confidence in Analytical Process",
+       y = "Confidence in Framework") +
+theme_minimal(base_size = 14) +
+  theme(plot.title = element_text(hjust = 0.5),
+            plot.subtitle = element_text(hjust = 0.5))
+
+approach_fig
+```
+## Manuscript Figure
+```{r}
+vote_figure <- ggarrange(approach_fig,thresholds,
+                        labels = c("A", "B"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 1, nrow = 2)
+
+plot(vote_figure)
+
+ggsave(plot = vote_figure,
+       filename = "Confidence_Votes_Fig3.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 12, height = 12, units = "in", bg = "white",
+       dpi = 300)
+```
 
 ## Quality score assessment
 ```{r}
