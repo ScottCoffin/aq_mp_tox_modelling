@@ -1778,7 +1778,12 @@ tier1_2_large.obs <- tier1_2_large %>% summarize(n.obs = n(), n.studies = n_dist
 study_list_fooddilution_1_2 <-tier1_2_large %>% 
   select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, polydispersity, size.length.min.um.used.for.conversions, size.length.max.um.used.for.conversions,
          size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
-         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new,
+tech.a1, tech.a2, tech.a3, tech.a4, tech.a5, tech.a6,
+tech.1, tech.2, tech.3, tech.4, tech.5, tech.6,
+tech.7, tech.8, tech.9, tech.10, tech.11, tech.12,
+risk.b1, risk.13, risk.14, risk.15, risk.16, risk.17,
+risk.18, risk.19, risk.20) %>% 
   rename("DOI" = doi,
          "First Author" = authors,
          "Particle Morphology" = shape_f,
@@ -1799,7 +1804,34 @@ study_list_fooddilution_1_2 <-tier1_2_large %>%
          "Biological Level of Organization" = bio_f,
          "Particle Size (µm)" = size.length.um.used.for.conversions, 
          "Aligned Dose, Volume (Particles/mL)" = EC_env_v.particles.mL, 
-         "Aligned Dose, Volume, Assessment Factors Applied (Particles/mL)" = dose_new)
+         "Aligned Dose, Volume, Assessment Factors Applied (Particles/mL)" = dose_new,
+         "Test Medium Vehice Reported" = tech.a1, 
+         "Administration Route Reported" = tech.a2, 
+        "Test Species Reported" = tech.a3, 
+      "Sample Size Reported" = tech.a4, 
+      "Control Group Reported" = tech.a5, 
+    "Exposure Duration Reported" = tech.a6,
+  "Particle Size" = tech.1, 
+  "Particle Shape" = tech.2, 
+"Polymer Type" = tech.3, 
+"Source of MP" = tech.4, 
+"Concentration Reporting" = tech.5, 
+"Chemical Purity" = tech.6,
+"Contamination Prevention" = tech.7, 
+"Verification of Background Contamination" = tech.8, 
+"Verification of Exposure" = tech.9, 
+"Homogeneity of Exposure" = tech.10, 
+"Exposure Validation" = tech.11, 
+"Replication" = tech.12,
+"Number of MP Treament Groups" = risk.b1, 
+"Endpoints" = risk.13, 
+"Presence of Natural (food) Particles" = risk.14, 
+"Reporting Effect Thresholds" = risk.15, 
+"Quality of Dose Response Relationship" = risk.16, 
+"Concentration Range Tested" = risk.17,
+"Aging and Biofouling" = risk.18, 
+"Diversity of MP Tested" = risk.19, 
+"Exposure Time" = risk.20)
 
 #Translocation
 tier1_2_small <- aoc_final_small %>% 
@@ -2192,9 +2224,14 @@ tier3_4_large.obs <- tier3_4_large %>% summarize(n.obs = n(), n.studies = n_dist
 
 #Study list for manuscript
 study_list_fooddilution_3_4 <-tier3_4_large %>% 
-  select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, polydispersity, size.length.min.um.used.for.conversions, size.length.max.um.used.for.conversions,
+    select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, polydispersity, size.length.min.um.used.for.conversions, size.length.max.um.used.for.conversions,
          size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
-         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new) %>% 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_v.particles.mL, dose_new,
+tech.a1, tech.a2, tech.a3, tech.a4, tech.a5, tech.a6,
+tech.1, tech.2, tech.3, tech.4, tech.5, tech.6,
+tech.7, tech.8, tech.9, tech.10, tech.11, tech.12,
+risk.b1, risk.13, risk.14, risk.15, risk.16, risk.17,
+risk.18, risk.19, risk.20) %>% 
   rename("DOI" = doi,
          "First Author" = authors,
          "Particle Morphology" = shape_f,
@@ -2215,7 +2252,34 @@ study_list_fooddilution_3_4 <-tier3_4_large %>%
          "Biological Level of Organization" = bio_f,
          "Particle Size (µm)" = size.length.um.used.for.conversions, 
          "Aligned Dose, Volume (Particles/mL)" = EC_env_v.particles.mL, 
-         "Aligned Dose, Volume, Assessment Factors Applied (Particles/mL)" = dose_new)
+         "Aligned Dose, Volume, Assessment Factors Applied (Particles/mL)" = dose_new,
+         "Test Medium Vehice Reported" = tech.a1, 
+         "Administration Route Reported" = tech.a2, 
+        "Test Species Reported" = tech.a3, 
+      "Sample Size Reported" = tech.a4, 
+      "Control Group Reported" = tech.a5, 
+    "Exposure Duration Reported" = tech.a6,
+  "Particle Size" = tech.1, 
+  "Particle Shape" = tech.2, 
+"Polymer Type" = tech.3, 
+"Source of MP" = tech.4, 
+"Concentration Reporting" = tech.5, 
+"Chemical Purity" = tech.6,
+"Contamination Prevention" = tech.7, 
+"Verification of Background Contamination" = tech.8, 
+"Verification of Exposure" = tech.9, 
+"Homogeneity of Exposure" = tech.10, 
+"Exposure Validation" = tech.11, 
+"Replication" = tech.12,
+"Number of MP Treament Groups" = risk.b1, 
+"Endpoints" = risk.13, 
+"Presence of Natural (food) Particles" = risk.14, 
+"Reporting Effect Thresholds" = risk.15, 
+"Quality of Dose Response Relationship" = risk.16, 
+"Concentration Range Tested" = risk.17,
+"Aging and Biofouling" = risk.18, 
+"Diversity of MP Tested" = risk.19, 
+"Exposure Time" = risk.20)
 
 #Translocation
 tier3_4_small <- aoc_final_small %>% 
@@ -2563,7 +2627,11 @@ tier1_2_small.obs <- tier1_2_small %>% summarize(n.obs = n(), n.studies = n_dist
 study_list_translocation_1_2 <-tier1_2_small %>% 
   select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, polydispersity, size.length.min.um.used.for.conversions, size.length.max.um.used.for.conversions,
          size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
-         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new, tech.a1, tech.a2, tech.a3, tech.a4, tech.a5, tech.a6,
+tech.1, tech.2, tech.3, tech.4, tech.5, tech.6,
+tech.7, tech.8, tech.9, tech.10, tech.11, tech.12,
+risk.b1, risk.13, risk.14, risk.15, risk.16, risk.17,
+risk.18, risk.19, risk.20) %>% 
   rename("DOI" = doi,
          "First Author" = authors,
          "Particle Morphology" = shape_f,
@@ -2584,7 +2652,33 @@ study_list_translocation_1_2 <-tier1_2_small %>%
          "Biological Level of Organization" = bio_f,
          "Particle Size (µm)" = size.length.um.used.for.conversions, 
          "Aligned Dose, Surface Area (Particles/mL)" = EC_env_sa.particles.mL, 
-         "Aligned Dose, Surface Area, Assessment Factors Applied (Particles/mL)" = dose_new)
+         "Aligned Dose, Surface Area, Assessment Factors Applied (Particles/mL)" = dose_new, "Test Medium Vehice Reported" = tech.a1, 
+         "Administration Route Reported" = tech.a2, 
+        "Test Species Reported" = tech.a3, 
+      "Sample Size Reported" = tech.a4, 
+      "Control Group Reported" = tech.a5, 
+    "Exposure Duration Reported" = tech.a6,
+  "Particle Size" = tech.1, 
+  "Particle Shape" = tech.2, 
+"Polymer Type" = tech.3, 
+"Source of MP" = tech.4, 
+"Concentration Reporting" = tech.5, 
+"Chemical Purity" = tech.6,
+"Contamination Prevention" = tech.7, 
+"Verification of Background Contamination" = tech.8, 
+"Verification of Exposure" = tech.9, 
+"Homogeneity of Exposure" = tech.10, 
+"Exposure Validation" = tech.11, 
+"Replication" = tech.12,
+"Number of MP Treament Groups" = risk.b1, 
+"Endpoints" = risk.13, 
+"Presence of Natural (food) Particles" = risk.14, 
+"Reporting Effect Thresholds" = risk.15, 
+"Quality of Dose Response Relationship" = risk.16, 
+"Concentration Range Tested" = risk.17,
+"Aging and Biofouling" = risk.18, 
+"Diversity of MP Tested" = risk.19, 
+"Exposure Time" = risk.20)
 
 ```
 
@@ -2920,7 +3014,11 @@ tier3_4_small.obs <- tier3_4_small %>% summarize(n.obs = n(), n.studies = n_dist
 study_list_translocation_3_4 <-tier3_4_small %>% 
   select(doi, authors, org_f, species_f, lvl1_f, lvl3_f, bio_f, effect.metric, acute.chronic_f, shape_f, poly_f, polydispersity, size.length.min.um.used.for.conversions, size.length.max.um.used.for.conversions,
          size.length.um.used.for.conversions, dose.particles.mL.master, dose.particles.mL.master.converted.reported, 
-         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new) %>% 
+         dose.mg.L.master, dose.mg.L.master.converted.reported, EC_env_sa.particles.mL, dose_new, tech.a1, tech.a2, tech.a3, tech.a4, tech.a5, tech.a6,
+tech.1, tech.2, tech.3, tech.4, tech.5, tech.6,
+tech.7, tech.8, tech.9, tech.10, tech.11, tech.12,
+risk.b1, risk.13, risk.14, risk.15, risk.16, risk.17,
+risk.18, risk.19, risk.20) %>% 
   rename("DOI" = doi,
          "First Author" = authors,
          "Particle Morphology" = shape_f,
@@ -2941,7 +3039,33 @@ study_list_translocation_3_4 <-tier3_4_small %>%
          "Biological Level of Organization" = bio_f,
          "Particle Size (µm)" = size.length.um.used.for.conversions, 
          "Aligned Dose, Surface Area (Particles/mL)" = EC_env_sa.particles.mL, 
-         "Aligned Dose, Surface Area, Assessment Factors Applied (Particles/mL)" = dose_new)
+         "Aligned Dose, Surface Area, Assessment Factors Applied (Particles/mL)" = dose_new, "Test Medium Vehice Reported" = tech.a1, 
+         "Administration Route Reported" = tech.a2, 
+        "Test Species Reported" = tech.a3, 
+      "Sample Size Reported" = tech.a4, 
+      "Control Group Reported" = tech.a5, 
+    "Exposure Duration Reported" = tech.a6,
+  "Particle Size" = tech.1, 
+  "Particle Shape" = tech.2, 
+"Polymer Type" = tech.3, 
+"Source of MP" = tech.4, 
+"Concentration Reporting" = tech.5, 
+"Chemical Purity" = tech.6,
+"Contamination Prevention" = tech.7, 
+"Verification of Background Contamination" = tech.8, 
+"Verification of Exposure" = tech.9, 
+"Homogeneity of Exposure" = tech.10, 
+"Exposure Validation" = tech.11, 
+"Replication" = tech.12,
+"Number of MP Treament Groups" = risk.b1, 
+"Endpoints" = risk.13, 
+"Presence of Natural (food) Particles" = risk.14, 
+"Reporting Effect Thresholds" = risk.15, 
+"Quality of Dose Response Relationship" = risk.16, 
+"Concentration Range Tested" = risk.17,
+"Aging and Biofouling" = risk.18, 
+"Diversity of MP Tested" = risk.19, 
+"Exposure Time" = risk.20)
 ```
 
 #### Endpoint Representation
@@ -4214,7 +4338,6 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
 
 
 write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_102121.xlsx")
-
 
 #Data Collapse
 
