@@ -302,6 +302,12 @@ NOEC.LOEC
 noec.loec.lm <- summary(lm(effectLOEC.mass ~ effectNOEC.mass, data = NOEC.LOEC))
 noec.loec.lm
 ```
+### Particle Count
+
+```{r}
+noec.loec.lm.particle <- summary(lm(effectLOEC.particles ~ effectNOEC.particles, data = NOEC.LOEC))
+noec.loec.lm.particle
+```
 
 ### Volume
 ```{r}
@@ -392,7 +398,14 @@ NOEC.HONEC <- full_join(NOEC, HONEC, by = "combo") %>%
 
 NOEC.HONEC
 ```
+
 ### Mass
+```{r}
+honec.loec.lm <- summary(lm(effectHONEC.mass ~ effectNOEC.mass, data = NOEC.HONEC))
+honec.loec.lm
+```
+
+### Particle Count
 
 ```{r}
 honec.noec.lm <- summary(lm(effectHONEC.particles ~ effectNOEC.particles, data = NOEC.HONEC))

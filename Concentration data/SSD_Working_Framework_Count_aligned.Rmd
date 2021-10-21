@@ -4213,7 +4213,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_1082021.xlsx")
+write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_102121.xlsx")
 
 
 #Data Collapse
@@ -6300,6 +6300,7 @@ tier3_4_large %>%
 ```
 
 ### Parameter Assignment
+ The upper and lower interquartile ranges for length alpha distributions in marine surface waters were extracted from Figure 5 in Kooi et al (2021) using an online tool (WebPlotDigitizer). The upper and lower values are 2.66 and 2.09, respectively, with a median value of 2.2, thus corresponding to a percentage difference of +21% and -6%, respectively. These same relative upper and lower bounds (i.e., +21% and –6%)  were applied to the surface area, volume, and mass distribution values to estimate the sensitivity of such assumptions in deriving μlabx,poly𝜇x,polylab  for thresholds derived in the main manuscript. 
 ```{r}
 # default values
 alpha.marine = 2.07 #table s4 for marine surface water. length
@@ -6320,7 +6321,7 @@ R.ave.upper = 0.8 #average width to length ratio for microplastics in upper envi
 p.ave.upper = 1.20 #average density in upper surface water
 
 #lower values
-alpha.lower = 1.5 #table s4 for lower surface water. length
+alpha.lower = 1.95 #table s4 for lower surface water. length
 a.sa.lower = 1.4 #lower surface area power law
 a.v.lower = 1.39 #a_V for lower surface water volume
 a.m.lower = 1.24 # upper limit fora_m for mass for lower surface water in table S4
