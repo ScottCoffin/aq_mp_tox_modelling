@@ -795,6 +795,104 @@ saveRDS(classif_rf_food.dilution, "ML Models/RShinyPrep/randomForest_foodDilutio
 saveRDS(classif_rf_oxidative.stress, "ML Models/RShinyPrep/randomForest_oxStress.rds")
 ```
 
+## Quick feature analysis for powerpoint
+
+Just use polymer and shape as single variables
+```{r}
+# data preparation
+quick_build <- aoc_final %>% 
+  filter(poly_f != "Not Reported") %>% 
+ #filter data select predictor variables#
+  dplyr::select(c(
+                 #-rowid,
+    ### DOSE METRICS ####
+                  #particles.mL.ox.stress,
+                  particles.mL.food.dilution,
+                  #dose.mg.L.master, 
+                  #dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
+                  #dose.particles.mL.master, 
+                  organism.group, 
+                  life.stage, #use adults for prediction
+                  species_f, 
+                  max.size.ingest.mm,
+    ### Exposure Conditions ####              
+                  bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
+                  exposure.route, #train on all, but only use "aquatic" for build
+                  environment, #train on all, buit only use "marine" for SSD Build
+                  acute.chronic_f, #use 'chronic' for SSD build
+                  exposure.duration.d, 
+    ### Particle characteristics ####
+                  polymer, 
+                  shape,
+                  #density.g.cm3,
+                  #size.length.um.used.for.conversions, #we can't use size because we're using mixtures of particles! Have to specify translocatable or not
+                  translocatable,
+    ### Effect data ####
+                 # effect, 
+                  effect.score, #relative numerical strength of effect
+                  effect.metric, #train on all, but only specify "NOEC" for SSD build
+                  lvl1_f, #keep it generic for easy SSD build (use fitness)
+                  lvl2_f
+                  )) %>% 
+  mutate(log10.particles.mL.food.dilution = log10(particles.mL.food.dilution)) %>%  
+  dplyr::select(-particles.mL.food.dilution) %>% 
+  mutate(effect.metric = (case_when(
+    effect.metric == "NOEC" ~ "NOEC",
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+ mutate(effect.metric = as.character(effect.metric)) %>% 
+   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  mutate(effect.metric = as.factor(effect.metric)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+   dplyr::rename(c("Species" = species_f, 
+                       "Organism Group" = organism.group,
+                       "Environment" = environment,
+                       "Life Stage" = life.stage,
+            "Estimated Maximum Ingestible Size (mm)" = max.size.ingest.mm,
+            "Exposure Route" = exposure.route,
+            "Exposure Duration (days)" = exposure.duration.d,
+            "Acute/Chronic" = acute.chronic_f,
+            "Broad Endpoint Category" = lvl1_f, 
+            "Specific Endpoint Category" = lvl2_f,
+            "Level of Biological Organization" = bio.org, 
+             "Effect Metric" = effect.metric,
+            "Effect Score" = effect.score,
+             "Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)" = log10.particles.mL.food.dilution)) %>% 
+  drop_na()
+
+```
+
+```{r}
+# Create a training data set with the training() function
+# Pulls from training and testing sets created by initial_split()
+split_quick <- quick_build %>%
+  initial_split(prop = 0.75)
+quick_test <- testing(split_quick)
+quick_train <- training(split_quick)
+
+
+yTest <- as.numeric(as.character(quick_test$`Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)`))
+
+test_x <- as.data.frame(quick_test %>% dplyr::select(- `Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)`))
+
+quick_rf <- train(`Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)` ~ ., 
+                  data = quick_train, method = "rf", ntree = 100, tuneLength = 1)
+
+explainer_classif_rf_quick <- DALEX::explain(quick_rf,
+                                       label = "rf",
+                                       data = quick_test, 
+                                       y = yTest)
+
+variable_importance_rf <- model_parts(explainer_classif_rf_quick, loss_function = loss_root_mean_square)
+
+plot(variable_importance_rf)
+```
+
 
 #ML Model Paper
 ### Effect score analysis
