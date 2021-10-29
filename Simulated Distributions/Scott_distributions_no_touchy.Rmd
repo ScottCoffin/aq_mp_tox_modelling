@@ -80,14 +80,14 @@ library(ggpubr)
 require(readr)
 #load aoc_z into dataframe. This file is generated from RDA_Maker.R
 #source("Tox Data/RDA_Maker.R")
-aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") %>% rowid_to_column()
+aoc_z <- readRDS(file = "Tox Data/aoc_z.Rda") 
 ## Data filtering
 ```
 
 To ensure quality data feeds the model, we are filtering for technical red criteria.
 ```{r}
 ## First filter data with global filters
-aoc_intermediate_d <- aoc_z %>% 
+aoc_intermediate <- aoc_z %>% 
   filter(size.length.um.used.for.conversions > 1) %>%  #alignments only valid above 1 um
   filter(tier_zero_tech_f == "Red Criteria Passed",
          tier_zero_risk_f == "Red Criteria Passed",
@@ -570,6 +570,233 @@ base_thresholds <- tibble(
 
 base_thresholds
 ```
+# RShiny App Prep
+## Test Dataset for RShiny App
+
+
+### Prep dataframe for modelling
+```{r GLM build 1}
+require(reshape2)
+# data preparation
+test_data_prediction <- aoc_final %>% 
+  filter(poly_f != "Not Reported") %>% 
+ #filter data select predictor variables#
+  dplyr::select(c(
+                 #-rowid,
+    ### DOSE METRICS ####
+                  particles.mL.ox.stress,
+                  particles.mL.food.dilution,
+                  #dose.mg.L.master, 
+                  #dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
+                  #dose.particles.mL.master, 
+                  organism.group, 
+                  life.stage, #use adults for prediction
+                  species_f, 
+                  max.size.ingest.mm,
+    ### Exposure Conditions ####              
+                  bio.org, #use tissue and above for lower tiers, organism and above for higher tiers
+                  exposure.route, #train on all, but only use "aquatic" for build
+                  environment, #train on all, buit only use "marine" for SSD Build
+                  acute.chronic_f, #use 'chronic' for SSD build
+                  exposure.duration.d, 
+    ### Particle characteristics ####
+                  polymer, 
+                  shape,
+                  #density.g.cm3,
+                  #size.length.um.used.for.conversions, #we can't use size because we're using mixtures of particles! Have to specify translocatable or not
+                  translocatable,
+    ### Effect data ####
+                 # effect, 
+                  effect.score, #relative numerical strength of effect
+                  effect.metric, #train on all, but only specify "NOEC" for SSD build
+                  lvl1_f, #keep it generic for easy SSD build (use fitness)
+                  lvl2_f
+                  )) %>% 
+   rowid_to_column(var = "rowid") %>% 
+  mutate(value = 1) %>% 
+  mutate(log10.particles.mL.ox.stress = log10(particles.mL.ox.stress)) %>%
+  mutate(log10.particles.mL.food.dilution = log10(particles.mL.food.dilution)) %>%  
+  dplyr::select(-c(particles.mL.ox.stress,particles.mL.food.dilution )) %>% 
+  ###### create new column for polymer percentage #####
+  dcast(... ~ polymer, value.var = c("value")) %>% 
+  # provide 0 for all 'na's'
+  mutate(across(.cols = last_col() + (-8:0),
+                .fns = ~replace(., is.na(.), 0),
+                .names = "{.col}_fraction")) %>% 
+###### create new column for shape percentage #####
+mutate(value = 1) %>% 
+  dcast(... ~ shape, value.var = c("value")) %>% 
+  # not all rows have unique identifiers (basically dupes), so need to eliminate values > 1
+  mutate(across(.cols = last_col() + (-2:0),
+                .fns = ~replace(., is.na(.), 0),
+                .names = "{.col}_fraction")) %>% 
+  mutate(effect.metric = (case_when(
+    effect.metric == "NOEC" ~ "NOEC",
+    effect.metric == "NONEC" ~ "NOEC",
+    effect.metric == "HONEC" ~ "NOEC",
+    effect.metric == "LOEC" ~ "LOEC",
+    effect.metric == "LC50" ~ "LC50",
+    effect.metric == "EC50" ~"EC50",
+    effect.metric == "EC10" ~ "EC10"
+  ))) %>% 
+ mutate(effect.metric = as.character(effect.metric)) %>% 
+   mutate(effect.metric = replace_na(effect.metric,"not_available")) %>% 
+  # make new column for each polymer type for relative percentage
+  #filter(effect.metric != "not_available") %>% 
+  #filter(exposure.route == "water") %>% 
+  mutate(effect.metric = as.factor(effect.metric)) %>% 
+
+#mutate_if(~is.numeric(.) && (.) > 0, log10) %>% 
+  # mutate(effect_10 = case_when( #convert ordinal to numeric
+  #     effect == "Y" ~ 1,
+  #     effect == "N" ~ 0
+  #   )) %>%
+  # mutate(effect_10 = factor(effect_10)) %>% 
+  mutate_if(is.character, as.factor) %>% 
+  dplyr::select(-c(rowid,
+                   PE,
+                   PA,
+                   PET,
+                   PLA,
+                   PMMA,
+                   PP,
+                   PS,
+                   PUR,
+                   PVC,
+                   fiber,
+                   fragment,
+                   sphere,
+                   #EVA,
+                   #effect.metric_frac,
+                   #lvl1_f_frac,
+                   #lvl2_f_frac,
+                   #LTX,
+                   #PA,
+                   #PC,
+                   #PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere
+                   )) %>% 
+   drop_na()  #drop missing
+
+skim(test_data_prediction)
+```
+
+### Rename variables for interpretability
+```{r}
+test_data_prediction_renamed <- test_data_prediction %>% 
+#Rename columns
+       dplyr::rename(c("Species" = species_f, 
+                       "Organism Group" = organism.group,
+                       "Environment" = environment,
+                       "Life Stage" = life.stage,
+                       #"In vitro/in vivo" = vivo_f,
+                       #"Sex" = sex, 
+                       #"Estimated Body Length (cm)" = body.length.cm,
+            "Estimated Maximum Ingestible Size (mm)" = max.size.ingest.mm,
+             #experimental parameters
+            #"Experiment Type" = exp_type_f, 
+            "Exposure Route" = exposure.route,
+            #"Particle Mix?" = mix,
+            #"Negative Control" = negative.control,
+             #"Reference Particle" = reference.material, 
+            #"Exposure Media" = exposure.media, "Solvent" = solvent, "Detergent" = detergent,
+            #"pH" = media.ph, "Salinity (ppt)" = media.sal.ppt, "Temperature (Avg)" = media.temp, "Temperature (Min)"= media.temp.min,
+            #"Temperature (Max)" = media.temp.max, 
+            "Exposure Duration (days)" = exposure.duration.d,
+            "Acute/Chronic" = acute.chronic_f,
+            #"Number of Doses" = treatments, "Replicates" = replicates, "Sample Size" = sample.size, "Dosing Frequency" = dosing.frequency,
+            #"Chemicals Added" = chem.add.nominal, "Added Chemical Dose (nominal)" = chem.add.dose.mg.L.nominal,
+            #"Added Chemical Dose (measured)" = chem.add.dose.mg.L.measured,
+             #selected dose
+            #"Selected Dose" = dose_new,
+             #biological effects
+            #"Effect" = effect_f,
+            #"Direction" = direction,
+            "Broad Endpoint Category" = lvl1_f, 
+            "Specific Endpoint Category" = lvl2_f,
+            #"Endpoint" = lvl3_f,
+            "Level of Biological Organization" = bio.org, 
+            #"Target Cell or Tissue" = target.cell.tissue,
+             "Effect Metric" = effect.metric,
+            "Effect Score" = effect.score,
+            "Empirical Tissue Translocation ERM Conc. (log 10 particles/mL; 1-5,000 um)" = log10.particles.mL.ox.stress,
+             "Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)" = log10.particles.mL.food.dilution
+             #particle characteristics
+            #"Polymer" = poly_f, 
+            #"Shape" = shape_f, 
+            #"Density (g/cm^3)" = density.g.cm3, "Density, reported or estimated" = density.reported.estimated,
+            #"Charge" = charge, "Zeta Potential (mV)" = zetapotential.mV, "Zeta Potential Media" = zetapotential.media, "Functional Group" = functional.group,
+            #"Particle Length (μm)" = size.length.um.used.for.conversions, "Particle Width (μm)" = size.width.um.used.for.conversions,
+            #"Size Category" = size_f, "Particle Surface Area (μm^2)" = particle.surface.area.um2, "Particle Volume (μm^3)" = particle.volume.um3,
+            #"Particle Mass (mg)" = mass.per.particle.mg, 
+            #"Weathered or Biofouled?" = weather.biofoul_f,
+             #quality
+             #"Size Validated?" = size.valid, "Polymer Validated?" = polymer.valid, "Shape Validated" = shape.valid, "Particle Source" = particle.source,
+            #"Sodium Azide Present?" = sodium.azide, "Screened for Chemical Contamination?" = contaminant.screen, "Particle Cleaning?" = clean.method,
+            #"Solvent Rinse" = sol.rinse, "Background Contamination Monitored?" = background.plastics,
+            #"Concentration Validated?"  = concentration.valid, "Particle Behavior" = particle.behavior, "Uptake Validated?" = uptake.valid,
+            #"Uptake Validation Method" = uptake.valid.method, "Tissue Distribution" = tissue.distribution, "Organisms Fed?" = fed
+            ))
+```
+
+
+```{r}
+set.seed(4)
+#remove particles.mL.food.dilution for training
+split_ox <- test_data_prediction_renamed %>%
+  dplyr::select(-`Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)`) %>% 
+  initial_split(prop = 0.75)
+test_ox <- testing(split_ox)
+train_ox <- training(split_ox)
+
+#remove particles.ml.foodidative.stress
+split_food <- test_data_prediction_renamed %>%
+  dplyr::select(-`Empirical Tissue Translocation ERM Conc. (log 10 particles/mL; 1-5,000 um)`) %>% 
+  initial_split(prop = 0.75)
+test_food <- testing(split_food)
+train_food <- training(split_food)
+
+# Create a training data set with the training() function
+# Pulls from training and testing sets created by initial_split()
+split <- test_data_prediction_renamed %>%
+  initial_split(prop = 0.75)
+test_test_data_prediction <- testing(split)
+training_test_data_prediction <- training(split)
+
+#ensure completeness
+skim(test_test_data_prediction)
+
+#save test data for app
+write.csv(test_test_data_prediction,"ML Models/RShinyPrep/test_data_prediction.csv")
+
+#save training data for app
+write.csv(training_test_data_prediction, "ML Models/RShinyPrep/training_data_prediction.csv")
+
+
+#save list of valid values (levels) for each variable
+valid_values <- test_test_data_prediction %>%
+  dplyr::select(where(is.factor)) %>%
+  purrr::map_dfr(function(f) {
+    data.frame(Level = levels(f))
+  }, .id = "VarName")
+
+write.csv(valid_values, "ML Models/RShinyPrep/valid_values.csv")
+```
+##Model Build for RShiny App
+```{r}
+#ox stress as response
+classif_rf_oxidative.stress <- train(`Empirical Tissue Translocation ERM Conc. (log 10 particles/mL; 1-5,000 um)` ~ ., 
+                                     data = train_ox, method = "rf", ntree = 100, tuneLength = 1)
+#food dilution ERM as response
+classif_rf_food.dilution <- train(`Empirical Food Dilution ERM Conc. (log 10 particles/mL; 1-5,000 um)` ~ ., data = train_food, method = "rf", ntree = 100, tuneLength = 1)
+
+#save models
+#save models
+saveRDS(classif_rf_food.dilution, "ML Models/RShinyPrep/randomForest_foodDilution.rds")
+saveRDS(classif_rf_oxidative.stress, "ML Models/RShinyPrep/randomForest_oxStress.rds")
+```
+
+
+#ML Model Paper
 ### Effect score analysis
 #### Unaligned
 Just visualize effect concentrations by effect metric.
@@ -722,16 +949,19 @@ effect_score_counts
 ```
 
 
+
 ### Oxidative Stress
 ```{r GLM build 1}
 require(reshape2)
 # data preparation
 df_oxidative.stress <- aoc_final %>% 
+  filter(poly_f != "Not Reported") %>% 
  #filter data select predictor variables#
   dplyr::select(c(
+                 #-rowid,
     ### DOSE METRICS ####
                   particles.mL.ox.stress,
-                 # particles.mL.food.dilution,
+                  #particles.mL.food.dilution,
                   #dose.mg.L.master, 
                   #dose.surface.area.um2.mL.master, #fibers are assumed to be cylinders, fragments are assumed to be spheres
                   #dose.particles.mL.master, 
@@ -799,10 +1029,15 @@ mutate(value = 1) %>%
   #   )) %>%
   # mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c(rowid, EVA,
+  dplyr::select(-c(rowid,
+                   effect.metric_frac,
+                   lvl1_f_frac,
+                   #EVA,
                    lvl2_f_frac,
                    #LTX,
-                   PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
+                   PA,
+                   #PC,
+                   PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere)) %>% 
    drop_na()  #drop missing
 
 #ensure completeness
@@ -823,6 +1058,9 @@ df_split <- df_oxidative.stress %>%
 # Pulls from training and testing sets created by initial_split()
 train <- training(df_split)
 test <- testing(df_split)
+
+#unique id for saving later for RShiny app
+test.ox <- test
 
 # variable names for response & features
 y <- "particles.mL.ox.stress"
@@ -1474,7 +1712,9 @@ require(reshape2)
 # data preparation
 df_food.dilution <- aoc_final %>% 
  #filter data select predictor variables#
+  filter(polymer != "Not Reported") %>% 
   dplyr::select(c(
+                  rowid,
     ### DOSE METRICS ####
                  # particles.mL.ox.stress,
                   particles.mL.food.dilution,
@@ -1506,7 +1746,7 @@ df_food.dilution <- aoc_final %>%
                   lvl2_f#,
                  # lvl3_f
                   )) %>% 
-   rowid_to_column(var = "rowid") %>% 
+  # rowid_to_column(var = "rowid") %>% 
   mutate(value = 1) %>% 
    mutate(particles.mL.food.dilution = log10(particles.mL.food.dilution)) %>% 
   ###### create new column for polymer percentage #####
@@ -1544,10 +1784,16 @@ mutate(value = 1) %>%
   #   )) %>%
   # mutate(effect_10 = factor(effect_10)) %>% 
   mutate_if(is.character, as.factor) %>% 
-  dplyr::select(-c( rowid, EVA, 
+  dplyr::select(-c( rowid,
+                    #EVA, 
                     #LTX,
-                    PA, PC, PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere,
-                    lvl2_f_frac)) %>% 
+                    PA, 
+                    #PC,
+                    PE, PET, PLA, PMMA, PP, PS, PUR, PVC, fiber, fragment, sphere,
+                    lvl2_f_frac,
+                    lvl1_f_frac,
+                    effect.metric_frac
+                    )) %>% 
    drop_na()  #drop missing
 
 #ensure completeness
@@ -1568,6 +1814,9 @@ df_split <- df_food.dilution %>%
 # Pulls from training and testing sets created by initial_split()
 train <- training(df_split)
 test <- testing(df_split)
+
+#save unique df for RShiny app later
+test_food <- test
 
 # variable names for response & features
 y <- "particles.mL.food.dilution"
@@ -1993,9 +2242,11 @@ composition_agnostic <- df_oxidative.stress %>%
            acute.chronic_f, environment,  exposure.route, 
            #translocatable,
            # make synonymous with training data for true comparison
-          EVA_frac,
+          #EVA_frac,
           #LTX_frac,
-          PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+          PA_frac,
+          #PC_frac,
+          PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
@@ -2055,10 +2306,10 @@ composition_realistic <- df_oxidative.stress %>%
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
-        EVA_frac = 0.06,
+       # EVA_frac = 0.06,
         LTX_frac = 0,
         PA_frac = 0.12,
-        PC_frac = 0,
+       # PC_frac = 0,
         PE_frac = 0.25,
         PET_frac = 0.165,
         PLA_frac = 0,
@@ -2217,6 +2468,8 @@ empirical.vs.predicted.ox <- ggplot() +#, aes_string(x = "est")) +
   #fill.type + #user-selected
   #color.type + #user-selected
   theme.type #user theme
+
+empirical.vs.predicted.ox_dark <- empirical.vs.predicted.ox + dark_theme_bw()
 
 empirical.vs.predicted.ox
 ```
@@ -2759,9 +3012,11 @@ composition_agnostic_food <- df_oxidative.stress %>%
            effect.score,
            translocatable,
            # make synonymous with training data for true comparison
-          EVA_frac,
+         # EVA_frac,
           #LTX_frac,
-          PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
+          PA_frac,
+         #PC_frac, 
+         PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, fiber_frac,       fragment_frac, sphere_frac
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
@@ -2822,10 +3077,10 @@ composition_realistic_food <- df_oxidative.stress %>%
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
-        EVA_frac = 0.06,
+       # EVA_frac = 0.06,
         #LTX_frac = 0,
         PA_frac = 0.12,
-        PC_frac = 0,
+        #PC_frac = 0,
         PE_frac = 0.25,
         PET_frac = 0.165,
         PLA_frac = 0,
@@ -2986,6 +3241,8 @@ empirical.vs.predicted.food <- ggplot() +#, aes_string(x = "est")) +
   #color.type + #user-selected
   theme.type + #user theme
   theme(axis.title.y = element_blank())
+
+empirical.vs.predicted.food_dark <- empirical.vs.predicted.food + dark_theme_bw()
 
 empirical.vs.predicted.food
 ```
@@ -3167,10 +3424,10 @@ composition_realistic_polymers_food <- df_oxidative.stress %>%
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
   mutate(
-        EVA_frac = 0.06,
+      #  EVA_frac = 0.06,
         #LTX_frac = 0,
         PA_frac = 0.12,
-        PC_frac = 0,
+       # PC_frac = 0,
         PE_frac = 0.25,
         PET_frac = 0.165,
         PLA_frac = 0,
@@ -3218,9 +3475,11 @@ composition_realistic_shapes_food <- df_oxidative.stress %>%
            acute.chronic_f, environment,  exposure.route, 
            translocatable,
            # make synonymous with training data for true comparison
-           EVA_frac,
+          # EVA_frac,
            #LTX_frac, 
-           PA_frac, PC_frac, PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, 
+           PA_frac,
+          #PC_frac, 
+          PE_frac, PET_frac, PLA_frac, PMMA_frac, PP_frac, PS_frac, PUR_frac, PVC_frac, 
           # fiber_frac, fragment_frac, sphere_frac 
            ) %>% 
   #give summary statistics for typical composition of 1-5,000 um particle distribution in aquatic environment
@@ -3697,6 +3956,19 @@ for(row in 1:nrow(org_endpoint_comb)){
 
 ### Figures
 ```{r}
+#dark mode
+ssd_comparison_dark <- ggarrange(empirical.vs.predicted.ox_dark, empirical.vs.predicted.food_dark, common.legend = TRUE, legend = "bottom", ncol = 2, nrow = 1)
+
+ssd_comparison_dark
+
+ggsave(filename = "ssd_comparison_dark.jpeg",
+       path = "Simulated Distributions/BigDataManuscript", 
+       plot = ssd_comparison_dark, width = 8, height = 3, units = "in",
+       dpi = 300, bg = "black")
+```
+
+```{r}
+#light mode
 ssd_comparison <- ggarrange(empirical.vs.predicted.ox, empirical.vs.predicted.food,
             labels = c("A", "B"), common.legend = TRUE, legend = "bottom", 
                         ncol = 2, nrow = 1)

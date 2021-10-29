@@ -185,7 +185,8 @@ approach_fig <- approach %>%
        #subtitle = "Mean +- s.d. (n = 11)",
          x = "Confidence in Analytical Process",
        y = "Confidence in Framework") +
-theme_minimal(base_size = 14) +
+  dark_theme_minimal(base_size = 14) +
+#theme_minimal(base_size = 14) +
   theme(plot.title = element_text(hjust = 0.5),
             plot.subtitle = element_text(hjust = 0.5))
 
@@ -200,11 +201,11 @@ vote_figure <- ggarrange(approach_fig,thresholds,
 
 plot(vote_figure)
 
-ggsave(plot = vote_figure,
-       filename = "Confidence_Votes_Fig3.jpeg",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 12, height = 12, units = "in", bg = "white",
-       dpi = 300)
+# ggsave(plot = vote_figure,
+#        filename = "Confidence_Votes_Fig3.jpeg",
+#        path = "./Concentration data/Threshold_Manuscript_Figs/", 
+#        width = 12, height = 12, units = "in", bg = "white",
+#        dpi = 300)
 ```
 #Change over time
 
@@ -426,11 +427,11 @@ vote_figure <- ggarrange(approach_fig,thresholds,
 
 plot(vote_figure)
 
-ggsave(plot = vote_figure,
-       filename = "Confidence_Votes_Fig3.jpeg",
-       path = "./Concentration data/Threshold_Manuscript_Figs/", 
-       width = 12, height = 12, units = "in", bg = "white",
-       dpi = 300)
+# ggsave(plot = vote_figure,
+#        filename = "Confidence_Votes_Fig3.jpeg",
+#        path = "./Concentration data/Threshold_Manuscript_Figs/", 
+#        width = 12, height = 12, units = "in", bg = "white",
+#        dpi = 300)
 ```
 
 ## Quality score assessment

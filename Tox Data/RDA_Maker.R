@@ -249,7 +249,7 @@ aoc_setup <- aoc_v1 %>% # start with original dataset
                                    lvl2 == "gonad.histo"~"Gonad Histological Abnormalities",
                                    lvl2 == "growth"~ "Growth",
                                    lvl2 == "immune.cells"~"Immune Cells",
-                                   lvl2 == "immune.other"~"Immune Other ",
+                                   lvl2 == "immune.other"~"Immune Other",
                                    lvl2 == "intestinal.permeability"~"Intestinal Permeability",
                                    lvl2 == "kidney.histo"~"Kidney Histological abnormalities",
                                    lvl2 == "lipid.metabolism"~"Lipid Metabolism",
