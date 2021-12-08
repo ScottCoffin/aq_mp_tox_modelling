@@ -124,6 +124,11 @@ Adam, Véronique, Tong Yang, and Bernd Nowack. 2019. “Toward an Ecotoxicologic
 
 Covernton, Garth A., Christopher M. Pearce, Helen J. Gurney-Smith, Stephen G. Chastain, Peter S. Ross, John F. Dower, and Sarah E. Dudas. 2019. “Size and Shape Matter: A Preliminary Analysis of Microplastic Sampling Technique in Seawater Studies with Implications for Ecological Risk Assessment.” Science of The Total Environment 667 (June): 124–32. https://doi.org/10.1016/j.scitotenv.2019.02.346.
 
+Koutnik, Vera S., Jamie Leonard, Sarah Alkidim, Francesca J. DePrima, Sujith Ravi, Eric M.V. Hoek, and Sanjay K. Mohanty. 2021. “Distribution of Microplastics in Soil and Freshwater Environments: Global Analysis and Framework for Transport Modeling.” Environmental Pollution 274 (April): 116552. https://doi.org/10/gnqffq.
+
+Zhu, Xia, Keenan Munno, Jelena Grbic, Larissa Meghan Werbowski, Jacqueline Bikker, Annissa Ho, Edie Guo, et al. 2021. “Holistic Assessment of Microplastics and Other Anthropogenic Microdebris in an Urban Bay Sheds Light on Their Sources and Fate.” ACS ES&T Water, May, acsestwater.0c00292. https://doi.org/10.1021/acsestwater.0c00292.
+
+
 
 
 ```{r}
@@ -148,7 +153,34 @@ sfBay <- read.csv("Concentration Data/Datasets/SFBayData.csv", na.strings = "NA"
 covernton <- read.csv("Concentration Data/Datasets/Covernton.csv", na.strings = "NA", stringsAsFactors = TRUE) %>%
   rename(x1M = Min.particle.size.um,
          x2M = Max.particle.size.um) %>% 
-  mutate(Sample.Type = "sample")
+  mutate(Sample.Type = "sample",
+         source = doi)
+ 
+###### # import data from Koutnik et al (2021) ###### https://www.sciencedirect.com/science/article/abs/pii/S0269749121001305?via%3Dihub 
+### NOTE: Koutnik et al (2021) did report upper size limits for monitoring data, so 5,000 um is assumed. The sensitivity of this assumption should be tested. Data from https://doi.org/10.6084/m9.figshare.13114175.v3 
+koutnik <- read.csv("Concentration Data/Datasets/koutnik_simple.csv", na.strings = c("NA", "#N/A"), stringsAsFactors = TRUE, strip.white = TRUE) %>% 
+  rename(source = ï..source,
+       #  study = Reference,
+         x1M = Min.particle.size.um) %>% 
+        # x2M = Max.particle.size.um) %>% #max particle size iisn't available, so assume 5000 um
+  mutate(x2M = 5000) %>% 
+  mutate(freshwater_saltwater = case_when(
+    System == "River" ~ "Freshwater",
+    System == "Lake" ~ "Freshwater",
+    System == "Estuary" ~ "Saltwater",
+    System == "Wetland" ~ "Freshwater",
+    System == "Glacier & Snow" ~ "Freshwater",
+    System == "Urban Canal" ~ "Freshwater",
+    grepl("soil", System, ignore.case = TRUE) ~ "Soil")) %>% 
+  mutate(Sample.Type = "Sample") %>% 
+  mutate(study = Reference)
+
+#note that some data here may be duplicatively reported with Covernton et al (2019). Covernton did not report study DOI's, so we'll need a way to compare by author name using approximate matches.
+library(fuzzyjoin)
+#overlap <- stringdist_left_join(
+overlap <- left_join(koutnik %>%  dplyr::select(source, study, doi), covernton %>%  dplyr::select(source, study), by = "study") %>%  #drop_na(study.y) %>% 
+  distinct()
+#it doesn't seem like there's many overlapping sources...
 ```
 
 
@@ -221,6 +253,23 @@ covernton_new <- covernton %>%
          sample.matrix.specific = "surface water"
          )
 
+# Align Koutnik data
+koutnik_new <- koutnik %>% 
+  #create new column with correction factor 
+  mutate(CF = case_when(
+    freshwater_saltwater == "Freshwater" ~ CFfnx(a = alpha.freshwater, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set),
+    freshwater_saltwater == "Saltwater" ~ CFfnx(a = alpha.marine, x1M = x1M, x2M = x2M, x1D = x1D_set, x2D = x2D_set))) %>%  
+  #align data
+  mutate(particle.L.master = unaligned.particle.L.master * CF) %>% 
+  select(c(Sampling.location, x1M, x2M, Sample.Type, System, unaligned.particle.L.master, CF,particle.L.master, source, Reference, sample.matrix)) %>% 
+    mutate(sampleID = NA,
+         specific.location = NA,
+         latitude = NA,
+         longitude = NA,
+         sample.matrix.specific = NA,
+         Sampling.apparatus = NA
+         )
+
 ## join datasets ##
 #first ensure that both datasets share all columns
 adam_sub <- adam_new %>% 
@@ -234,7 +283,7 @@ adam_sub <- adam_new %>%
          )
 
 #join data
-globalData <- rbind(adam_sub, sfBay_new, covernton_new) %>% 
+globalData <- rbind(adam_sub, sfBay_new, covernton_new, koutnik_new) %>% 
   mutate(compartment = case_when(
     System == "Lake" ~ "freshwater",
     System == "River" ~ "freshwater",
@@ -2196,3 +2245,47 @@ ggsave(plot =ECDF_all_ERM,
        width = 10.5, height = 5, units = "in", bg = "white",
        dpi = 300)
 ```
+
+
+# Re-analysis of Koutnick et al (2021) data
+```{r}
+#unaligned
+unaligned_koutnik <- koutnik_new %>% 
+  filter(System != "Stormwater") %>% 
+  drop_na(unaligned.particle.L.master) %>% 
+  mutate(System = fct_reorder(System, unaligned.particle.L.master, .fun = median)) %>% 
+  ggplot(aes(x = unaligned.particle.L.master, y = System, fill = System)) +
+  geom_boxplot() +
+  scale_x_log10(name = "UNALIGNED Microplastics in Freshwater (particles/L)",
+                breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif) +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+#aligned
+aligned_koutnik <- koutnik_new %>% 
+  drop_na(particle.L.master) %>% 
+  mutate(System = fct_reorder(System, unaligned.particle.L.master, .fun = median)) %>% 
+  ggplot(aes(x = particle.L.master, y = System, fill = System)) +
+  geom_boxplot() +
+  scale_x_log10(name = "ALIGNED Microplastics in Freshwater (particles/L)",
+                breaks = scales::trans_breaks("log10", function(x) 10^x),labels = comma_signif) +
+  theme_bw(base_size = 14) +
+  theme(legend.position = "none",
+        axis.title.y = element_blank())
+
+koutnik_side <- ggarrange(unaligned_koutnik, aligned_koutnik,
+                        labels = c("A", "B"), common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 1)
+
+plot(koutnik_side)
+
+ggsave(plot =koutnik_side,
+       filename = "koutnik_side.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       width = 10, height = 6, units = "in",
+       bg = "white",
+       dpi = 300)
+```
+
