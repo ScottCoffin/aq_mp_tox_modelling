@@ -22,8 +22,7 @@ knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
 This script uses the randomForest package to build machine learning models, instead of the Caret package in the other RMD scripts in this folder. 
 
 # Setup
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+```{r setup}
 # Load packages
 library(tidyverse) #General everything
 library(RColorBrewer)
@@ -103,7 +102,7 @@ multiVar <- aoc_z %>% dplyr::select(#doi, size.category,
                                     treatments, #number of doses (no including control)
                                     effect, #yes no
                                     effect_f,
-                                    effect_10,
+                                   # effect_10,
                                     size_f,
                                     exposure.duration.d, 
                                     exposure.route, #Factor
@@ -123,8 +122,8 @@ multiVar <- aoc_z %>% dplyr::select(#doi, size.category,
                                     zetapotential.mV, # numeric   
                                    max.size.ingest.mm,#max ingestible size
                                    acute.chronic_f,
-                                   dose.mg.L.master.AF.noec,
-                                   dose.particles.mL.master.AF.noec,
+                                  # dose.mg.L.master.AF.noec,
+                                  # dose.particles.mL.master.AF.noec,
                                    dose.um3.mL.master,
                                    max.size.ingest.mm, #maximum ingestible size range
                                    effect.score) %>%  #1 = minor, 2 = photosynthesis, feeding, 3 = growth, chlorophyll content, 4 = reproduction, 5  = population growth, 6 = survival
