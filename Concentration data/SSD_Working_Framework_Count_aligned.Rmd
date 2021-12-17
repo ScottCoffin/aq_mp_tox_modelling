@@ -2600,7 +2600,7 @@ Data Quality = Pass Technical Quality Red Criteria
 
 #### Data Filtering
 
-```{r size category selection6, include=TRUE}
+```{r size category selection8, include=TRUE}
 #Food Dilution
 tier1_2_large <- aoc_final_large_marine %>% 
          mutate(dose_new = EC_env_sa.particles.mL / (af.time * af.noec)) %>%  
@@ -4337,7 +4337,7 @@ list_of_datasets <- list("Thresholds 1_2,1-5000um,Vol" = study_list_fooddilution
                          "Thresholds 3_4, 1-83um,SA" = study_list_translocation_3_4)
 
 
-write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_102121.xlsx")
+#write.xlsx(list_of_datasets, file = "./Concentration data/Threshold_Manuscript_Figs/SSD_rawdata_102121.xlsx")
 
 #Data Collapse
 
