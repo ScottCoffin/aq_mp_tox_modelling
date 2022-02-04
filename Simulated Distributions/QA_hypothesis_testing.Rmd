@@ -346,6 +346,67 @@ mutate(x2M_trans = case_when(is.na(max.size.ingest.um) ~ upper.tissue.trans.size
          particles.mL.food.dilution = EC_env_v.particles.mL_ingest)
 ```
 
+#Study Quality Over Time
+```{r}
+my.formula <- y ~ x
+
+# long data
+long_time <- aoc_final %>% 
+  dplyr::select(c(year, risk.quality, technical.quality#, total.quality
+                  )) %>% 
+  mutate(year_date = lubridate::ymd(year, truncated = 2L)) %>% 
+  pivot_longer(cols = -c(year_date, year), names_to = "quality_type", values_to = "score")
+
+#scatterplot
+scatterplot <- long_time %>% 
+  ggplot(aes(x = year_date, y = score, color = quality_type, fill = quality_type)) +
+  geom_point(position=position_jitterdodge(), alpha = 0.03) +
+   geom_smooth(method = "lm", se=TRUE, formula = my.formula) +
+   ggpmisc::stat_poly_eq(formula = my.formula, 
+                aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "~~~")), 
+                parse = TRUE) +         
+ # geom_rug(position=position_jitterdodge(), alpha = 0.5) +
+  scale_x_date(labels = date_format("%Y"),
+               date_breaks = "1 year",
+               limits = as.Date(c("2012-01-01", "2020-07-01"))) +
+  scale_color_aaas(labels = c("Risk Quality Score", "Technical Quality Score")) +
+  scale_fill_aaas(labels = c("Risk Quality Score", "Technical Quality Score")) +
+  theme.type +
+  theme(legend.position=c(0.63,0.98),legend.justification=c(1,1),
+        axis.title.x = element_blank(),
+        legend.title = element_blank()) 
+
+#marginal density plot of x - plot on bnottom
+plot_bottom <- long_time %>%
+  ggplot(aes(x = year_date)) +
+  geom_bar() +
+  #geom_density() +
+  scale_x_date(labels = date_format("%Y"),
+               date_breaks = "1 year",
+               limits = as.Date(c("2012-01-01", "2020-7-1"))) +
+  ylab("Study Frequency") +
+  theme.type +
+  theme(axis.title.x = element_blank(),
+        axis.text.y = element_blank())
+
+quality_time <- grid.arrange(scatterplot,
+             #empty, 
+             plot_bottom,
+             ncol = 1, nrow = 2, 
+             #widths = c(1,1),
+             heights = c(4,1))
+
+ggsave(plot = quality_time,
+       filename = "quality_time.jpeg",
+       path = "output/figures/", 
+       width = 10, height = 8, units = "in",
+       bg = "white",
+       dpi = 300)
+
+quality_time
+```
+
+
 # Does Study Quality Predict Likelihood of finding an effect?
 ## Data subsetting
 Bart asked this question
