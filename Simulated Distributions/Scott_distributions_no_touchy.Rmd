@@ -89,8 +89,9 @@ To ensure quality data feeds the model, we are filtering for technical red crite
 ## First filter data with global filters
 aoc_intermediate <- aoc_z %>% 
   filter(size.length.um.used.for.conversions > 1) %>%  #alignments only valid above 1 um
-  filter(tier_zero_tech_f == "Red Criteria Passed",
-         tier_zero_risk_f == "Red Criteria Passed",
+  filter(
+    tier_zero_tech_f == "Red Criteria Passed",  ################# MAKE SURE TO UNCOMMENT THIS WHEN RUNNING REAL MODEL!!!!!! ######
+         tier_zero_risk_f == "Red Criteria Passed", ################# MAKE SURE TO UNCOMMENT THIS WHEN RUNNING REAL MODEL!!!!!! ######
         # polymer != "Not Reported",
          !environment %in% c("Terrestrial", "Not Reported"),
          org_f != "Bacterium",

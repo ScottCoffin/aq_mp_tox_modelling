@@ -538,7 +538,7 @@ plot(df, facet = TRUE)
 
 ```{r, echo = FALSE}
 #Select the columns that we want to feed into the model for simplicity
-poly <- aoc_z %>% 
+poly <- aoc_setup %>% 
   filter(!effect_f == "NA") %>% 
   #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
   #filter(organism.group == "Crustacea") %>% 
@@ -644,7 +644,7 @@ plot(acute_discrete)#, facet = TRUE, add.data = TRUE)
 
 #### Alt Method using GG Plot
 This approach achieves a similiar product as using the ggPredict() function, except it relies on ggplot(), which is more malleable and transparent. The general steps are to first create a new dataframe over 1000 values of size using expand.grid() then use predict() and plot() with geom_line() and colour=size.
-```{r}
+```{r eval=FALSE, include=FALSE}
 require(viridis)
 #filtered dataset
 #m1_crust
@@ -951,6 +951,14 @@ ggsave(plot = dose_GLMs,
        width = 12, height = 12, units = "in",
        dpi = 900)
 ```
+### Summaries
+```{r}
+glms <- list(m1_crust_model_mass, m1_crust_model_particles, m1_crust_model_volume, m1_crust_model_surface_area)
+
+lapply(glms, summary)
+```
+
+
 
 ## send to Win as a postcard
 ```{r}
