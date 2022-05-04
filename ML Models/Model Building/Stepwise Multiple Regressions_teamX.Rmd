@@ -1,0 +1,1000 @@
+---
+title: "Stepwise Multiple Regressions"
+author: "Leah Thornton Hampton"
+date: "2/1/2021"
+output:
+  html_document: 
+    code_folding: hide
+    theme: sandstone
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+    number_sections: true
+  word_document:
+    toc: yes
+---
+```{r global-options, include=FALSE}
+knitr::opts_chunk$set(fig.width=12, fig.height=8, fig.path='Figs/',
+                      warning=FALSE, message=FALSE)
+```
+
+
+```{r, echo = FALSE, message = FALSE, warning = FALSE}
+#Packages
+library(tidyverse)
+library(MASS, exclude = 'select') #Stepwise regression package 
+library(ggiraphExtra) #For plotting
+library(ggeffects)
+library(ggdark)
+library(ggsci)
+library(viridis)
+
+require(readr)
+#load aoc_z into dataframe. This file is generated from RDA_Maker.R
+#source("Tox Data/RDA_Maker.R")
+aoc_setup <- readRDS(file = "Tox Data/aoc_z.Rda")
+```
+
+This script runs multiple linear regressions and performs stepwise feature elimination.
+
+# Set Up
+
+```{r}
+
+#Custom function that finds factors with only 1 level
+#Source: https://stackoverflow.com/questions/44200195/how-to-debug-contrasts-can-be-applied-only-to-factors-with-2-or-more-levels-er
+
+debug_contr_error <- function (dat, subset_vec = NULL) {
+  if (!is.null(subset_vec)) {
+    ## step 0
+    if (mode(subset_vec) == "logical") {
+      if (length(subset_vec) != nrow(dat)) {
+        stop("'logical' `subset_vec` provided but length does not match `nrow(dat)`")
+        }
+      subset_log_vec <- subset_vec
+      } else if (mode(subset_vec) == "numeric") {
+      ## check range
+      ran <- range(subset_vec)
+      if (ran[1] < 1 || ran[2] > nrow(dat)) {
+        stop("'numeric' `subset_vec` provided but values are out of bound")
+        } else {
+        subset_log_vec <- logical(nrow(dat))
+        subset_log_vec[as.integer(subset_vec)] <- TRUE
+        } 
+      } else {
+      stop("`subset_vec` must be either 'logical' or 'numeric'")
+      }
+    dat <- base::subset(dat, subset = subset_log_vec)
+    } else {
+    ## step 1
+    dat <- stats::na.omit(dat)
+    }
+  if (nrow(dat) == 0L) warning("no complete cases")
+  ## step 2
+  var_mode <- sapply(dat, mode)
+  if (any(var_mode %in% c("complex", "raw"))) stop("complex or raw not allowed!")
+  var_class <- sapply(dat, class)
+  if (any(var_mode[var_class == "AsIs"] %in% c("logical", "character"))) {
+    stop("matrix variables with 'AsIs' class must be 'numeric'")
+    }
+  ind1 <- which(var_mode %in% c("logical", "character"))
+  dat[ind1] <- lapply(dat[ind1], as.factor)
+  ## step 3
+  fctr <- which(sapply(dat, is.factor))
+  if (length(fctr) == 0L) warning("no factor variables to summary")
+  ind2 <- if (length(ind1) > 0L) fctr[-ind1] else fctr
+  dat[ind2] <- lapply(dat[ind2], base::droplevels.factor)
+  ## step 4
+  lev <- lapply(dat[fctr], base::levels.default)
+  nl <- lengths(lev)
+  ## return
+  list(nlevels = nl, levels = lev)
+  }
+
+
+```
+
+
+#Variables to put into model
+
+* Dose (counts)
+* Dose (mass)
+* Dose (volume)
+* Size (continuous)
+* Size (binned)
+* Polymer type
+* Shape
+* Organism Group (this is being used as a temporary substitute for body size)
+* Life Stage
+* Level of Biological Organization
+* Exposure Duration
+* Acute/Chronic (this values are only complete for fish, molluscs, crustaceans and algae)
+* Charge (negative/positive - categorical)
+* Zeta potential 
+* Particle Source (commercial, generated in-house, or mmodified commercial particles e.g., milling)
+
+Response Variables
+* Effect (Y/N) - Binary Data
+* Effect (Y/N) - Binary Data x Effect Score (binned organism level effects)
+
+#Continous Variable Distributions
+
+There are several continuous variables that we want to feed into our model. Before doing so, we're going to check the distribution to see if any of them are skewed and need to be transformed. 
+
+```{r, echo = FALSE}
+
+#Dose - Count
+
+Dose_Particles_mL <- aoc_setup$dose.particles.mL.master
+
+hist(Dose_Particles_mL)
+
+hist(log10(Dose_Particles_mL))
+
+#Dose - Mass
+
+Dose_Mass_L <- aoc_setup$dose.mg.L.master
+
+hist(Dose_Mass_L)
+
+hist(log10(Dose_Mass_L))
+
+#Dose - Volume
+
+`Dose_um^3_mL` <- aoc_setup$dose.um3.mL.master
+
+hist(`Dose_um^3_mL`)
+
+hist(log10(`Dose_um^3_mL`))
+
+#Size - Continuous
+
+Size <- aoc_setup$size.length.um.used.for.conversions
+
+hist(Size)
+
+hist(log10(Size))
+
+#Exposure Duration
+
+Exposure_Duration <- aoc_setup$exposure.duration.d
+
+hist(Exposure_Duration)
+
+hist(log10(Exposure_Duration))
+
+#Zeta Potential
+
+Zeta_Potential_mV <- aoc_setup$zetapotential.mV
+
+hist(Zeta_Potential_mV)
+
+#No need to log transform
+
+aoc_setup_select <- aoc_setup %>% 
+  mutate(log.dose.particles.mL.master = log10(dose.particles.mL.master)) %>% 
+  mutate(log.dose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(log.dose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(log.size.length.um.used.for.conversions = log10(size.length.um.used.for.conversions)) %>%
+  mutate(log.exposure.duration.d = log10(exposure.duration.d)) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    ))# %>%
+  #mutate(effect_10 = factor(effect_10))
+
+
+```
+
+Due to skewed data, the following categories are log10 transformed before modeling: 
+
+* Dose (counts)
+* Dose (mass)
+* Dose (volume)
+* Size (continuous)
+* Exposure Duration
+
+# Model: Kitchen Sink
+
+All Independent Variables, Response Variable: Effect (Y/N)
+
+Full Model 
+
+```{r, echo = FALSE}
+
+#Select the columns that we want to feed into the model for simplicity
+aoc_setup_select_1 <- aoc_setup_select  %>%
+  filter(life_f != "Not Reported") %>% 
+  filter(acute.chronic_f != "Unavailable") %>% 
+  filter(size_f != "Not Reported") %>% 
+  filter(poly_f != "Not Reported") %>%
+  filter(shape_f != "Not Reported") %>%
+  filter(environment != "Terrestrial") %>%
+  dplyr::select(
+    log.dose.particles.mL.master, 
+    log.dose.mg.L.master,
+    log.dose.um3.mL.master,
+    log.size.length.um.used.for.conversions,
+    # size_f,
+    # poly_f,
+    shape_f,
+    org_f,
+    life_f,
+    bio_f,
+    log.exposure.duration.d,
+    acute.chronic_f,
+    # charge_f,
+    # zetapotential.mV,
+    # particle_source_f,
+    effect_10) 
+#Check for single level factors
+debug_contr_error(aoc_setup_select_1)
+
+#Omit missing data before modeling
+aoc_setup_select_1 <- na.omit(aoc_setup_select_1)
+
+#Fit the full model
+Full_Model <- lm(effect_10 ~., data = aoc_setup_select_1)
+
+summary(Full_Model)
+```
+
+Stepwise Model - Both Directions
+
+```{r, echo = FALSE}
+
+#Stepwise model
+step.model <- stepAIC(Full_Model, direction = "both", 
+                      trace = FALSE)
+
+
+summary(step.model)
+
+```
+
+# Model: Crustacean Fitness, Organism Level Endpoints Only
+## Dose (mass)
+
+Full Model 
+
+```{r, echo = FALSE}
+
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose <- glm(effect_10 ~ logdose.mg.L.master*size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose)
+```
+
+```{r}
+#Plots
+
+ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = FALSE)
+```
+
+## Dose (volume)
+
+Full Model 
+
+```{r, echo = FALSE}
+
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose <- glm(effect_10 ~ logdose.um3.mL.master*size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose)
+```
+
+```{r}
+#Plots
+ggPredict(m1_crust_model_dose,
+          colorn=200,
+ #         jitter=TRUE, 
+point = FALSE,
+          interactive = FALSE, 
+show.summary = TRUE,
+#digits = 3, 
+se = FALSE)
+```
+
+```{r}
+#particle couunt
+#Select the columns that we want to feed into the model for simplicity
+m1_crust_part <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.particles.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_particles <- glm(effect_10 ~ logdose.particles.mL.master * size.length.um.used.for.conversions, data = m1_crust_part, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_particles)
+```
+plot
+```{r}
+ggPredict(m1_crust_model_particles, colorn=1000, interactive = FALSE, jitter = FALSE)
+```
+### volume
+```{r}
+#particle couunt
+#Select the columns that we want to feed into the model for simplicity
+m1_crust_volume <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.um3.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_volume <- glm(effect_10 ~ logdose.um3.mL.master * size.length.um.used.for.conversions, data = m1_crust_volume, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_volume)
+```
+plot
+```{r}
+ggPredict(m1_crust_model_volume, colorn=800, interactive = FALSE,jitter = FALSE)
+```
+
+
+```{r}
+#alternative method using ggplot
+
+#get probabilities
+m1 <- m1_crust %>% 
+  mutate(prob = predict(m1_crust_model_dose,
+                        type = "response"))
+  
+# plot
+ggplot(m1, aes(x = logdose.mg.L.master, y = effect_10, color = size.length.um.used.for.conversions))+
+  geom_jitter() +
+  geom_smooth(method = 'glm',
+              aes(x = logdose.mg.L.master, y = prob), #use predicted NOEC probability
+              method.args = list(family = binomial(link = 'logit')),
+              se = FALSE, color = 'red') #+
+  # geom_smooth(method = 'glm',
+  #             method.args = list(family = binomial(link = 'probit')),
+  #             se = FALSE, color = 'green') +
+  # stat_smooth(method = "glm", method.args = list(family = "binomial"), se = FALSE)
+```
+
+```{r}
+ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = TRUE)
+```
+
+## Dose (count)
+
+Full Model 
+
+```{r, echo = FALSE}
+
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose <- glm(effect_10 ~ logdose.particles.mL.master*size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose)
+
+ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = FALSE)
+
+```
+## Dose (Surface Area)
+
+Full Model 
+
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.surface.area.um2.mL.master, size.length.um.used.for.conversions)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose_SA <- glm(effect_10 ~ logdose.surface.area.um2.mL.master * size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose_SA)
+
+ggPredict(m1_crust_model_dose_SA,colorn=700,jitter=FALSE, interactive = FALSE)
+```
+
+## Combo Dose Predictors
+
+Full Model 
+
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>%
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.surface.area.um2.mL.master, logdose.um3.mL.master)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_dose <- glm(effect_10 ~ logdose.surface.area.um2.mL.master , data = m1_crust,
+                           na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_dose)
+
+ggPredict(m1_crust_model_dose,colorn=700,jitter=FALSE, interactive = FALSE)
+```
+
+
+```{r}
+require(ggiraphExtra)
+#Plots
+ggPredict(m1_crust_model_dose,colorn=100,jitter=FALSE, interactive = TRUE)
+```
+
+```{r eval=FALSE, include=FALSE}
+#alternative method using ggpredict
+require(ggeffects)
+require(ggdark)
+require(ggsci)
+ggpredict(m1_crust_model_dose)
+df <- ggpredict(m1_crust_model_dose, se = TRUE)
+df <- ggpredict(m1_crust_model_dose_SA,terms=c("logdose.surface.area.um2.mL.master", "size.length.um.used.for.conversions"))
+
+#note that faceting works best with discrete variable as interactive term
+ggplot(df, aes(x = x, y = predicted, colour = group)) +
+  geom_line() +
+  geom_ribbon( aes(ymin = conf.low, ymax = conf.high, fill = group, color = NULL), alpha = .15) +
+  facet_wrap(~.) +
+  dark_theme_bw() +
+  scale_color_tron()
+```
+
+```{r eval=FALSE, include=FALSE}
+#alt method
+plot(df, facet = TRUE)
+```
+
+
+## Polymers
+
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+poly <- aoc_setup %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>%
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    ))
+ # filter(acute.chronic_f == "Acute") %>% 
+  #dplyr::select(c(effect_10, logdose.surface.area.um2.mL.master, max.size.ingest.mm, logdose.um3.mL.master)) %>% 
+  #drop_na()
+
+#Fit the full model
+poly_glm <- glm(effect_10 ~ logdose.surface.area.um2.mL.master + poly_f, data = poly, na.action = "na.exclude", family = "binomial")
+
+summary(poly_glm)
+
+ggPredict(poly_glm,colorn=700,jitter=FALSE, interactive = FALSE)
+```
+
+## Discrete predictor and dose
+```{r, echo = FALSE}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup_select %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, size_f)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_discrete <- glm(effect_10 ~ logdose.mg.L.master * size_f, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_discrete)
+```
+Plotted below.
+```{r}
+discrete <- ggpredict(m1_crust_model_discrete,terms = c("logdose.mg.L.master", "size_f"))
+plot(discrete, facet = TRUE, add.data = TRUE,# colors = "quadro",
+     alpha = 0.2, dodge = 0.2)
+     #title = "All Aquatic Organisms")
+```
+#### Acute only crustacea
+```{r, echo = FALSE}
+require(arm) #bayesglm()
+#Select the columns that we want to feed into the model for simplicity
+m1_crust_acute <- aoc_setup %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(bio.org == "organism") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  filter(!effect_f == "NA") %>% 
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>% 
+   mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, 
+                  logdose.mg.L.master, 
+                  logdose.particles.mL.master, 
+                  size_f)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_acute_model_discrete <- glm(effect_10 ~ 
+                                      logdose.mg.L.master * size_f  + 
+                                       logdose.particles.mL.master * size_f, 
+                                     data = m1_crust_acute, 
+                                     na.action = "na.exclude", 
+                                     family = "binomial"#,
+                                     #glm.control(maxit = 50)
+                                     )
+
+summary(m1_crust_acute_model_discrete)
+```
+The above glm is visualized below.
+```{r}
+acute_discrete <- ggpredict(m1_crust_acute_model_discrete,terms = c(#"logdose.mg.L.master", 
+                                                                    "logdose.particles.mL.master",
+                                                                    "size_f")) #ensure discrete factor is second
+plot(acute_discrete)#, facet = TRUE, add.data = TRUE)
+```
+
+#### Alt Method using GG Plot
+This approach achieves a similiar product as using the ggPredict() function, except it relies on ggplot(), which is more malleable and transparent. The general steps are to first create a new dataframe over 1000 values of size using expand.grid() then use predict() and plot() with geom_line() and colour=size.
+```{r eval=FALSE, include=FALSE}
+require(viridis)
+#filtered dataset
+#m1_crust
+#model
+#summary(m1_crust_model_dose )
+#generate distribution of data
+mockData <- expand.grid(size.length.um.used.for.conversions = seq(0.034, 5000, 1),
+            logdose.particles.mL.master = seq(-4.195, 12.650,0.1))
+
+mockData$effect_10 <- predict(m1_crust_model_dose,
+                     mockData,
+                     type = "response")
+#plot
+mockData %>% 
+  ggplot(aes(x = logdose.particles.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  scale_color_gradientn(colors = topo.colors(7)) +
+  #scale_color_viridis_c(option = "A") +
+  dark_theme_bw()
+```
+
+
+## Survival package
+### Cumulative Hazard by Time
+```{r}
+#include time
+m1_crust <- aoc_setup %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+  filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>% 
+  mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, size_f, exposure.duration.d)) %>% 
+  drop_na()
+
+require(survival)
+survival <- survival::coxph(survival::Surv(exposure.duration.d, effect_10) ~ logdose.mg.L.master + size_f, data = m1_crust)
+#cumulative hazard
+cumHaz <- ggpredict(survival,terms = c("logdose.mg.L.master", "size_f"), type = "cumhaz")
+plot(cumHaz, facet = TRUE, add.data = TRUE, colors = "flat")
+```
+### Probability of Survival by Time
+
+```{r}
+#survival probability over time
+pr <- ggpredict(survival, c("logdose.mg.L.master", "size_f"), type = "surv")
+plot(pr, colors = "social")
+```
+```{r}
+crust_duration_size_mass <- glm(effect_10 ~ (logdose.mg.L.master + size_f + exposure.duration.d) ^ 2,
+                                     data = m1_crust, 
+                                     na.action = "na.exclude", 
+                                     family = "binomial"#,
+                                     #glm.control(maxit = 50)
+                                     )
+
+summary(crust_duration_size_mass)
+```
+# Manuscript Figures
+## Particles
+```{r}
+#Select the columns that we want to feed into the model for simplicity
+m1_crust <- aoc_setup %>% 
+  filter(tech.tier.zero == "Pass") %>% 
+  filter(!effect_f == "NA") %>% 
+  #filter(effect.metric == c("HONEC", "LOEC", "NOEC")) %>% 
+  #filter(organism.group == "Crustacea") %>% 
+  filter(!acute.chronic_f == "Unavailable") %>% 
+ # filter(bio.org == "organism") %>% 
+  filter(!environment == "Terrestrial") %>% 
+#  filter(lvl1_f == "Fitness") %>% 
+  filter(!size_f == "Not Reported") %>% 
+  mutate(logdose.mg.L.master = log10(dose.mg.L.master)) %>%
+  mutate(logdose.particles.mL.master = log10(dose.particles.mL.master)) %>%
+  mutate(logdose.um3.mL.master = log10(dose.um3.mL.master)) %>%
+  mutate(logdose.surface.area.um2.mL.master = log10(dose.surface.area.um2.mL.master)) %>% 
+ # filter(acute.chronic_f == "Acute") %>% 
+   mutate(effect_10 = case_when( #convert ordinal to numeric
+      effect == "Y" ~ 1,
+      effect == "N" ~ 0
+    )) %>% 
+  dplyr::select(c(effect_10, logdose.mg.L.master, logdose.particles.mL.master, logdose.um3.mL.master, logdose.surface.area.um2.mL.master, size.length.um.used.for.conversions, Species, doi)) %>% 
+  drop_na()
+
+#Fit the full model
+m1_crust_model_particles <- glm(effect_10 ~ logdose.particles.mL.master*size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_particles)
+```
+```{r}
+ggPredict(m1_crust_model_particles,colorn=900,jitter=FALSE, interactive = FALSE)
+```
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.particles.mL.master)
+dose_U <-max(m1_crust$logdose.particles.mL.master)
+
+mockData_particles <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.particles.mL.master = seq(dose_L, dose_U, 0.1))
+
+mockData_particles$effect_10 <- predict(m1_crust_model_particles,
+                     mockData_particles,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_particles <- mockData_particles %>% 
+  ggplot(aes(x = logdose.particles.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+  xlab("log10(Particles/mL)") +
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
+
+glm_particles
+```
+
+
+## Mass
+```{r}
+
+#Fit the full model
+m1_crust_model_mass <- glm(effect_10 ~ logdose.mg.L.master * size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_mass)
+```
+
+```{r}
+ggPredict(m1_crust_model_mass,colorn=300,jitter=FALSE, interactive = FALSE)
+```
+
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.mg.L.master)
+dose_U <-max(m1_crust$logdose.mg.L.master)
+
+mockData_mass <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.mg.L.master = seq(dose_L, dose_U, 0.1))
+
+mockData_mass$effect_10 <- predict(m1_crust_model_mass,
+                     mockData_mass,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_mass <- mockData_mass %>% 
+  ggplot(aes(x = logdose.mg.L.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+  xlab("log10(mg/L)") +
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
+
+glm_mass
+```
+
+## Volume
+```{r}
+#Fit the full model
+m1_crust_model_volume <- glm(effect_10 ~ logdose.um3.mL.master * size.length.um.used.for.conversions, data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_volume)
+```
+
+```{r}
+ggPredict(m1_crust_model_volume,colorn=300,jitter=FALSE, interactive = FALSE)
+```
+
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.um3.mL.master)
+dose_U <-max(m1_crust$logdose.um3.mL.master)
+
+mockData_volume <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.um3.mL.master = seq(dose_L, dose_U, 0.1))
+
+mockData_volume$effect_10 <- predict(m1_crust_model_volume,
+                     mockData_volume,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_volume <- mockData_volume %>% 
+  ggplot(aes(x = logdose.um3.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+   xlab(expression(log10 ~ (mu * m ^ 3 / mL))) +
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
+
+glm_volume
+```
+
+
+## surface_area
+```{r}
+#Fit the full model
+m1_crust_model_surface_area <- glm(effect_10 ~ logdose.surface.area.um2.mL.master * size.length.um.used.for.conversions, 
+                                   data = m1_crust, na.action = "na.exclude", family = "binomial")
+
+summary(m1_crust_model_surface_area)
+```
+
+```{r}
+ggPredict(m1_crust_model_surface_area,colorn=300,jitter=FALSE, interactive = FALSE)
+```
+
+### Ggplot
+```{r}
+size_L <- min(m1_crust$size.length.um.used.for.conversions)
+size_U <- max(m1_crust$size.length.um.used.for.conversions)
+dose_L <-min(m1_crust$logdose.surface.area.um2.mL.master)
+dose_U <-max(m1_crust$logdose.surface.area.um2.mL.master)
+
+mockData_surface_area <- expand.grid(size.length.um.used.for.conversions = seq(size_L, size_U, 1),
+            logdose.surface.area.um2.mL.master = seq(dose_L, dose_U, 0.1))
+
+mockData_surface_area$effect_10 <- predict(m1_crust_model_surface_area,
+                     mockData_surface_area,
+                     type = "response")
+```
+
+```{r}
+#plot
+glm_surface_area <- mockData_surface_area %>% 
+  ggplot(aes(x = logdose.surface.area.um2.mL.master, 
+             y = effect_10, 
+             color = size.length.um.used.for.conversions)) +
+  geom_line() +
+  geom_point() +
+  scale_color_gradient(name = "Particle Length (μm)",
+                        low = "#132B43",
+                       high = "#56B1F7",
+                       n.breaks = 5) +
+  xlab(expression(log10 ~ (mu * m ^ 2 / mL))) +
+  ylab("Toxic Prob.") +
+  #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
+  theme_bw() +
+  theme(axis.title.y = element_text(size = 10))
+
+glm_surface_area
+```
+
+# Manuscript Figure GLM Plots
+```{r}
+require(ggpubr)
+
+dose_GLMs <- ggarrange(glm_particles, glm_mass,
+                       glm_volume, glm_surface_area,
+                       # labels = c("A", "B", "C", "D"), 
+                       common.legend = TRUE,
+                        legend = "bottom",
+                        ncol = 2, nrow = 2)
+
+plot(dose_GLMs)
+
+ggsave(plot = dose_GLMs,
+       filename = "dose_GLMs.jpeg",
+       path = "./teamXfigures/", 
+       width = 12, height = 12, units = "in",
+       dpi = 900)
+```
+### Summaries
+```{r}
+glms <- list(m1_crust_model_mass, m1_crust_model_particles, m1_crust_model_volume, m1_crust_model_surface_area)
+
+lapply(glms, summary)
+```
+
+
+
+## send to Win as a postcard
+```{r}
+# title <- "Microplastics Toxicity by Size and Dose Metric"
+# 
+# # Create a text grob
+# tgrob <- text_grob(title,size = 14)
+# # Draw the text
+# plot_0 <- as_ggplot(tgrob) + theme(plot.margin = margin(0,3,0,0, "cm"))
+# 
+# 
+# dose_GLMs <- ggarrange(plot_0, NULL,
+#                        glm_particles, glm_mass,
+#                        glm_volume, glm_surface_area,
+#                         #labels = c("A", "B", "C", "D"), common.legend = TRUE,
+#                         legend = "bottom",
+#                         ncol = 2, nrow = 3)
+
+postcard <- annotate_figure(dose_GLMs, 
+                top = text_grob("Microplastics Toxicity by Size and Dose Metric",
+                                           face = "bold", size = 14),
+                bottom = text_grob("Aquatic organisms (n = 3,371; 103 studies; 73 species)",
+                                   #Scott Coffin, Ph.D.", 
+                                   color = "blue", face = "italic", size = 6,
+                                   hjust = 1, x = 1
+                                   ))
+
+library(ggirl)
+contact_email <- "scoffincheyenne@gmail.com"
+
+send_address_1 <- address(name = "Win Cowger", address_line_1 = "3381 Cambria Ct.",
+                          city = "Riverside", state = "CA",
+                          postal_code = "92501", country = "US")
+
+message_1 <- "Dr. Cowger - may this ggplot provide humility, awe, and a reminder of who is the best microplastics scientist in California :)"
+
+ggpostcard(postcard, contact_email, messages = message_1, send_addresses = send_address_1)
+```
+
