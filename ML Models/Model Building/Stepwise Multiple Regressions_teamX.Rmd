@@ -790,7 +790,7 @@ glm_particles <- mockData_particles %>%
   xlab("log10(Particles/mL)") +
   ylab("Toxic Prob.") +
   #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw() +
+  theme_bw(base_size = 15) +
   theme(axis.title.y = element_text(size = 10))
 
 glm_particles
@@ -840,7 +840,7 @@ glm_mass <- mockData_mass %>%
   xlab("log10(mg/L)") +
   ylab("Toxic Prob.") +
   #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw() +
+  theme_bw(base_size = 15) +
   theme(axis.title.y = element_text(size = 10))
 
 glm_mass
@@ -888,7 +888,7 @@ glm_volume <- mockData_volume %>%
    xlab(expression(log10 ~ (mu * m ^ 3 / mL))) +
   ylab("Toxic Prob.") +
   #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw() +
+  theme_bw(base_size = 15) +
   theme(axis.title.y = element_text(size = 10))
 
 glm_volume
@@ -938,7 +938,7 @@ glm_surface_area <- mockData_surface_area %>%
   xlab(expression(log10 ~ (mu * m ^ 2 / mL))) +
   ylab("Toxic Prob.") +
   #ylab("Probability of Toxic Effect (Relative to Negative Control)") +
-  theme_bw() +
+  theme_bw(base_size = 15) +
   theme(axis.title.y = element_text(size = 10))
 
 glm_surface_area
@@ -960,8 +960,8 @@ plot(dose_GLMs)
 ggsave(plot = dose_GLMs,
        filename = "dose_GLMs.jpeg",
        path = "./teamXfigures/", 
-       width = 12, height = 12, units = "in",
-       dpi = 900)
+       width = 8, height = 8, units = "in",
+       dpi = 300)
 ```
 ### Summaries
 ```{r}
@@ -973,7 +973,7 @@ lapply(glms, summary)
 
 
 ## send to Win as a postcard
-```{r}
+```{r eval=FALSE, include=FALSE}
 # title <- "Microplastics Toxicity by Size and Dose Metric"
 # 
 # # Create a text grob
