@@ -352,7 +352,7 @@ my.formula <- y ~ x
 
 # long data
 long_time <- aoc_final %>% 
-  dplyr::select(c(year, risk.quality, technical.quality#, total.quality
+  dplyr::select(c(year, risk.quality, technical.quality, total.quality
                   )) %>% 
   mutate(year_date = lubridate::ymd(year, truncated = 2L)) %>% 
   pivot_longer(cols = -c(year_date, year), names_to = "quality_type", values_to = "score")
@@ -366,15 +366,17 @@ scatterplot <- long_time %>%
                 aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "~~~")), 
                 parse = TRUE) +         
  # geom_rug(position=position_jitterdodge(), alpha = 0.5) +
-  ylab("Quality Score (Max Possible = 24)") +
+  ylab("Score") +
   scale_x_date(name = "Year of Publication",
                labels = date_format("%Y"),
                date_breaks = "1 year",
                limits = as.Date(c("2012-01-01", "2020-07-01"))) +
-  scale_color_aaas(labels = c("Risk Quality Score", "Technical Quality Score")) +
-  scale_fill_aaas(labels = c("Risk Quality Score", "Technical Quality Score")) +
+  scale_color_aaas(labels = c("Risk Applicability", "Technical Quality", "Total Accumulated Score")) +
+  scale_y_continuous(limits = c(0,40)) +
+  scale_fill_aaas(labels = c("Risk Applicability", "Technical Quality", "Total Accumulated Score")) +
   theme_bw(base_size = 18) +
-  theme(legend.position=c(0.86,0.999999999),legend.justification=c(1,1),
+  theme(legend.position=c(0.85,1),legend.justification=c(1,1),
+        legend.text = element_text(size = 13),
         legend.key = element_blank(),
         legend.background = element_blank(),
         axis.title.x = element_blank(),
