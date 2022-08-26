@@ -508,6 +508,12 @@ sensitivity <- globalData %>%
          conc.minus3 = unaligned.particle.L.master * minus3SD)
 ```
 
+###### PRINT OUT DATA
+```{r}
+sensitivity
+```
+
+
 ##### Compare to thresholds
 ```{r}
 sensitivity.analysis <- sensitivity %>% 

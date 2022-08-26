@@ -52,7 +52,8 @@ large_tier_upper_size <- 5000 #um
 ```{r Aesthetics, include = FALSE}
 
 #Theme
-theme.type <- theme_bw(base_size = 15) +
+theme.type <- dark_theme_bw(base_size = 15) +
+  #theme_bw(base_size = 15) +
               theme(plot.title = element_text(hjust = 0.5),
                     plot.subtitle = element_text(hjust = 0.5))
 
@@ -4266,6 +4267,11 @@ ggsave(filename = "SSD_Figure_Fig2.tiff",
        path = "./Concentration data/Threshold_Manuscript_Figs/", 
        plot = SSD_Figure, width = 14, height = 12, units = "in")
 
+```
+```{r}
+ggsave(filename = "FoodDilution_Tier3_4_SSD.jpeg",
+       path = "./Concentration data/Threshold_Manuscript_Figs/", 
+       plot = FoodDilution_Tier3_4_SSD, width = 14, height = 12, units = "in")
 ```
 
 

@@ -366,28 +366,44 @@ scatterplot <- long_time %>%
                 aes(label = paste(..eq.label.., ..rr.label.., ..p.value.label.., sep = "~~~")), 
                 parse = TRUE) +         
  # geom_rug(position=position_jitterdodge(), alpha = 0.5) +
-  scale_x_date(labels = date_format("%Y"),
+  ylab("Quality Score (Max Possible = 24)") +
+  scale_x_date(name = "Year of Publication",
+               labels = date_format("%Y"),
                date_breaks = "1 year",
                limits = as.Date(c("2012-01-01", "2020-07-01"))) +
   scale_color_aaas(labels = c("Risk Quality Score", "Technical Quality Score")) +
   scale_fill_aaas(labels = c("Risk Quality Score", "Technical Quality Score")) +
-  theme.type +
-  theme(legend.position=c(0.63,0.98),legend.justification=c(1,1),
+  theme_bw(base_size = 18) +
+  theme(legend.position=c(0.86,0.999999999),legend.justification=c(1,1),
+        legend.key = element_blank(),
+        legend.background = element_blank(),
         axis.title.x = element_blank(),
         legend.title = element_blank()) 
 
-#marginal density plot of x - plot on bnottom
-plot_bottom <- long_time %>%
+####marginal density plot of x - plot on bnottom ##
+# Collapse number per year #
+year_group <- aoc_final %>% 
+  dplyr::select(c(year, doi)) %>% 
+  group_by(year) %>% 
+  summarize(number = n_distinct(doi)) %>% 
+  mutate(year_date = lubridate::ymd(year, truncated = 2L))
+
+### PLOT ##
+plot_bottom <- year_group %>%
   ggplot(aes(x = year_date)) +
-  geom_bar() +
+  geom_col(aes(y = number)) +
   #geom_density() +
-  scale_x_date(labels = date_format("%Y"),
+  scale_x_date(name = "Year of Publication",
+                 labels = date_format("%Y"),
                date_breaks = "1 year",
                limits = as.Date(c("2012-01-01", "2020-7-1"))) +
-  ylab("Study Frequency") +
-  theme.type +
-  theme(axis.title.x = element_blank(),
-        axis.text.y = element_blank())
+  ylab("Frequency") +
+  scale_y_continuous(breaks = c(0,15,30,45)) +
+  theme_bw(base_size = 18) +
+                  #     dark_theme_bw(base_size = 15) +
+                    theme(plot.title = element_text(hjust = 0.5),
+                    plot.subtitle = element_text(hjust = 0.5)) +
+  theme(axis.title.x = element_blank())
 
 quality_time <- grid.arrange(scatterplot,
              #empty, 
@@ -399,7 +415,7 @@ quality_time <- grid.arrange(scatterplot,
 ggsave(plot = quality_time,
        filename = "quality_time.jpeg",
        path = "output/figures/", 
-       width = 10, height = 8, units = "in",
+       width = 8, height = 6, units = "in",
        bg = "white",
        dpi = 300)
 
