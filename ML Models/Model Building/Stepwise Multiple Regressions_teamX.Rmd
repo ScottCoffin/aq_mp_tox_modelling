@@ -748,6 +748,18 @@ summary(m1_crust_model_particles)
 ```{r}
 ggPredict(m1_crust_model_particles,colorn=900,jitter=FALSE, interactive = FALSE)
 ```
+
+```{r}
+
+data_export <- m1_crust %>% 
+  rev() %>% 
+  rename("DOI" = doi, "Size (µm)" = size.length.um.used.for.conversions, "Surface Area (µm^2/mL) (log transformed)" = logdose.surface.area.um2.mL.master, "Volume (µm^3/mL) (log transformed)" = logdose.um3.mL.master, "Mass (mg/L) (log transformed)" = logdose.mg.L.master, "Count (particles/mL) (log transformed)" = logdose.particles.mL.master, "Effect" = effect_10)
+
+write.csv(data_export, file = "GLM_Data.csv")
+
+```
+
+
 ### Ggplot
 ```{r}
 size_L <- min(m1_crust$size.length.um.used.for.conversions)
