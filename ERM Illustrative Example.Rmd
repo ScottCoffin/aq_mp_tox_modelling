@@ -1,24 +1,34 @@
 ---
-title: "ERM Illustrative Example"
-author: "Scott Coffin"
-date: "9/1/2021"
+title: "Aligning Microplastics Toxicity Data using Ecologically Relevant Metrics - An Illustrative Example"
+author: "Scott Coffin, Ph.D."
+date: "01/09/2024"
 output:
-  html_document: default
-  word_document: default
+  html_document:
+    code_folding: hide
+    theme: sandstone
+    toc: yes
+    toc_float: yes
+    toc_depth: 4
+    number_sections: true
+  word_document:
+    toc: yes
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE)
 ```
 
-```{r}
+```{r, include= FALSE}
 library(tidyverse)
 library(gt)
 ```
 
+#Introduction
+ToMEx can perform alignments of microplastics toxicity data based on ecologically relevant metrics - a concept first introduced in [Koelmans et al. (2020)](https://pubs.acs.org/doi/10.1021/acs.est.0c02982). These alignments are critical to effectively comparing hazard studies that use different distributions of sizes, shapes, and densities of particles than those occurring in the environment (which is effectively always the case). For more on this topic, please refer to [Mehinto et al. (2022)](https://microplastics.springeropen.com/articles/10.1186/s43591-022-00033-3) and [Koelmans et al. (2022)](https://www.nature.com/articles/s41578-021-00411-y).
+
 
 # Illustrative Example
-## Re-scaling effect concentrations according to Ecological Relevent Metrics (ERMs)
+## Re-scaling effect concentrations according to Ecologically Relevent Metrics (ERMs)
 ### Particles
 A monodisperse effect concentration (e.g. 10 micron polyethylene fragments) may be re-scaled to a default size range (e.g. 1 - 5,000 microns) using methods described in Kooi et al (2021). Re-scaling to a default size range allows direct comparison to exposure concentrations for a default size range (which may also be re-scaled). 
 
@@ -474,7 +484,7 @@ gt(risk) %>%
   tab_header(title = "1-5,000 um Thresholds (Aligned) Compared to Environmental Concentration
              (4,703 particles/L)", 
              subtitle = "Thresholds presented in particles/L") %>% 
-  fmt_number(columns = vars(EC_env, 'PNEC/PEC'),
+  fmt_number(columns = c(EC_env, 'PNEC/PEC'),
              n_sigfig = 2,
              use_seps = TRUE) %>% 
     data_color(
@@ -489,4 +499,4 @@ gt(risk) %>%
 
 In this case, the environmental concentration is nearly 5x lower than the effect threshold for particles, so exceedance of a NOEC for this particular endpoint/species (i.e. mortality,*C.Daphnia*) would not be expected to occur for that ERM. However, in the case of specific surface area as an ERM, risk is exceeded by a factor of 1.32.
 
-The above approach used for particles as an ecologically relevent metric may be applied for any other ecologically relevent metric for which particle distributions are characterized in the environmental compartment of interest. Below are proofs for additional ERM, including surface area, volume, mass, and specific surface area.
+The above approach used for particles as an ecologically relevant metric may be applied for any other ecologically relevant metric for which particle distributions are characterized in the environmental compartment of interest. Below are proofs for additional ERM, including surface area, volume, mass, and specific surface area.
